@@ -120,6 +120,9 @@ spdk_nvmf_transport_poll_group_create(struct spdk_nvmf_transport *transport)
 	struct spdk_nvmf_transport_poll_group *group;
 
 	group = transport->ops->poll_group_create(transport);
+	if (!group) {
+		return NULL;
+	}
 	group->transport = transport;
 
 	return group;

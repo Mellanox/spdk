@@ -47,6 +47,8 @@ function usage()
 	echo "                           No path required."
 	echo " rdma                      [disabled]"
 	echo "                           No path required."
+	echo " rdma-srq                  [disabled]"
+	echo "                           No path required."
 	echo " iscsi-initiator           [disabled]"
 	echo "                           No path required."
 	echo " raid                      [disabled]"
@@ -150,6 +152,12 @@ for i in "$@"; do
 			;;
 		--without-rdma)
 			CONFIG_RDMA=n
+			;;
+		--with-rdma-srq)
+			CONFIG_RDMA_SRQ=y
+			;;
+		--without-rdma-srq)
+			CONFIG_RDMA_SRQ=n
 			;;
 		--with-iscsi-initiator)
 			CONFIG_ISCSI_INITIATOR=y
@@ -329,6 +337,9 @@ if [ -n "$FIO_SOURCE_DIR" ]; then
 fi
 if [ -n "$CONFIG_RDMA" ]; then
 	echo "CONFIG_RDMA?=$CONFIG_RDMA" >> CONFIG.local
+fi
+if [ -n "$CONFIG_RDMA_SRQ" ]; then
+	echo "CONFIG_RDMA_SRQ?=$CONFIG_RDMA_SRQ" >> CONFIG.local
 fi
 if [ -n "$CONFIG_ISCSI_INITIATOR" ]; then
 	echo "CONFIG_ISCSI_INITIATOR?=$CONFIG_ISCSI_INITIATOR" >> CONFIG.local
