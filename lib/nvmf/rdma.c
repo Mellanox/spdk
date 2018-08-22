@@ -448,7 +448,6 @@ spdk_nvmf_rdma_qpair_destroy(struct spdk_nvmf_rdma_qpair *rqpair)
 	}
 #endif
 	if (rqpair->cm_id) {
-		SPDK_ERRLOG("Destroying RDMA qp %u\n", rqpair->cm_id->qp->qp_num);
 		rdma_destroy_qp(rqpair->cm_id);
 		rdma_destroy_id(rqpair->cm_id);
 	}
@@ -507,7 +506,6 @@ spdk_nvmf_rdma_qpair_initialize(struct spdk_nvmf_qpair *qpair)
 	}
 
 	SPDK_DEBUGLOG(SPDK_LOG_RDMA, "New RDMA Connection: %p\n", qpair);
-	SPDK_ERRLOG("New RDMA qp %u\n", rqpair->cm_id->qp->qp_num);
 
 #ifndef SPDK_CONFIG_RDMA_SRQ
 	rqpair->reqs = calloc(rqpair->max_queue_depth, sizeof(*rqpair->reqs));
@@ -1964,10 +1962,6 @@ spdk_nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport)
 		srq_init_attr.srq_context = NULL;
 		srq_init_attr.attr.max_wr = poller->max_queue_depth;
 		srq_init_attr.attr.max_sge = NVMF_DEFAULT_RX_SGE;
-		SPDK_ERRLOG("Trying to create SRQ: max_wr %u, max_sge %u, srq_limit %u\n",
-			    srq_init_attr.attr.max_wr,
-			    srq_init_attr.attr.max_sge,
-			    srq_init_attr.attr.srq_limit);
 		poller->srq = ibv_create_srq(device->pd, &srq_init_attr);
 		if (!poller->srq) {
 			SPDK_ERRLOG("Unable to create shared receive queue, errno %d\n", errno);
@@ -1977,10 +1971,11 @@ spdk_nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport)
 			pthread_mutex_unlock(&rtransport->lock);
 			return NULL;
 		}
-		SPDK_ERRLOG("Created RDMA SRQ: max_wr %u, max_sge %u, srq_limit %u\n",
-			    srq_init_attr.attr.max_wr,
-			    srq_init_attr.attr.max_sge,
-			    srq_init_attr.attr.srq_limit);
+		SPDK_DEBUGLOG(SPDK_LOG_RDMA, "Created RDMA SRQ %p: max_wr %u, max_sge %u, srq_limit %u\n",
+			      poller->srq,
+			      srq_init_attr.attr.max_wr,
+			      srq_init_attr.attr.max_sge,
+			      srq_init_attr.attr.srq_limit);
 
 		poller->reqs = calloc(poller->max_queue_depth, sizeof(*poller->reqs));
 		poller->recvs = calloc(poller->max_queue_depth, sizeof(*poller->recvs));
@@ -1998,6 +1993,7 @@ spdk_nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport)
 		    !poller->cpls || (rtransport->in_capsule_data_size && !poller->bufs)) {
 			SPDK_ERRLOG("Unable to allocate sufficient memory for RDMA shared queue.\n");
 			/* @todo: handle error, spdk_nvmf_rdma_qpair_destroy(rqpair); */
+			pthread_mutex_unlock(&rtransport->lock);
 			return NULL;
 		}
 
@@ -2019,6 +2015,7 @@ spdk_nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport)
 							     !poller->bufs_mr)) {
 			SPDK_ERRLOG("Unable to register required memory for RDMA shared queue.\n");
 			/* @todo: handle error, spdk_nvmf_rdma_qpair_destroy(rqpair); */
+			pthread_mutex_unlock(&rtransport->lock);
 			return NULL;
 		}
 		SPDK_DEBUGLOG(SPDK_LOG_RDMA, "Command Array: %p Length: %lx LKey: %x\n",
@@ -2064,6 +2061,7 @@ spdk_nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport)
 			if (rc) {
 				SPDK_ERRLOG("Unable to post capsule for RDMA RECV\n");
 				/* @todo: handle error, spdk_nvmf_rdma_qpair_destroy(rqpair); */
+				pthread_mutex_unlock(&rtransport->lock);
 				return NULL;
 			}
 		}
@@ -2137,8 +2135,8 @@ spdk_nvmf_rdma_poll_group_destroy(struct spdk_nvmf_transport_poll_group *group)
 		}
 
 		if (poller->srq) {
-			SPDK_ERRLOG("Destroying RDMA shared queue\n");
 			ibv_destroy_srq(poller->srq);
+			SPDK_DEBUGLOG(SPDK_LOG_RDMA, "Destroyed RDMA shared queue %p\n", poller->srq);
 		}
 
 		/* Free all memory */
@@ -2283,7 +2281,6 @@ spdk_nvmf_rdma_close_qpair(struct spdk_nvmf_qpair *qpair)
 	spdk_nvmf_rdma_qpair_destroy(SPDK_CONTAINEROF(qpair, struct spdk_nvmf_rdma_qpair, qpair));
 }
 
-
 static void
 spdk_nvmf_rdma_qpair_process_pending(struct spdk_nvmf_rdma_transport *rtransport,
 				     struct spdk_nvmf_rdma_qpair *rqpair)
@@ -2346,6 +2343,7 @@ static struct spdk_nvmf_rdma_qpair*
 get_rdma_qpair_from_wc(struct spdk_nvmf_rdma_poller *rpoller, struct ibv_wc *wc)
 {
 	struct spdk_nvmf_rdma_qpair* rqpair;
+	/* @todo: improve QP search */
 	TAILQ_FOREACH(rqpair, &rpoller->qpairs, link) {
 		if (wc->qp_num == rqpair->cm_id->qp->qp_num) {
 			return rqpair;
@@ -2480,8 +2478,6 @@ spdk_nvmf_rdma_poller_poll(struct spdk_nvmf_rdma_transport *rtransport,
 #else
 			TAILQ_INSERT_TAIL(&rpoller->incoming_queue, rdma_recv, link);
 #endif
-			/*SPDK_ERRLOG("Received command on the CQ: wc.qp_num %u, qp.qp_num %u\n",
-			  wc[i].qp_num, rqpair->cm_id->qp->qp_num);*/
 
 			/* Try to process other queued requests */
 			spdk_nvmf_rdma_qpair_process_pending(rtransport, rqpair);
