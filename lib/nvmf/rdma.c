@@ -1150,7 +1150,7 @@ spdk_nvmf_rdma_cur_queue_depth(struct spdk_nvmf_rdma_qpair *rqpair)
 {
 #ifndef SPDK_CONFIG_RDMA_SRQ
 	return rqpair->max_queue_depth -
-	       [RDMA_REQUEST_STATE_FREE];
+	       rqpair->state_cntr[RDMA_REQUEST_STATE_FREE];
 #else
 	int i, sum = 0;
 	for (i = RDMA_REQUEST_STATE_FREE; i < RDMA_REQUEST_NUM_STATES; i++) {
@@ -2480,8 +2480,8 @@ spdk_nvmf_rdma_poller_poll(struct spdk_nvmf_rdma_transport *rtransport,
 #else
 			TAILQ_INSERT_TAIL(&rpoller->incoming_queue, rdma_recv, link);
 #endif
-			SPDK_ERRLOG("Received command on the CQ: wc.qp_num %u, qp.qp_num %u\n",
-				    wc[i].qp_num, rqpair->cm_id->qp->qp_num);
+			/*SPDK_ERRLOG("Received command on the CQ: wc.qp_num %u, qp.qp_num %u\n",
+			  wc[i].qp_num, rqpair->cm_id->qp->qp_num);*/
 
 			/* Try to process other queued requests */
 			spdk_nvmf_rdma_qpair_process_pending(rtransport, rqpair);
