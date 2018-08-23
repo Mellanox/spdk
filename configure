@@ -46,7 +46,7 @@ function usage()
 	echo " rbd                       [disabled]"
 	echo "                           No path required."
 	echo " rdma                      [disabled]"
-	echo "                           No path required."
+	echo "                           Path to RDMA library build/install directory may be optionally specified. If no path has been provided system libraries will be used."
 	echo " rdma-srq                  [disabled]"
 	echo "                           No path required."
 	echo " iscsi-initiator           [disabled]"
@@ -150,8 +150,14 @@ for i in "$@"; do
 		--with-rdma)
 			CONFIG_RDMA=y
 			;;
+		--with-rdma=*)
+			CONFIG_RDMA=y
+			check_dir "$i"
+			RDMA_SOURCE_DIR=$(readlink -f ${i#*=})
+			;;
 		--without-rdma)
 			CONFIG_RDMA=n
+			RDMA_SOURCE_DIR=
 			;;
 		--with-rdma-srq)
 			CONFIG_RDMA_SRQ=y
@@ -337,6 +343,9 @@ if [ -n "$FIO_SOURCE_DIR" ]; then
 fi
 if [ -n "$CONFIG_RDMA" ]; then
 	echo "CONFIG_RDMA?=$CONFIG_RDMA" >> CONFIG.local
+fi
+if [ -n "$RDMA_SOURCE_DIR" ]; then
+	echo "RDMA_SOURCE_DIR?=$RDMA_SOURCE_DIR" >> CONFIG.local
 fi
 if [ -n "$CONFIG_RDMA_SRQ" ]; then
 	echo "CONFIG_RDMA_SRQ?=$CONFIG_RDMA_SRQ" >> CONFIG.local

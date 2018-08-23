@@ -125,6 +125,11 @@ LIBS += -L$(CONFIG_VPP_DIR)/lib64
 COMMON_CFLAGS += -I$(CONFIG_VPP_DIR)/include
 endif
 
+ifneq ($(RDMA_SOURCE_DIR),)
+LIBS += -L$(RDMA_SOURCE_DIR)/lib
+COMMON_CFLAGS += -I$(RDMA_SOURCE_DIR)/include
+endif
+
 #Attach only if FreeBSD and RDMA is specified with configure
 ifeq ($(OS),FreeBSD)
 ifeq ($(CONFIG_RDMA),y)
