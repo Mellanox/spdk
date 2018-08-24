@@ -1897,6 +1897,9 @@ spdk_nvmf_rdma_discover(struct spdk_nvmf_transport *transport,
 	entry->tsas.rdma.rdma_cms = SPDK_NVMF_RDMA_CMS_RDMA_CM;
 }
 
+static void
+spdk_nvmf_rdma_poll_group_destroy(struct spdk_nvmf_transport_poll_group *group);
+
 static struct spdk_nvmf_transport_poll_group *
 spdk_nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport)
 {
@@ -1935,10 +1938,12 @@ spdk_nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport)
 		poller = calloc(1, sizeof(*poller));
 		if (!poller) {
 			SPDK_ERRLOG("Unable to allocate memory for new RDMA poller\n");
-			free(rgroup);
+			spdk_nvmf_rdma_poll_group_destroy(&rgroup->group);
 			pthread_mutex_unlock(&rtransport->lock);
 			return NULL;
 		}
+
+		TAILQ_INSERT_TAIL(&rgroup->pollers, poller, link);
 
 		poller->device = device;
 		poller->group = rgroup;
@@ -1948,8 +1953,7 @@ spdk_nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport)
 		poller->cq = ibv_create_cq(device->context, NVMF_RDMA_CQ_SIZE, poller, NULL, 0);
 		if (!poller->cq) {
 			SPDK_ERRLOG("Unable to create completion queue\n");
-			free(poller);
-			free(rgroup);
+			spdk_nvmf_rdma_poll_group_destroy(&rgroup->group);
 			pthread_mutex_unlock(&rtransport->lock);
 			return NULL;
 		}
@@ -1958,16 +1962,12 @@ spdk_nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport)
 		poller->max_queue_depth = rtransport->max_queue_depth;
 
 		memset(&srq_init_attr, 0, sizeof(struct ibv_srq_init_attr));
-		/* @todo: set context to something useful */
-		srq_init_attr.srq_context = NULL;
 		srq_init_attr.attr.max_wr = poller->max_queue_depth;
 		srq_init_attr.attr.max_sge = NVMF_DEFAULT_RX_SGE;
 		poller->srq = ibv_create_srq(device->pd, &srq_init_attr);
 		if (!poller->srq) {
 			SPDK_ERRLOG("Unable to create shared receive queue, errno %d\n", errno);
-			ibv_destroy_cq(poller->cq);
-			free(poller);
-			free(rgroup);
+			spdk_nvmf_rdma_poll_group_destroy(&rgroup->group);
 			pthread_mutex_unlock(&rtransport->lock);
 			return NULL;
 		}
@@ -1992,7 +1992,7 @@ spdk_nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport)
 		if (!poller->reqs || !poller->recvs || !poller->cmds ||
 		    !poller->cpls || (rtransport->in_capsule_data_size && !poller->bufs)) {
 			SPDK_ERRLOG("Unable to allocate sufficient memory for RDMA shared queue.\n");
-			/* @todo: handle error, spdk_nvmf_rdma_qpair_destroy(rqpair); */
+			spdk_nvmf_rdma_poll_group_destroy(&rgroup->group);
 			pthread_mutex_unlock(&rtransport->lock);
 			return NULL;
 		}
@@ -2014,7 +2014,7 @@ spdk_nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport)
 		if (!poller->cmds_mr || !poller->cpls_mr || (rtransport->in_capsule_data_size &&
 							     !poller->bufs_mr)) {
 			SPDK_ERRLOG("Unable to register required memory for RDMA shared queue.\n");
-			/* @todo: handle error, spdk_nvmf_rdma_qpair_destroy(rqpair); */
+			spdk_nvmf_rdma_poll_group_destroy(&rgroup->group);
 			pthread_mutex_unlock(&rtransport->lock);
 			return NULL;
 		}
@@ -2060,7 +2060,7 @@ spdk_nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport)
 			rc = ibv_post_srq_recv(poller->srq, &rdma_recv->wr, &bad_wr);
 			if (rc) {
 				SPDK_ERRLOG("Unable to post capsule for RDMA RECV\n");
-				/* @todo: handle error, spdk_nvmf_rdma_qpair_destroy(rqpair); */
+				spdk_nvmf_rdma_poll_group_destroy(&rgroup->group);
 				pthread_mutex_unlock(&rtransport->lock);
 				return NULL;
 			}
@@ -2098,8 +2098,6 @@ spdk_nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport)
 			TAILQ_INSERT_TAIL(&poller->free_queue, rdma_req, state_link);
 		}
 #endif
-
-		TAILQ_INSERT_TAIL(&rgroup->pollers, poller, link);
 	}
 
 	pthread_mutex_unlock(&rtransport->lock);
