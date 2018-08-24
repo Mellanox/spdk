@@ -2012,7 +2012,7 @@ spdk_nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport)
 		}
 
 		if (!poller->cmds_mr || !poller->cpls_mr || (rtransport->in_capsule_data_size &&
-							     !poller->bufs_mr)) {
+				!poller->bufs_mr)) {
 			SPDK_ERRLOG("Unable to register required memory for RDMA shared queue.\n");
 			spdk_nvmf_rdma_poll_group_destroy(&rgroup->group);
 			pthread_mutex_unlock(&rtransport->lock);
@@ -2337,10 +2337,10 @@ spdk_nvmf_rdma_qpair_process_pending(struct spdk_nvmf_rdma_transport *rtransport
 }
 
 #ifdef SPDK_CONFIG_RDMA_SRQ
-static struct spdk_nvmf_rdma_qpair*
+static struct spdk_nvmf_rdma_qpair *
 get_rdma_qpair_from_wc(struct spdk_nvmf_rdma_poller *rpoller, struct ibv_wc *wc)
 {
-	struct spdk_nvmf_rdma_qpair* rqpair;
+	struct spdk_nvmf_rdma_qpair *rqpair;
 	/* @todo: improve QP search */
 	TAILQ_FOREACH(rqpair, &rpoller->qpairs, link) {
 		if (wc->qp_num == rqpair->cm_id->qp->qp_num) {
