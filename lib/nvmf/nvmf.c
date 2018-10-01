@@ -50,6 +50,7 @@
 SPDK_LOG_REGISTER_COMPONENT("nvmf", SPDK_LOG_NVMF)
 
 #define SPDK_NVMF_DEFAULT_MAX_QUEUE_DEPTH 128
+#define SPDK_NVMF_DEFAULT_MAX_SRQUEUE_DEPTH 4096
 #define SPDK_NVMF_DEFAULT_MAX_QPAIRS_PER_CTRLR 64
 #define SPDK_NVMF_DEFAULT_IN_CAPSULE_DATA_SIZE 4096
 #define SPDK_NVMF_DEFAULT_MAX_IO_SIZE 131072
@@ -67,6 +68,7 @@ void
 spdk_nvmf_tgt_opts_init(struct spdk_nvmf_tgt_opts *opts)
 {
 	opts->max_queue_depth = SPDK_NVMF_DEFAULT_MAX_QUEUE_DEPTH;
+	opts->max_srqueue_depth = SPDK_NVMF_DEFAULT_MAX_SRQUEUE_DEPTH;
 	opts->max_qpairs_per_ctrlr = SPDK_NVMF_DEFAULT_MAX_QPAIRS_PER_CTRLR;
 	opts->in_capsule_data_size = SPDK_NVMF_DEFAULT_IN_CAPSULE_DATA_SIZE;
 	opts->max_io_size = SPDK_NVMF_DEFAULT_MAX_IO_SIZE;
@@ -210,6 +212,7 @@ spdk_nvmf_tgt_create(struct spdk_nvmf_tgt_opts *opts)
 	SPDK_DEBUGLOG(SPDK_LOG_NVMF, "Max Queue Pairs Per Controller: %d\n",
 		      tgt->opts.max_qpairs_per_ctrlr);
 	SPDK_DEBUGLOG(SPDK_LOG_NVMF, "Max Queue Depth: %d\n", tgt->opts.max_queue_depth);
+	SPDK_DEBUGLOG(SPDK_LOG_NVMF, "Max Shared Receive Queue Depth: %d\n", tgt->opts.max_srqueue_depth);
 	SPDK_DEBUGLOG(SPDK_LOG_NVMF, "Max In Capsule Data: %d bytes\n",
 		      tgt->opts.in_capsule_data_size);
 	SPDK_DEBUGLOG(SPDK_LOG_NVMF, "Max I/O Size: %d bytes\n", tgt->opts.max_io_size);
@@ -392,6 +395,7 @@ spdk_nvmf_tgt_write_config_json(struct spdk_json_write_ctx *w, struct spdk_nvmf_
 
 	spdk_json_write_named_object_begin(w, "params");
 	spdk_json_write_named_uint32(w, "max_queue_depth", tgt->opts.max_queue_depth);
+	spdk_json_write_named_uint32(w, "max_srqueue_depth", tgt->opts.max_srqueue_depth);
 	spdk_json_write_named_uint32(w, "max_qpairs_per_ctrlr", tgt->opts.max_qpairs_per_ctrlr);
 	spdk_json_write_named_uint32(w, "in_capsule_data_size", tgt->opts.in_capsule_data_size);
 	spdk_json_write_named_uint32(w, "max_io_size", tgt->opts.max_io_size);

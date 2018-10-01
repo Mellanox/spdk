@@ -1564,6 +1564,7 @@ SPDK_RPC_REGISTER("nvmf_subsystem_allow_any_host", nvmf_rpc_subsystem_allow_any_
 
 static const struct spdk_json_object_decoder nvmf_rpc_subsystem_tgt_opts_decoder[] = {
 	{"max_queue_depth", offsetof(struct spdk_nvmf_tgt_opts, max_queue_depth), spdk_json_decode_uint16, true},
+	{"max_srqueue_depth", offsetof(struct spdk_nvmf_tgt_opts, max_srqueue_depth), spdk_json_decode_uint16, true},
 	{"max_qpairs_per_ctrlr", offsetof(struct spdk_nvmf_tgt_opts, max_qpairs_per_ctrlr), spdk_json_decode_uint16, true},
 	{"in_capsule_data_size", offsetof(struct spdk_nvmf_tgt_opts, in_capsule_data_size), spdk_json_decode_uint32, true},
 	{"max_io_size", offsetof(struct spdk_nvmf_tgt_opts, max_io_size), spdk_json_decode_uint32, true},

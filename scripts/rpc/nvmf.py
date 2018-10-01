@@ -2,6 +2,7 @@
 
 def set_nvmf_target_options(client,
                             max_queue_depth=None,
+                            max_srqueue_depth=None,
                             max_qpairs_per_ctrlr=None,
                             in_capsule_data_size=None,
                             max_io_size=None,
@@ -11,6 +12,7 @@ def set_nvmf_target_options(client,
 
     Args:
         max_queue_depth: Max number of outstanding I/O per queue (optional)
+        max_srqueue_depth: Max number of outstanding I/O per shared queue (optional)
         max_qpairs_per_ctrlr: Max number of SQ and CQ per controller (optional)
         in_capsule_data_size: Maximum in-capsule data size in bytes (optional)
         max_io_size: Maximum I/O data size in bytes (optional)
@@ -24,6 +26,8 @@ def set_nvmf_target_options(client,
 
     if max_queue_depth:
         params['max_queue_depth'] = max_queue_depth
+    if max_srqueue_depth:
+        params['max_srqueue_depth'] = max_srqueue_depth
     if max_qpairs_per_ctrlr:
         params['max_qpairs_per_ctrlr'] = max_qpairs_per_ctrlr
     if in_capsule_data_size:

@@ -68,6 +68,7 @@ spdk_nvmf_read_config_file_tgt_opts(struct spdk_conf_section *sp,
 				    struct spdk_nvmf_tgt_opts *opts)
 {
 	int max_queue_depth;
+	int max_srqueue_depth;
 	int max_queues_per_sess;
 	int in_capsule_data_size;
 	int max_io_size;
@@ -76,6 +77,11 @@ spdk_nvmf_read_config_file_tgt_opts(struct spdk_conf_section *sp,
 	max_queue_depth = spdk_conf_section_get_intval(sp, "MaxQueueDepth");
 	if (max_queue_depth >= 0) {
 		opts->max_queue_depth = max_queue_depth;
+	}
+
+	max_srqueue_depth = spdk_conf_section_get_intval(sp, "MaxSRQueueDepth");
+	if (max_srqueue_depth >= 0) {
+		opts->max_srqueue_depth = max_srqueue_depth;
 	}
 
 	max_queues_per_sess = spdk_conf_section_get_intval(sp, "MaxQueuesPerSession");
