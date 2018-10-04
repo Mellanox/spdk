@@ -50,6 +50,8 @@ function usage()
 	echo "                           No path required."
 	echo " rdma                      [disabled]"
 	echo "                           No path required."
+	echo " rdma-srq                  [disabled]"
+	echo "                           No path required."
 	echo " shared                    Required to build spdk shared libraries."
 	echo "                           No path required."
 	echo " iscsi-initiator           [disabled]"
@@ -158,6 +160,12 @@ for i in "$@"; do
 			;;
 		--without-rdma)
 			CONFIG_RDMA=n
+			;;
+		--with-rdma-srq)
+			CONFIG_RDMA_SRQ=y
+			;;
+		--without-rdma-srq)
+			CONFIG_RDMA_SRQ=n
 			;;
 		--with-shared)
 			CONFIG_SHARED=y
@@ -419,6 +427,9 @@ if [ -n "$CONFIG_RDMA" ]; then
 fi
 if [ -n "$CONFIG_RDMA_SEND_WITH_INVAL" ]; then
 	echo "CONFIG_RDMA_SEND_WITH_INVAL?=$CONFIG_RDMA_SEND_WITH_INVAL" >> CONFIG.local
+fi
+if [ -n "$CONFIG_RDMA_SRQ" ]; then
+	echo "CONFIG_RDMA_SRQ?=$CONFIG_RDMA_SRQ" >> CONFIG.local
 fi
 if [ -n "$CONFIG_SHARED" ]; then
 	echo "CONFIG_SHARED?=$CONFIG_SHARED" >> CONFIG.local
