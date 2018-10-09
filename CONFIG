@@ -80,8 +80,12 @@ CONFIG_FIO_SOURCE_DIR?=/usr/src/fio
 # Enable RDMA support for the NVMf target.
 # Requires ibverbs development libraries.
 CONFIG_RDMA?=n
+CONFIG_RDMA_DIR?=
 CONFIG_RDMA_SRQ?=n
 CONFIG_RDMA_SEND_WITH_INVAL?=n
+
+# Enable NVMf target offload
+CONFIG_NVMF_OFFLOAD?=n
 
 # Build Ceph RBD support in bdev modules
 # Requires librbd development libraries
