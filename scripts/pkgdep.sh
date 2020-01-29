@@ -176,7 +176,8 @@ elif [ -f /etc/debian_version ]; then
 		# Additional dependencies for FUSE and NVMe-CUSE
 		if [[ $NAME == "Ubuntu" ]] && (( VERSION_ID_NUM > 1400 && VERSION_ID_NUM < 1900 )); then
 			echo "Ubuntu $VERSION_ID does not have libfuse3-dev in mainline repository."
-			echo "You can install it manually"
+			echo "Installing libfuse-dev instead"
+	        apt-get install -y libfuse-dev
 		else
 			apt-get install -y libfuse3-dev
 		fi

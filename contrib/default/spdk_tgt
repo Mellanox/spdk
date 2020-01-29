@@ -1,0 +1,11 @@
+# /etc/default/spdk_tgt
+# not executable file
+# contains environment variables for /etc/systemd/system/spdk_tgt.service
+
+# run on 4 cores out of 16 on Bluewhale server
+CPU_MASK=0x0f00
+# default config file
+NVMF_TGT_CONF=/etc/spdk/spdk_tgt.conf
+
+# extra args like -r 0.0.0.0 to start RPC listener on
+EXTRA_ARGS="-r 0.0.0.0"
