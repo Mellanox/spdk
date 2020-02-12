@@ -1114,6 +1114,7 @@ nvmf_rdma_qpair_queue_recv_wrs(struct spdk_nvmf_rdma_qpair *rqpair, struct ibv_r
 				struct spdk_nvmf_rdma_transport *rtransport)
 {
 	struct ibv_recv_wr *last;
+	struct spdk_nvmf_rdma_transport *rtransport = SPDK_CONTAINEROF(rqpair->qpair.transport, struct spdk_nvmf_rdma_transport, transport);
 
 	last = first;
 	while (last->next != NULL) {
@@ -1143,6 +1144,7 @@ nvmf_rdma_qpair_queue_send_wrs(struct spdk_nvmf_rdma_qpair *rqpair, struct ibv_s
 				struct spdk_nvmf_rdma_transport *rtransport)
 {
 	struct ibv_send_wr *last;
+	struct spdk_nvmf_rdma_transport *rtransport = SPDK_CONTAINEROF(rqpair->qpair.transport, struct spdk_nvmf_rdma_transport, transport);
 
 	last = first;
 	while (last->next != NULL) {
