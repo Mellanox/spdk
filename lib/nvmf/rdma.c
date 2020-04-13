@@ -36,6 +36,8 @@
 #include <infiniband/verbs.h>
 #include <rdma/rdma_cma.h>
 #include <rdma/rdma_verbs.h>
+#include <numa.h>
+#include <numaif.h>
 
 #include "spdk/config.h"
 #include "spdk/thread.h"
@@ -463,6 +465,8 @@ struct spdk_nvmf_rdma_poll_group {
 	struct spdk_nvmf_rdma_poll_group_stat		stat;
 	TAILQ_HEAD(, spdk_nvmf_rdma_poller)		pollers;
 	TAILQ_ENTRY(spdk_nvmf_rdma_poll_group)		link;
+
+	int                                             numa_node;
 	/*
 	 * buffers which are split across multiple RDMA
 	 * memory regions cannot be used by this transport.
@@ -470,9 +474,12 @@ struct spdk_nvmf_rdma_poll_group {
 	STAILQ_HEAD(, spdk_nvmf_transport_pg_cache_buf)	retired_bufs;
 };
 
+#define MAX_NUMA 8
+
 struct spdk_nvmf_rdma_conn_sched {
 	struct spdk_nvmf_rdma_poll_group *next_admin_pg;
 	struct spdk_nvmf_rdma_poll_group *next_io_pg;
+	struct spdk_nvmf_rdma_poll_group *next_io_pgs[MAX_NUMA];
 };
 
 /* Assuming rdma_cm uses just one protection domain per ibv_context. */
@@ -484,6 +491,7 @@ struct spdk_nvmf_rdma_device {
 	struct ibv_pd				*pd;
 
 	int					num_srq;
+	int                                     numa_node;
 
 	TAILQ_ENTRY(spdk_nvmf_rdma_device)	link;
 };
@@ -2315,6 +2323,7 @@ spdk_nvmf_rdma_request_process(struct spdk_nvmf_rdma_transport *rtransport,
 #define SPDK_NVMF_RDMA_DEFAULT_BUFFER_CACHE_SIZE 32
 #define SPDK_NVMF_RDMA_DEFAULT_NO_SRQ false
 #define SPDK_NVMF_RDMA_DIF_INSERT_OR_STRIP false
+#define SPDK_NVMF_RDMA_NUMA_AWARE_POLICY false;
 
 static void
 spdk_nvmf_rdma_opts_init(struct spdk_nvmf_transport_opts *opts)
@@ -2330,6 +2339,7 @@ spdk_nvmf_rdma_opts_init(struct spdk_nvmf_transport_opts *opts)
 	opts->max_srq_depth =		SPDK_NVMF_RDMA_DEFAULT_SRQ_DEPTH;
 	opts->no_srq =			SPDK_NVMF_RDMA_DEFAULT_NO_SRQ;
 	opts->dif_insert_or_strip =	SPDK_NVMF_RDMA_DIF_INSERT_OR_STRIP;
+	opts->numa_policy =             SPDK_NVMF_RDMA_NUMA_AWARE_POLICY;
 }
 
 const struct spdk_mem_map_ops g_nvmf_rdma_map_ops = {
@@ -2338,6 +2348,32 @@ const struct spdk_mem_map_ops g_nvmf_rdma_map_ops = {
 };
 
 static int spdk_nvmf_rdma_destroy(struct spdk_nvmf_transport *transport);
+
+static int
+spdk_nvmf_rdma_get_numa_node_for_device(const char *device_name)
+{
+	int node = 0;
+#if defined(__linux__)
+	FILE *numa_file;
+	char path[PATH_MAX] = {};
+	int res;
+
+	snprintf(path, sizeof(path), "/sys/class/infiniband/%s/device/numa_node", device_name);
+
+	numa_file = fopen(path, "r");
+	if (!numa_file) {
+		SPDK_ERRLOG("file with numa node for device not exist\n");
+		return 0;
+	}
+	res = fscanf(numa_file, "%d", &node);
+	if (res <= 0) {
+		SPDK_ERRLOG("file with numa node for device is empty\n");
+		node = 0;
+	}
+	fclose(numa_file);
+#endif
+	return node;
+}
 
 static struct spdk_nvmf_transport *
 spdk_nvmf_rdma_create(struct spdk_nvmf_transport_opts *opts)
@@ -2384,13 +2420,17 @@ spdk_nvmf_rdma_create(struct spdk_nvmf_transport_opts *opts)
 	TAILQ_INIT(&rtransport->ports);
 	TAILQ_INIT(&rtransport->poll_groups);
 
+#ifdef __aarch64__
+	rtransport->transport.opts.numa_policy = false;
+#endif
 	rtransport->transport.ops = &spdk_nvmf_transport_rdma;
 
 	SPDK_INFOLOG(SPDK_LOG_RDMA, "*** RDMA Transport Init ***\n"
 		     "  Transport opts:  max_ioq_depth=%d, max_io_size=%d,\n"
 		     "  max_qpairs_per_ctrlr=%d, io_unit_size=%d,\n"
 		     "  in_capsule_data_size=%d, max_aq_depth=%d,\n"
-		     "  num_shared_buffers=%d, max_srq_depth=%d, no_srq=%d\n",
+		     "  num_shared_buffers=%d, max_srq_depth=%d, no_srq=%d\n,"
+	             "  numa_policy=%d\n",
 		     opts->max_queue_depth,
 		     opts->max_io_size,
 		     opts->max_qpairs_per_ctrlr,
@@ -2399,7 +2439,8 @@ spdk_nvmf_rdma_create(struct spdk_nvmf_transport_opts *opts)
 		     opts->max_aq_depth,
 		     opts->num_shared_buffers,
 		     opts->max_srq_depth,
-		     opts->no_srq);
+		     opts->no_srq,
+		     opts->numa_policy);
 
 	/* I/O unit size cannot be larger than max I/O size */
 	if (opts->io_unit_size > opts->max_io_size) {
@@ -2539,6 +2580,8 @@ spdk_nvmf_rdma_create(struct spdk_nvmf_transport_opts *opts)
 
 		assert(device->map != NULL);
 		assert(device->pd != NULL);
+
+		device->numa_node = spdk_nvmf_rdma_get_numa_node_for_device(ibv_get_device_name(device->context->device));
 	}
 	rdma_free_devices(contexts);
 
@@ -3328,7 +3371,11 @@ spdk_nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport)
 	if (!rgroup) {
 		return NULL;
 	}
-
+#ifdef __aarch64__
+	rgroup->numa_node = 0;
+#else
+	rgroup->numa_node = numa_node_of_cpu(sched_getcpu());
+#endif
 	TAILQ_INIT(&rgroup->pollers);
 	STAILQ_INIT(&rgroup->retired_bufs);
 
@@ -3404,13 +3451,55 @@ spdk_nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport)
 	}
 
 	TAILQ_INSERT_TAIL(&rtransport->poll_groups, rgroup, link);
+
 	if (rtransport->conn_sched.next_admin_pg == NULL) {
 		rtransport->conn_sched.next_admin_pg = rgroup;
 		rtransport->conn_sched.next_io_pg = rgroup;
 	}
+	rtransport->conn_sched.next_io_pgs[rgroup->numa_node] = rgroup;
 
 	pthread_mutex_unlock(&rtransport->lock);
+
 	return &rgroup->group;
+}
+
+static struct spdk_nvmf_transport_poll_group *
+spdk_nvmf_rdma_get_optimal_numa_poll_group(struct spdk_nvmf_qpair *qpair)
+{
+	struct spdk_nvmf_rdma_transport *rtransport;
+	struct spdk_nvmf_rdma_poll_group **pg;
+	struct spdk_nvmf_transport_poll_group *result;
+	struct spdk_nvmf_rdma_qpair *rqpair;
+
+	rtransport = SPDK_CONTAINEROF(qpair->transport, struct spdk_nvmf_rdma_transport, transport);
+	rqpair = SPDK_CONTAINEROF(qpair, struct spdk_nvmf_rdma_qpair, qpair);
+
+	pthread_mutex_lock(&rtransport->lock);
+
+	if (TAILQ_EMPTY(&rtransport->poll_groups)) {
+		pthread_mutex_unlock(&rtransport->lock);
+		return NULL;
+	}
+
+	if (qpair->qid == 0) {
+		pg = &rtransport->conn_sched.next_admin_pg;
+	} else {
+		pg = &rtransport->conn_sched.next_io_pgs[rqpair->device->numa_node];
+	}
+	assert(*pg != NULL);
+
+	result = &(*pg)->group;
+
+	do {
+		*pg = TAILQ_NEXT(*pg, link);
+		if (*pg == NULL) {
+			*pg = TAILQ_FIRST(&rtransport->poll_groups);
+		}
+	} while ((*pg)->numa_node != rqpair->device->numa_node);
+
+	pthread_mutex_unlock(&rtransport->lock);
+
+	return result;
 }
 
 static struct spdk_nvmf_transport_poll_group *
@@ -3421,6 +3510,10 @@ spdk_nvmf_rdma_get_optimal_poll_group(struct spdk_nvmf_qpair *qpair)
 	struct spdk_nvmf_transport_poll_group *result;
 
 	rtransport = SPDK_CONTAINEROF(qpair->transport, struct spdk_nvmf_rdma_transport, transport);
+
+	if (rtransport->transport.opts.numa_policy) {
+		return spdk_nvmf_rdma_get_optimal_numa_poll_group(qpair);
+	}
 
 	pthread_mutex_lock(&rtransport->lock);
 
@@ -3440,6 +3533,7 @@ spdk_nvmf_rdma_get_optimal_poll_group(struct spdk_nvmf_qpair *qpair)
 	result = &(*pg)->group;
 
 	*pg = TAILQ_NEXT(*pg, link);
+
 	if (*pg == NULL) {
 		*pg = TAILQ_FIRST(&rtransport->poll_groups);
 	}

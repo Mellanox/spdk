@@ -644,6 +644,8 @@ spdk_nvmf_parse_transport(struct spdk_nvmf_parse_transport_ctx *ctx)
 		}
 		bval = spdk_conf_section_get_boolval(ctx->sp, "NoSRQ", false);
 		opts.no_srq = bval;
+		bval = spdk_conf_section_get_boolval(ctx->sp, "NumaAwarePolicy", false);
+		opts.numa_policy = bval;
 	}
 
 	if (trtype == SPDK_NVME_TRANSPORT_TCP) {
