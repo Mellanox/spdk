@@ -214,7 +214,7 @@ def do_config(args):
 def find_iotdma():
     # lspci -D -v |grep 'System peripheral: Intel.*DMA'
     global iotdma_ids
-    stdout = subprocess.check_output(['/usr/sbin/lspci', '-D', '-v'])
+    stdout = subprocess.check_output(['lspci', '-D', '-v'])
     rx = re.compile('^(\S+)\sSystem peripheral: Intel.*DMA')
     for line in stdout.splitlines():
         m = rx.search(line)
@@ -236,7 +236,7 @@ def load_stub_driver():
 def load_pci_ids():
     global pci_ids
     #ff:1f.2 0880: 8086:2f8a (rev 02)
-    stdout = subprocess.check_output(['/usr/sbin/lspci', '-D', '-n'])
+    stdout = subprocess.check_output(['lspci', '-D', '-n'])
     rx = re.compile('^(\S+)\s(\w+):\s(\w+):(\w+)\s?')
     for line in stdout.splitlines():
        m = rx.search(line)

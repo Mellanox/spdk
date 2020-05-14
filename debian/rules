@@ -5,6 +5,7 @@ export DH_VERBOSE = 1
 SYSTEMD_DIR=/usr/lib/systemd/system
 DEFAULTS_DIR=/etc/default
 SPDK_CONF_DIR=/etc/spdk
+pkg_prefix=/opt/mellanox/spdk
 
 
 # see FEATURE AREAS in dpkg-buildflags(1)
@@ -15,6 +16,11 @@ SPDK_CONF_DIR=/etc/spdk
 #export DEB_CFLAGS_MAINT_APPEND  = -Wall -pedantic
 # package maintainers to append LDFLAGS
 #export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
+#export DEB_LDFLAGS_MAINT_APPEND = -Wl,'$ORIGIN/../lib'
+export DEB_LDFLAGS_MAINT_APPEND = -Wl,-rpath,$(pkg_prefix)/lib
+# -Wl,-rpath,'$$ORIGIN/../lib'
+#	LDFLAGS="$$LDFLAGS -Wl,-rpath,$(pkg_prefix)/lib"
+#	export LDFLAGS
 
 %:
 	dh $@
@@ -29,7 +35,21 @@ override_dh_auto_configure:
 	# for some reason ./configure -- --options are ignored
 	# so that let's use preconfigure debian/CONFIG on Ubuntu
 	cp -p debian/CONFIG CONFIG
-	./configure
+	sed -i 's#CONFIG_PREFIX="/usr.*"#CONFIG_PREFIX="'$(pkg_prefix)'"#' CONFIG
+	LDFLAGS="$$LDFLAGS -Wl,-rpath,$(pkg_prefix)/lib" ./configure \
+        --prefix=$(pkg_prefix) \
+		--disable-coverage \
+		--enable-debug \
+		--disable-tests \
+		--without-crypto \
+		--without-fio \
+		--with-vhost \
+		--without-pmdk \
+		--without-vpp \
+		--without-rbd \
+		--with-rdma \
+		--without-vtune \
+		--with-shared
 
 override_dh_auto_clean:
 	test -e mk/config.mk && make distclean || true
@@ -66,8 +86,10 @@ override_dh_auto_install:
 	install -m 644 contrib/nvmf_tgt.conf.example debian/tmp$(SPDK_CONF_DIR)/
 	install -m 644 contrib/spdk_tgt.conf.example debian/tmp$(SPDK_CONF_DIR)/
 	install -m 644 contrib/vhost.conf.example debian/tmp$(SPDK_CONF_DIR)/
-
-	dh_auto_install -- prefix=/usr
+	make -C dpdk install prefix=../debian/tmp$(pkg_prefix)
+	rm -rf debian/tmp$(pkg_prefix)/share/dpdk/examples
+	# dh_auto_install -- prefix=/usr
+	dh_auto_install -- prefix=$(pkg_prefix)
 
 # Prevent dh_installdeb of treating files in /etc as configuration files
 # you need this if need configuration files been always rewritten
@@ -75,6 +97,9 @@ override_dh_auto_install:
 override_dh_installdeb:
 	dh_installdeb
 	rm debian/*/DEBIAN/conffiles
+
+override_dh_shlibdeps:
+	dh_shlibdeps -l$(shell pwd)/debian/tmp$(pkg_prefix)/lib
 
 #override_dh_install:
 #	dh_install

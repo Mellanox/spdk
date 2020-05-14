@@ -9,6 +9,8 @@
 %endif
 Epoch: 0
 
+%define pkg_prefix /opt/mellanox/spdk
+
 Name:		spdk
 Version:	%{scm_version}
 Release:	%{scm_rev}%{?dist}
@@ -54,7 +56,7 @@ ExclusiveArch: x86_64 aarch64
 %endif
 
 # DPDK dependencies
-BuildRequires: kernel-devel
+#BuildRequires: kernel-devel
 BuildRequires: kernel-headers
 # not present @ CentOS-7.4 w/o EPEL:
 # - BuildRequires: libpcap-devel, python-sphinx, inkscape
@@ -68,7 +70,10 @@ BuildRequires: libiscsi-devel
 BuildRequires:	git make gcc gcc-c++
 BuildRequires:	CUnit-devel, libaio-devel, openssl-devel, libuuid-devel 
 BuildRequires:	libiscsi-devel
-BuildRequires:  lcov, clang-analyzer
+BuildRequires:  lcov
+%ifarch x86_64
+BuildRequires:  clang-analyzer
+%endif
 # Additional dependencies for NVMe over Fabrics
 BuildRequires:	libibverbs-devel, librdmacm-devel
 # Additional dependencies for building docs
@@ -118,9 +123,11 @@ tar zxf %{SOURCE4}
 # test -e ./dpdk/config/common_linuxapp
 
 %build
-sed -i 's#CONFIG_PREFIX="/usr/local"#CONFIG_PREFIX="/usr"#' CONFIG
+sed -i 's#CONFIG_PREFIX="/usr/local"#CONFIG_PREFIX="'%{pkg_prefix}'"#' CONFIG
+LDFLAGS="$LDFLAGS -Wl,-rpath,%{pkg_prefix}/lib"
+export LDFLAGS
 ./configure \
-	--prefix=/usr \
+	--prefix=%{pkg_prefix} \
 	--disable-coverage \
 	--enable-debug \
 	--disable-tests \
@@ -131,9 +138,9 @@ sed -i 's#CONFIG_PREFIX="/usr/local"#CONFIG_PREFIX="/usr"#' CONFIG
 	--without-vpp \
 	--without-rbd \
 	--with-rdma \
-	--without-vtune 
+	--without-vtune \
+	--with-shared
 	# --with-iscsi-initiator
-	#--with-shared 
 # SPDK make
 make %{?_smp_mflags}
 
@@ -166,6 +173,10 @@ mkdir -p %{install_datadir}
 install -p -m 644 include/spdk/pci_ids.h %{install_datadir}
 install -p -m 644 scripts/common.sh %{install_datadir}
 install -p -m 755 scripts/setup.sh %{install_datadir}
+make -C dpdk install prefix=${RPM_BUILD_ROOT}%{pkg_prefix}
+rm -rf ${RPM_BUILD_ROOT}%{pkg_prefix}/share/dpdk/examples
+cp -pr include/spdk ${RPM_BUILD_ROOT}%{pkg_prefix}/include/
+cp -pr build/lib/*.*    ${RPM_BUILD_ROOT}%{pkg_prefix}/lib/
 
 for fn in nvmf_tgt vhost spdk_tgt ; do
   if [ -e contrib/$fn.service ] ; then
@@ -195,6 +206,8 @@ sed -i -e 's!/usr/bin/env python3$!/usr/bin/python'%{python_ver}'!' %{install_bi
 %config(noreplace) %{_sysconfdir}/default/*
 %config(noreplace) %{_sysconfdir}/spdk/*
 %doc README.md LICENSE
+# %files -n dev
+%{pkg_prefix}/*
 
 %post
 case "$1" in

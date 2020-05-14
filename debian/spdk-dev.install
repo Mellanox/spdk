@@ -1,2 +1,2 @@
-usr/include/spdk/* usr/include
-usr/lib/*.a usr/lib
+opt/mellanox/spdk/lib/*.a opt/mellanox/spdk/lib
+opt/mellanox/spdk/include/* opt/mellanox/spdk/include
