@@ -6,7 +6,7 @@ cd $wdir
 mkdir -p $HOME/rpmbuild/{SOURCES,RPMS,SRPMS,SPECS,BUILD,BUILDROOT}
 set -e
 if [ -z "$VER" ] ; then
-    export VER=20.01
+    export VER=20.04.1
 fi
 branch=$(git rev-parse --abbrev-ref HEAD)
 sha1=$(git rev-parse HEAD |cut -c -8)

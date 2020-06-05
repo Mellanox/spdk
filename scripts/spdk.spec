@@ -1,6 +1,6 @@
 # Copyright (c) 2018-2020, Mellanox Technologies. All rights reserved.
 
-%define scm_version 20.01
+%define scm_version 20.04.1
 %define unmangled_version %{scm_version}
 %if "%{?_rev:1}" == ""
 %define scm_rev 1
@@ -222,6 +222,9 @@ case "$1" in
 esac
 
 %changelog
+* Fri Jun 05 2020 Yuriy Shestakov <yuriis@mellanox.com>
+- ported to v20.04.1 release
+
 * Tue Jan 28 2020 Yuriy Shestakov <yuriis@mellanox.com>
 - ported to v20.01 pre-release
 

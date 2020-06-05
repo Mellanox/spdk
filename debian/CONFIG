@@ -70,8 +70,14 @@ CONFIG_UBSAN=n
 # Build with Thread Sanitizer enabled
 CONFIG_TSAN=n
 
-# Build tests
+# Build functional tests
 CONFIG_TESTS=y
+
+# Build unit tests
+CONFIG_UNIT_TESTS=y
+
+# Build examples
+CONFIG_EXAMPLES=y
 
 # Directory that contains the desired SPDK environment library.
 # By default, this is implemented using DPDK.
@@ -93,6 +99,7 @@ CONFIG_FIO_SOURCE_DIR=/usr/src/fio
 # Requires ibverbs development libraries.
 CONFIG_RDMA=y
 CONFIG_RDMA_SEND_WITH_INVAL=n
+CONFIG_RDMA_SET_ACK_TIMEOUT=n
 
 # Enable NVMe Character Devices.
 CONFIG_NVME_CUSE=n
@@ -125,7 +132,7 @@ CONFIG_VPP=n
 CONFIG_VPP_DIR=
 
 # Requires libiscsi development libraries.
-CONFIG_ISCSI_INITIATOR=y
+CONFIG_ISCSI_INITIATOR=n
 
 # Enable the dependencies for building the crypto vbdev
 CONFIG_CRYPTO=n
@@ -159,3 +166,9 @@ CONFIG_URING_PATH=
 
 # Build with FUSE support
 CONFIG_FUSE=n
+
+# Build with RAID5 support
+CONFIG_RAID5=n
+
+# Build with IDXD support
+CONFIG_IDXD=n
