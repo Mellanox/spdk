@@ -1,0 +1,22 @@
+[Unit]
+Description=SPDK target
+Wants=network-online.target openibd.service
+After=network.target network-online.target openibd.service
+
+[Service]
+EnvironmentFile=/etc/default/spdk_tgt
+ExecStartPre=/usr/sbin/setup_hugepages.sh
+# ExecStartPre=/usr/sbin/setup_nvmf_tgt.py -c -f $NVMF_TGT_CONF
+ExecStart=/usr/sbin/spdk_tgt -m $CPU_MASK -c $NVMF_TGT_CONF $EXTRA_ARGS
+# ExecStopPost=/usr/sbin/setup_nvmf_tgt.py -r -f $NVMF_TGT_CONF
+# Restart=on-failure
+User=root
+#RuntimeDirectory=/tmp
+#RuntimeDirectoryMode=0700
+# KillSignal=Term
+SendSIGKILL=no
+SendSIGHUP=no
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,112 @@
+#!/usr/bin/make -f
+# See debhelper(7) (uncomment to enable)
+# output every command that modifies files on the build system.
+export DH_VERBOSE = 1
+SYSTEMD_DIR=/usr/lib/systemd/system
+DEFAULTS_DIR=/etc/default
+SPDK_CONF_DIR=/etc/spdk
+pkg_prefix=/opt/mellanox/spdk
+
+
+# see FEATURE AREAS in dpkg-buildflags(1)
+#export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+# see ENVIRONMENT in dpkg-buildflags(1)
+# package maintainers to append CFLAGS
+#export DEB_CFLAGS_MAINT_APPEND  = -Wall -pedantic
+# package maintainers to append LDFLAGS
+#export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
+#export DEB_LDFLAGS_MAINT_APPEND = -Wl,'$ORIGIN/../lib'
+export DEB_LDFLAGS_MAINT_APPEND = -Wl,-rpath,$(pkg_prefix)/lib
+# -Wl,-rpath,'$$ORIGIN/../lib'
+#	LDFLAGS="$$LDFLAGS -Wl,-rpath,$(pkg_prefix)/lib"
+#	export LDFLAGS
+
+%:
+	dh $@
+
+
+# dh_make generated override targets
+# This is example for Cmake (See https://bugs.debian.org/641051 )
+#override_dh_auto_configure:
+#	dh_auto_configure -- #	-DCMAKE_LIBRARY_PATH=$(DEB_HOST_MULTIARCH)
+
+override_dh_auto_configure:
+	# for some reason ./configure -- --options are ignored
+	# so that let's use preconfigure debian/CONFIG on Ubuntu
+	cp -p debian/CONFIG CONFIG
+	sed -i 's#CONFIG_PREFIX="/usr.*"#CONFIG_PREFIX="'$(pkg_prefix)'"#' CONFIG
+	LDFLAGS="$$LDFLAGS -Wl,-rpath,$(pkg_prefix)/lib" ./configure \
+        --prefix=$(pkg_prefix) \
+		--disable-coverage \
+		--enable-debug \
+		--disable-tests \
+		--without-crypto \
+		--without-fio \
+		--with-vhost \
+		--without-pmdk \
+		--without-vpp \
+		--without-rbd \
+		--with-rdma \
+		--without-vtune \
+		--with-shared
+
+override_dh_auto_clean:
+	test -e mk/config.mk && make distclean || true
+
+#install:
+override_dh_auto_install:
+	mkdir -p debian/tmp/usr/bin
+	mkdir -p debian/tmp/usr/sbin
+	mkdir -p debian/tmp/etc/default
+	mkdir -p debian/tmp/usr/lib/systemd/system
+	mkdir -p debian/tmp/etc/spdk
+	install -p -m 755 app/nvmf_tgt/nvmf_tgt debian/tmp/usr/sbin
+	install -p -m 755 app/spdk_tgt/spdk_tgt debian/tmp/usr/sbin
+	install -p -m 755 app/vhost/vhost debian/tmp/usr/sbin
+	install -p -m 755 app/iscsi_tgt/iscsi_tgt debian/tmp/usr/sbin
+	install -p -m 755 app/iscsi_top/iscsi_top debian/tmp/usr/bin
+	install -p -m 755 app/trace/spdk_trace debian/tmp/usr/bin
+	install -p -m 755 app/spdk_lspci/spdk_lspci debian/tmp/usr/bin
+	install -p -m 755 app/trace_record/spdk_trace_record debian/tmp/usr/bin
+#	install -p -m 755 examples/nvme/perf/perf debian/tmp/usr/sbin/nvme-perf
+#	install -p -m 755 examples/nvme/identify/identify debian/tmp/usr/sbin/nvme-identify
+	install -p -m 755 examples/nvme/nvme_manage/nvme_manage debian/tmp/usr/sbin/
+	install -p -m 755 examples/blob/cli/blobcli debian/tmp/usr/sbin/
+	install -p -m 755 contrib/setup_nvmf_tgt.py debian/tmp/usr/sbin
+	install -p -m 755 contrib/setup_vhost.py debian/tmp/usr/sbin
+	install -p -m 755 contrib/vhost_add_config.sh debian/tmp/usr/sbin
+	install -p -m 755 contrib/setup_hugepages.sh debian/tmp/usr/sbin
+	install -m 644 contrib/nvmf_tgt.service debian/tmp$(SYSTEMD_DIR)/
+	install -m 644 contrib/spdk_tgt.service debian/tmp$(SYSTEMD_DIR)/
+	install -m 644 contrib/vhost.service debian/tmp$(SYSTEMD_DIR)/
+	install -m 644  contrib/default/nvmf_tgt debian/tmp$(DEFAULTS_DIR)/
+	install -m 644  contrib/default/spdk_tgt debian/tmp$(DEFAULTS_DIR)/
+	install -m 644  contrib/default/vhost debian/tmp$(DEFAULTS_DIR)/
+	install -m 644 contrib/nvmf_tgt.conf.example debian/tmp$(SPDK_CONF_DIR)/
+	install -m 644 contrib/spdk_tgt.conf.example debian/tmp$(SPDK_CONF_DIR)/
+	install -m 644 contrib/vhost.conf.example debian/tmp$(SPDK_CONF_DIR)/
+	make -C dpdk install prefix=../debian/tmp$(pkg_prefix)
+	rm -rf debian/tmp$(pkg_prefix)/share/dpdk/examples
+	# dh_auto_install -- prefix=/usr
+	dh_auto_install -- prefix=$(pkg_prefix)
+
+# Prevent dh_installdeb of treating files in /etc as configuration files
+# you need this if need configuration files been always rewritten
+# even if changed
+override_dh_installdeb:
+	dh_installdeb
+	rm debian/*/DEBIAN/conffiles
+
+override_dh_shlibdeps:
+	dh_shlibdeps -l$(shell pwd)/debian/tmp$(pkg_prefix)/lib
+
+#override_dh_install:
+#	dh_install
+#override_dh_usrlocal:
+#	true
+
+#spdk-rpc:
+#	cd scripts
+#	debian/rules binary
+#	cd ..
