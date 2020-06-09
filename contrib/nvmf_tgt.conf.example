@@ -1,0 +1,43 @@
+# NVMf Target Configuration File
+# Define NVMf protocol global options
+
+[Transport]
+  Type RDMA
+  MaxQueueDepth 256
+  # number of queues in emulation configuration (JSON file) plus 2
+  MaxQueuesPerSession 34
+
+[Transport]
+  Type TCP
+
+[Nvme]
+  RetryCount 4
+  Timeout 0
+  ActionOnTimeout None
+  AdminPollRate 100000
+  # BlockSize 4096
+  #HotplugEnable Yes
+  #TransportId "trtype:PCIe traddr:0000:06:00.0" Nvme0
+  #TransportId "trtype:PCIe traddr:0000:08:00.0" Nvme1
+  #TransportId "trtype:PCIe traddr:0000:0a:00.0" Nvme2
+  ##TransportId "trtype:PCIe traddr:0000:0c:00.0" Nvme3
+  # TransportId "trtype:TCP adrfam:IPv4 traddr:11.210.99.85 trsvcid:1023 subnqn:nqn.2018-01.mini-regression:ram0" Nvme0
+
+[Subsystem0]
+  NQN nqn.2016-06.io.spdk.snic30:null0
+  SN SPDK000DEADBEAF00
+  Namespace Null0 1
+  Namespace Null1 2
+  Listen RDMA 11.210.99.130:4420
+  AllowAnyHost yes
+
+#[Subsystem0]
+#  NQN nqn.2016-06.io.spdk.swx-bw-03:nvme0
+#  SN SPDK000DEADBEAF00
+#  Namespace Nvme0n1p1 1
+#  Namespace Nvme1n1p1 2
+#  Namespace Nvme2n1p1 3
+#  #Namespace Nvme3n1 4
+#  Listen RDMA 11.210.8.34:1023
+#  Listen RDMA 11.212.79.34:1023
+#  AllowAnyHost yes

@@ -1,0 +1,13 @@
+#!/usr/bin/make -f
+export DH_VERBOSE=1
+export PYBUILD_NAME=spdk-rpc
+export PYBUILD_INTERPRETERS=python{version}
+# python{version}-dbg
+export PYBUILD_VERSIONS=3.6
+
+%:
+	dh $@ --with python3 --buildsystem=pybuild
+
+override_dh_auto_install:
+	test -e spdk_rpc.py || cp -p rpc.py spdk_rpc.py
+	dh_auto_install

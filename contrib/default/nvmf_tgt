@@ -1,0 +1,16 @@
+# /etc/default/nvmf_tgt
+# not executable file
+# contains environment variables for /etc/systemd/system/nvmf_tgt.service
+
+# run on 4 cores out of 16 on Bluewhale server
+CPU_MASK=0x0f00
+# default config file
+NVMF_TGT_CONF=/etc/spdk/nvmf_tgt.conf
+
+# extra args like -r 0.0.0.0 to start RPC listener on
+EXTRA_ARGS=""
+
+MIN_HUGEMEM="2G"
+# used in the /usr/lib/systemd/system/nvmf_tgt.service
+# to run `hugeadm --pool-pages-min DEFAULT:2G` command
+# to allocate needed amount of huge pages for SPDK app

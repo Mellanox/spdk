@@ -1,0 +1,24 @@
+[Unit]
+Description=SPDK VHost
+Requires=network.target network-online.target
+
+[Service]
+EnvironmentFile=/etc/default/vhost
+ExecStartPre=/usr/sbin/setup_hugepages.sh
+ExecStartPre=/usr/bin/mkdir -p /var/run/vhost
+ExecStartPre=/usr/sbin/setup_vhost.py -c
+ExecStart=/usr/sbin/vhost $VHOST_ARGS
+ExecStartPost=/usr/sbin/vhost_add_config.sh
+ExecStopPost=/usr/sbin/setup_vhost.py -r
+# Restart=on-failure
+User=root
+# KillSignal=Term
+# KillSignal=2
+KillSignal=1
+# SendSIGHUP=no
+SendSIGKILL=no
+# SendSIGHUP=no
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target

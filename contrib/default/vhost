@@ -1,0 +1,6 @@
+# This file is included by vhost.service as
+# EnvironmentFile=/etc/default/vhost
+# Run on 2 cores only: -m 0x30000
+# Wait for RPC to initialize the sybsystems: --wait-for-rpc
+VHOST_ARGS="-m 0x30000 -c /etc/spdk/vhost.conf -d -S /var/run/vhost --wait-for-rpc"
+# -r /var/tmp/vhost.sock
