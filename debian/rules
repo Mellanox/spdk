@@ -49,6 +49,7 @@ override_dh_auto_configure:
 		--without-rbd \
 		--with-rdma \
 		--without-vtune \
+		--with-iscsi-initiator \
 		--with-shared
 
 override_dh_auto_clean:
