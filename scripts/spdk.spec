@@ -131,6 +131,7 @@ export LDFLAGS
 	--disable-coverage \
 	--disable-debug \
 	--disable-tests \
+    --without-isal \
 	--without-crypto \
 	--without-fio \
 	--with-vhost \
