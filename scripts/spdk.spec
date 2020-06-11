@@ -129,7 +129,7 @@ export LDFLAGS
 ./configure \
 	--prefix=%{pkg_prefix} \
 	--disable-coverage \
-	--enable-debug \
+	--disable-debug \
 	--disable-tests \
 	--without-crypto \
 	--without-fio \

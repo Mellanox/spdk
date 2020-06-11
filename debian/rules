@@ -39,7 +39,7 @@ override_dh_auto_configure:
 	LDFLAGS="$$LDFLAGS -Wl,-rpath,$(pkg_prefix)/lib" ./configure \
         --prefix=$(pkg_prefix) \
 		--disable-coverage \
-		--enable-debug \
+		--disable-debug \
 		--disable-tests \
 		--without-crypto \
 		--without-fio \
