@@ -2,11 +2,7 @@
 
 %define scm_version 20.04.1
 %define unmangled_version %{scm_version}
-%if "%{?_rev:1}" == ""
-%define scm_rev 1
-%else
 %define scm_rev %{_rev}
-%endif
 Epoch: 0
 
 %define pkg_prefix /opt/mellanox/spdk
@@ -210,15 +206,16 @@ sed -i -e 's!/usr/bin/env python3$!/usr/bin/python'%{python_ver}'!' %{install_bi
 case "$1" in
 1) # install
 	systemctl daemon-reload
-#	systemctl restart avahi-daemon || true
 	;;
 2) # upgrade
 	systemctl daemon-reload
-#	systemctl restart avahi-daemon || true
 	;;
 esac
 
 %changelog
+* %{_date} Yuriy Shestakov <yuriis@mellanox.com>
+- build from %{_branch} (sha1 %{_sha1})
+
 * Fri Jun 05 2020 Yuriy Shestakov <yuriis@mellanox.com>
 - ported to v20.04.1 release
 
