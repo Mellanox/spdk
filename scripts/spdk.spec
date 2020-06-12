@@ -34,7 +34,7 @@ Source4:	spdk-ocf-%{version}.tar.gz
 
 # It is somewhat hard to get SPDK RPC working with python 2.7
 # Distros that don't support python3 will use python2
-%if "%{dist}" == ".el7" || "%{dist}" == ".el7.centos" || "%{dist}" == ".el7.centos.a"
+%if 0%{rhel} == 7
 # So, let's switch to Python36 from IUS repo - https://github.com/iusrepo/python36
 %define use_python python3.6
 %define python_ver 3.6
@@ -90,10 +90,6 @@ BuildRequires:	libibverbs-devel, librdmacm-devel
 Requires: python36
 
 # SPDK runtime dependencies
-#Requires:	libibverbs >= 41mlnx1-OFED.4.4
-#Requires:	librdmacm  >= 41mlnx1-OFED.4.2
-#Requires:	libibverbs >= 23.0-1.el7
-#Requires:	librdmacm  >= 23.0-1.el7
 Requires:	libibverbs
 Requires:	librdmacm 
 Requires:	sg3_utils
