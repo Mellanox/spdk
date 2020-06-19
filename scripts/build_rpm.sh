@@ -70,4 +70,4 @@ gzip -c $OUTDIR/spdk-$VER.tar >$OUTDIR/spdk-$VER.tar.gz
 fakeroot  \
   rpmbuild -bs --define "dist %{nil}" $args $OUT_SPEC
 
-#rpmbuild -bb $args $OUT_SPEC
+rpmbuild -bb $args $OUT_SPEC
