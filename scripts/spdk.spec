@@ -17,10 +17,10 @@ Group: 		System Environment/Daemons
 License: 	BSD and LGPLv2 and GPLv2
 URL: 		http://www.spdk.io
 Source0:	spdk-%{version}.tar.gz
-Source1:	spdk-dpdk-%{version}.tar.gz
-Source2:	spdk-intel-ipsec-mb-%{version}.tar.gz
-Source3:	spdk-isa-l-%{version}.tar.gz
-Source4:	spdk-ocf-%{version}.tar.gz
+#Source1:	spdk-dpdk-%{version}.tar.gz
+#Source2:	spdk-intel-ipsec-mb-%{version}.tar.gz
+#Source3:	spdk-isa-l-%{version}.tar.gz
+#Source4:	spdk-ocf-%{version}.tar.gz
 
 %define package_version %{epoch}:%{version}-%{release}
 %define install_datadir %{buildroot}/%{_datadir}/%{name}
@@ -38,6 +38,17 @@ Source4:	spdk-ocf-%{version}.tar.gz
 # on Fedora 28+ we have python3 == 3.7
 %define use_python python3
 %define python_ver 3.7
+%ifarch x86_64
+BuildRequires:  clang-analyzer
+%endif
+# Additional dependencies for building docs
+# not present @ CentOS-7.4 w/o EPEL:
+# - mscgen 
+# - astyle-devel
+%ifarch x86_64
+# Additional dependencies for building pmem based backends
+# BuildRequires:	libpmemblk-devel
+%endif
 %endif
 
 ExclusiveArch: x86_64 aarch64
@@ -67,19 +78,8 @@ BuildRequires:	git make gcc gcc-c++
 BuildRequires:	CUnit-devel, libaio-devel, openssl-devel, libuuid-devel 
 BuildRequires:	libiscsi-devel
 BuildRequires:  lcov
-%ifarch x86_64
-BuildRequires:  clang-analyzer
-%endif
 # Additional dependencies for NVMe over Fabrics
 BuildRequires:	libibverbs-devel, librdmacm-devel
-# Additional dependencies for building docs
-# not present @ CentOS-7.4 w/o EPEL:
-# - mscgen 
-# - astyle-devel
-%ifarch x86_64
-# Additional dependencies for building pmem based backends
-# BuildRequires:	libpmemblk-devel
-%endif
 
 # Build python36 from IUS repo and install on CentOS/7
 # -- https://github.com/iusrepo/python36/blob/master/python36.spec
@@ -108,10 +108,10 @@ applications.
 
 %prep
 %setup -q
-tar zxf %{SOURCE1}
-tar zxf %{SOURCE2}
-tar zxf %{SOURCE3}
-tar zxf %{SOURCE4}
+#tar zxf %{SOURCE1}
+#tar zxf %{SOURCE2}
+#tar zxf %{SOURCE3}
+#tar zxf %{SOURCE4}
 # test -e ./dpdk/config/common_linuxapp
 
 %build
