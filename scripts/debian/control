@@ -6,8 +6,8 @@ Build-Depends: debhelper (>= 10), dh-python, python3-distutils
 Standards-Version: 4.1.2
 Homepage: https://spdk.io/
 #X-Python-Version: 2.7
-XS-Python-Version: 3.6
-X-Python3-Version: 3.6
+#XS-Python-Version: 3.6
+#X-Python3-Version: 3.6
 #Vcs-Git: https://anonscm.debian.org/git/collab-maint/spdk.git
 #Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/spdk.git
 

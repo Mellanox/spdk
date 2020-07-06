@@ -3,7 +3,7 @@ export DH_VERBOSE=1
 export PYBUILD_NAME=spdk-rpc
 export PYBUILD_INTERPRETERS=python{version}
 # python{version}-dbg
-export PYBUILD_VERSIONS=3.6
+export PYBUILD_VERSIONS=3
 
 %:
 	dh $@ --with python3 --buildsystem=pybuild
