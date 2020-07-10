@@ -89,6 +89,7 @@ override_dh_auto_install:
 	install -m 644 contrib/spdk_tgt.conf.example debian/tmp$(SPDK_CONF_DIR)/
 	install -m 644 contrib/vhost.conf.example debian/tmp$(SPDK_CONF_DIR)/
 	make -C dpdk install prefix=../debian/tmp$(pkg_prefix)
+	chrpath -r $(pkg_prefix)/lib debian/tmp$(pkg_prefix)/lib/lib*so.*
 	rm -rf debian/tmp$(pkg_prefix)/share/dpdk/examples
 	# dh_auto_install -- prefix=/usr
 	dh_auto_install -- prefix=$(pkg_prefix)
