@@ -22,13 +22,10 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    scripts=['spdk_rpc.py', 'spdkcli.py'],
+    scripts=['spdk_rpc.py', 'spdkcli.py', 'iostat.py'],
     data_files=[
-        ('/usr/share/spdk_rpc',
+        ('share/spdk',
             ['config_converter.py', 'dpdk_mem_info.py',
              'histogram.py', 'iostat.py', 'rpc_http_proxy.py']
-            ),
-        ('', ['debian/rules', 'debian/changelog.in', 'debian/control',
-              'debian/compat', 'debian/source/format'])
-        ]
+        )]
 )

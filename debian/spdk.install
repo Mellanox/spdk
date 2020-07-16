@@ -1,6 +1,11 @@
-usr/bin/* usr/bin
+usr/bin/iostat.py usr/bin
+usr/bin/iscsi_top usr/bin
+usr/bin/spdk_lspci usr/bin
+usr/bin/spdk_trace usr/bin
+usr/bin/spdk_trace_record usr/bin
 usr/sbin/* usr/sbin
 etc/spdk/* etc/spdk
 etc/default/* etc/default
 usr/lib/systemd/system/* usr/lib/systemd/system
 opt/mellanox/spdk/lib/*.so* opt/mellanox/spdk/lib
+usr/share/spdk/*.py usr/share/spdk
