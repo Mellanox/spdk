@@ -89,11 +89,9 @@ override_dh_auto_install:
 	make -C dpdk install prefix=../debian/tmp$(pkg_prefix)
 	chrpath -r $(pkg_prefix)/lib debian/tmp$(pkg_prefix)/lib/lib*so.*
 	rm -rf debian/tmp$(pkg_prefix)/share/dpdk/examples
-	# dh_auto_install -- prefix=/usr
 	test -e script/spdk_rpc.py || cp -p scripts/rpc.py scripts/spdk_rpc.py
-	# dh_python3  -p spdk-rpc scripts 
 	dh_auto_install -- prefix=$(pkg_prefix)
-	(cd scripts ; python3 setup.py install --prefix=../debian/tmp/usr )
+	(cd scripts ; python3 setup.py install --install-layout=deb --root=../debian/tmp )
 
 # Prevent dh_installdeb of treating files in /etc as configuration files
 # you need this if need configuration files been always rewritten
@@ -109,22 +107,3 @@ override_dh_shlibdeps:
 #	dh_install
 #override_dh_usrlocal:
 #	true
-
-#spdk-rpc:
-#	dh_testdir 
-#	dh_testroot 
-#	dh_installdirs  -p$@
-##	dh_installchangelogs  ChangeLog
-##	dh_installdocs  -p$@  $(PYBUILD)
-##	dh_installexamples  -p$@  $(PYBUILD)
-#	dh_install  --fail-missing -p$@ $(PYBUILD)
-##	dh_installman  -p$@ $(PYBUILD)
-#	dh_link  -p$@ $(PYBUILD)
-#	dh_strip -p$@ $(PYBUILD)
-#	dh_compress  -p$@ $(PYBUILD)
-#	dh_fixperms  -p$@ $(PYBUILD)
-#	dh_installdeb  -p$@ $(PYBUILD)
-##	dh_shlibdeps  -p$@ $(PYBUILD)
-#	dh_gencontrol  -p$@ $(PYBUILD)
-#	dh_md5sums  -p$@ $(PYBUILD)
-#	dh_builddeb  -p$@ $(PYBUILD)
