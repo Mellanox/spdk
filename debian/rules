@@ -69,8 +69,8 @@ override_dh_auto_install:
 	install -p -m 755 app/trace/spdk_trace debian/tmp/usr/bin
 	install -p -m 755 app/spdk_lspci/spdk_lspci debian/tmp/usr/bin
 	install -p -m 755 app/trace_record/spdk_trace_record debian/tmp/usr/bin
-#	install -p -m 755 examples/nvme/perf/perf debian/tmp/usr/sbin/nvme-perf
-#	install -p -m 755 examples/nvme/identify/identify debian/tmp/usr/sbin/nvme-identify
+	install -p -m 755 examples/nvme/perf/perf debian/tmp/usr/sbin/nvme-perf
+	install -p -m 755 examples/nvme/identify/identify debian/tmp/usr/sbin/nvme-identify
 	install -p -m 755 examples/nvme/nvme_manage/nvme_manage debian/tmp/usr/sbin/
 	install -p -m 755 examples/blob/cli/blobcli debian/tmp/usr/sbin/
 	install -p -m 755 contrib/setup_nvmf_tgt.py debian/tmp/usr/sbin
