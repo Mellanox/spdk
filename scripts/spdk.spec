@@ -1,6 +1,6 @@
 # Copyright (c) 2018-2020, Mellanox Technologies. All rights reserved.
 
-%define scm_version 20.04.1
+%define scm_version 20.07
 %define unmangled_version %{scm_version}
 %define scm_rev %{_rev}
 Epoch: 0
@@ -215,6 +215,9 @@ esac
 %changelog
 * %{_date} Yuriy Shestakov <yuriis@mellanox.com>
 - build from %{_branch} (sha1 %{_sha1})
+
+* Tue Aug 11 2020 Andrii Holovchenko <andriih@nvidia.com>
+- ported to v20.07 release
 
 * Fri Jun 05 2020 Yuriy Shestakov <yuriis@mellanox.com>
 - ported to v20.04.1 release
