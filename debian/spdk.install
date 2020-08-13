@@ -8,4 +8,5 @@ etc/spdk/* etc/spdk
 etc/default/* etc/default
 usr/lib/systemd/system/* usr/lib/systemd/system
 opt/mellanox/spdk/lib/*.so* opt/mellanox/spdk/lib
+opt/mellanox/spdk/lib/dpdk/pmds-20.0.2/*.so* opt/mellanox/spdk/lib/dpdk/pmds-20.0.2/
 usr/share/spdk/*.py usr/share/spdk
