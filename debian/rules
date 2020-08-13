@@ -61,18 +61,19 @@ override_dh_auto_install:
 	mkdir -p debian/tmp/etc/default
 	mkdir -p debian/tmp/usr/lib/systemd/system
 	mkdir -p debian/tmp/etc/spdk
-	install -p -m 755 app/nvmf_tgt/nvmf_tgt debian/tmp/usr/sbin
-	install -p -m 755 app/spdk_tgt/spdk_tgt debian/tmp/usr/sbin
-	install -p -m 755 app/vhost/vhost debian/tmp/usr/sbin
-	install -p -m 755 app/iscsi_tgt/iscsi_tgt debian/tmp/usr/sbin
-	install -p -m 755 app/iscsi_top/iscsi_top debian/tmp/usr/bin
-	install -p -m 755 app/trace/spdk_trace debian/tmp/usr/bin
-	install -p -m 755 app/spdk_lspci/spdk_lspci debian/tmp/usr/bin
-	install -p -m 755 app/trace_record/spdk_trace_record debian/tmp/usr/bin
-	install -p -m 755 examples/nvme/perf/perf debian/tmp/usr/sbin/nvme-perf
-	install -p -m 755 examples/nvme/identify/identify debian/tmp/usr/sbin/nvme-identify
-	install -p -m 755 examples/nvme/nvme_manage/nvme_manage debian/tmp/usr/sbin/
-	install -p -m 755 examples/blob/cli/blobcli debian/tmp/usr/sbin/
+	mkdir -p debian/tmp$(pkg_prefix)
+	install -p -m 755 build/bin/nvmf_tgt debian/tmp/usr/sbin
+	install -p -m 755 build/bin/spdk_tgt debian/tmp/usr/sbin
+	install -p -m 755 build/bin/vhost debian/tmp/usr/sbin
+	install -p -m 755 build/bin/iscsi_tgt debian/tmp/usr/sbin
+	install -p -m 755 build/bin/iscsi_top debian/tmp/usr/bin
+	install -p -m 755 build/bin/spdk_trace debian/tmp/usr/bin
+	install -p -m 755 build/bin/spdk_lspci debian/tmp/usr/bin
+	install -p -m 755 build/bin/spdk_trace_record debian/tmp/usr/bin
+	install -p -m 755 build/examples/perf debian/tmp/usr/sbin/nvme-perf
+	install -p -m 755 build/examples/identify debian/tmp/usr/sbin/nvme-identify
+	install -p -m 755 build/examples/nvme_manage debian/tmp/usr/sbin/
+	install -p -m 755 build/examples/blobcli debian/tmp/usr/sbin/
 	install -p -m 755 contrib/setup_nvmf_tgt.py debian/tmp/usr/sbin
 	install -p -m 755 contrib/setup_vhost.py debian/tmp/usr/sbin
 	install -p -m 755 contrib/vhost_add_config.sh debian/tmp/usr/sbin
@@ -86,8 +87,11 @@ override_dh_auto_install:
 	install -m 644 contrib/nvmf_tgt.conf.example debian/tmp$(SPDK_CONF_DIR)/
 	install -m 644 contrib/spdk_tgt.conf.example debian/tmp$(SPDK_CONF_DIR)/
 	install -m 644 contrib/vhost.conf.example debian/tmp$(SPDK_CONF_DIR)/
-	make -C dpdk install prefix=../debian/tmp$(pkg_prefix)
-	chrpath -r $(pkg_prefix)/lib debian/tmp$(pkg_prefix)/lib/lib*so.*
+	cp -pvr dpdk/build/lib debian/tmp$(pkg_prefix)
+	cp -pvr dpdk/build/include debian/tmp$(pkg_prefix)
+	#make -C dpdk install prefix=../debian/tmp$(pkg_prefix)
+	#chrpath -r $(pkg_prefix)/lib debian/tmp$(pkg_prefix)/lib/lib*so.*
+	patchelf --set-rpath $(pkg_prefix)/lib --force-rpath debian/tmp$(pkg_prefix)/lib/lib*so.*
 	rm -rf debian/tmp$(pkg_prefix)/share/dpdk/examples
 	test -e script/spdk_rpc.py || cp -p scripts/rpc.py scripts/spdk_rpc.py
 	dh_auto_install -- prefix=$(pkg_prefix)
@@ -101,7 +105,7 @@ override_dh_installdeb:
 	rm debian/*/DEBIAN/conffiles
 
 override_dh_shlibdeps:
-	dh_shlibdeps -l$(shell pwd)/debian/tmp$(pkg_prefix)/lib
+	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info -l$(shell pwd)/debian/tmp$(pkg_prefix)/lib
 
 #override_dh_install:
 #	dh_install
