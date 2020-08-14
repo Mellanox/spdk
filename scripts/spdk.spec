@@ -142,18 +142,18 @@ make %{?_smp_mflags}
 %install
 mkdir -p %{install_bindir}
 mkdir -p %{install_sbindir}
-install -p -m 755 app/nvmf_tgt/nvmf_tgt %{install_sbindir}
-install -p -m 755 app/spdk_tgt/spdk_tgt %{install_sbindir}
-install -p -m 755 app/vhost/vhost %{install_sbindir}
-install -p -m 755 app/iscsi_tgt/iscsi_tgt %{install_sbindir}
-install -p -m 755 app/iscsi_top/iscsi_top %{install_bindir}
-install -p -m 755 app/trace/spdk_trace %{install_bindir}
-install -p -m 755 app/spdk_lspci/spdk_lspci %{install_bindir}
-install -p -m 755 app/trace_record/spdk_trace_record %{install_bindir}
-install -p -m 755 examples/nvme/perf/perf %{install_sbindir}/nvme-perf
-install -p -m 755 examples/nvme/identify/identify %{install_sbindir}/nvme-identify
-install -p -m 755 examples/nvme/nvme_manage/nvme_manage %{install_sbindir}/
-install -p -m 755 examples/blob/cli/blobcli %{install_sbindir}/
+install -p -m 755 build/bin/nvmf_tgt %{install_sbindir}
+install -p -m 755 build/bin/spdk_tgt %{install_sbindir}
+install -p -m 755 build/bin/vhost %{install_sbindir}
+install -p -m 755 build/bin/iscsi_tgt %{install_sbindir}
+install -p -m 755 build/bin/iscsi_top %{install_bindir}
+install -p -m 755 build/bin/spdk_trace %{install_bindir}
+install -p -m 755 build/bin/spdk_lspci %{install_bindir}
+install -p -m 755 build/bin/spdk_trace_record %{install_bindir}
+install -p -m 755 build/examples/perf %{install_sbindir}/nvme-perf
+install -p -m 755 build/examples/identify %{install_sbindir}/nvme-identify
+install -p -m 755 build/examples/nvme_manage %{install_sbindir}/
+install -p -m 755 build/examples/blobcli %{install_sbindir}/
 install -p -m 755 contrib/setup_nvmf_tgt.py %{install_sbindir}
 install -p -m 755 contrib/setup_vhost.py %{install_sbindir}
 install -p -m 755 contrib/vhost_add_config.sh %{install_sbindir}
@@ -166,7 +166,9 @@ mkdir -p %{install_datadir}
 install -p -m 644 include/spdk/pci_ids.h %{install_datadir}
 install -p -m 644 scripts/common.sh %{install_datadir}
 install -p -m 755 scripts/setup.sh %{install_datadir}
-make -C dpdk install prefix=${RPM_BUILD_ROOT}%{pkg_prefix}
+mkdir -p ${RPM_BUILD_ROOT}%{pkg_prefix}
+cp -pr dpdk/build/lib ${RPM_BUILD_ROOT}%{pkg_prefix}
+cp -pr dpdk/build/include ${RPM_BUILD_ROOT}%{pkg_prefix}
 rm -rf ${RPM_BUILD_ROOT}%{pkg_prefix}/share/dpdk/examples
 cp -pr include/spdk ${RPM_BUILD_ROOT}%{pkg_prefix}/include/
 cp -pr build/lib/*.*    ${RPM_BUILD_ROOT}%{pkg_prefix}/lib/
