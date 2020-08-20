@@ -49,7 +49,8 @@ override_dh_auto_configure:
 		--with-rdma \
 		--without-vtune \
 		--with-iscsi-initiator \
-		--with-shared
+		--with-shared \
+		--with-uring
 
 override_dh_auto_clean:
 	test -e mk/config.mk && make distclean || true
