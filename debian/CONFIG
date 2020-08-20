@@ -160,7 +160,7 @@ CONFIG_CUSTOMOCF=n
 CONFIG_ISAL=y
 
 # Build with IO_URING support
-CONFIG_URING=n
+CONFIG_URING=y
 
 # Path to custom built IO_URING library
 CONFIG_URING_PATH=
