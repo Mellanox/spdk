@@ -3563,6 +3563,11 @@ struct nvme_request;
 
 struct spdk_nvme_transport;
 
+struct spdk_nvme_transport_opts {
+	/* SRQ depth for RDMA transport. If zero SRQ is not used */
+	uint32_t srq_depth;
+};
+
 struct spdk_nvme_transport_ops {
 	char name[SPDK_NVMF_TRSTRING_MAX_LEN + 1];
 
@@ -3650,6 +3655,9 @@ struct spdk_nvme_transport_ops {
 
 	void (*poll_group_free_stats)(struct spdk_nvme_transport_poll_group *tgroup,
 				      struct spdk_nvme_transport_poll_group_stat *stats);
+
+	void (*get_opts)(struct spdk_nvme_transport_opts *opts);
+	void (*set_opts)(const struct spdk_nvme_transport_opts *opts);
 };
 
 /**

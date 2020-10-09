@@ -1352,12 +1352,19 @@ int nvme_transport_poll_group_connect_qpair(struct spdk_nvme_qpair *qpair);
 int64_t nvme_transport_poll_group_process_completions(struct spdk_nvme_transport_poll_group *tgroup,
 		uint32_t completions_per_qpair, spdk_nvme_disconnected_qpair_cb disconnected_qpair_cb);
 int nvme_transport_poll_group_destroy(struct spdk_nvme_transport_poll_group *tgroup);
+
 int nvme_transport_poll_group_get_stats(struct spdk_nvme_transport_poll_group *tgroup,
 					struct spdk_nvme_transport_poll_group_stat **stats);
 void nvme_transport_poll_group_free_stats(struct spdk_nvme_transport_poll_group *tgroup,
 		struct spdk_nvme_transport_poll_group_stat *stats);
 enum spdk_nvme_transport_type nvme_transport_get_trtype(const struct spdk_nvme_transport
 		*transport);
+
+void nvme_transport_get_opts(const char *transport_name,
+			     struct spdk_nvme_transport_opts *opts);
+void nvme_transport_set_opts(const char *transport_name,
+			     const struct spdk_nvme_transport_opts *opts);
+
 /*
  * Below ref related functions must be called with the global
  *  driver lock held for the multi-process condition.

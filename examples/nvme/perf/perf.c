@@ -296,6 +296,9 @@ static pthread_mutex_t g_stats_mutex;
 #define MAX_ALLOWED_PCI_DEVICE_NUM 128
 static struct spdk_pci_addr g_allowed_pci_addr[MAX_ALLOWED_PCI_DEVICE_NUM];
 
+static uint32_t g_srq_depth;
+static const char *g_core_mask;
+
 struct trid_entry {
 	struct spdk_nvme_transport_id	trid;
 	uint16_t			nsid;
@@ -1755,6 +1758,7 @@ static void usage(char *program_name)
 	printf("\t[--transport-stats dump transport statistics]\n");
 	printf("\t[--iova-mode <mode> specify DPDK IOVA mode: va|pa]\n");
 #endif
+	printf("\t[-S SRQ depth for RDMA transport. Default 0 (do not use SRQ)]\n");
 }
 
 static void
@@ -2246,7 +2250,9 @@ static const struct option g_perf_cmdline_opts[] = {
 	{"transport-stats", no_argument, NULL, PERF_TRANSPORT_STATISTICS},
 #define PERF_IOVA_MODE		258
 	{"iova-mode", required_argument, NULL, PERF_IOVA_MODE},
-	/* Should be the last element */
+#define PERF_SRQ_DEPTH		259
+	{"srq-depth", required_argument, NULL, PERF_SRQ_DEPTH},
+/* Should be the last element */
 	{0, 0, 0, 0}
 };
 
@@ -2318,6 +2324,9 @@ parse_args(int argc, char **argv, struct spdk_env_opts *env_opts)
 				break;
 			case PERF_NUM_UNUSED_IO_QPAIRS:
 				g_nr_unused_io_queues = val;
+				break;
+			case PERF_SRQ_DEPTH:
+				g_srq_depth = val;
 				break;
 			case PERF_BUFFER_ALIGNMENT:
 				g_io_align = val;
@@ -2791,6 +2800,7 @@ int main(int argc, char **argv)
 	struct worker_thread *worker, *main_worker;
 	struct spdk_env_opts opts;
 	pthread_t thread_id = 0;
+	struct trid_entry *trid_entry;
 
 	spdk_env_opts_init(&opts);
 	opts.name = "perf";
@@ -2819,6 +2829,13 @@ int main(int argc, char **argv)
 	}
 
 	g_tsc_rate = spdk_get_ticks_hz();
+
+	TAILQ_FOREACH(trid_entry, &g_trid_list, tailq) {
+		struct spdk_nvme_transport_opts opts;
+		nvme_transport_get_opts(trid_entry->trid.trstring, &opts);
+		opts.srq_depth = g_srq_depth;
+		nvme_transport_set_opts(trid_entry->trid.trstring, &opts);
+	}
 
 	if (register_workers() != 0) {
 		rc = -1;
