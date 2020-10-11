@@ -298,6 +298,7 @@ static struct spdk_pci_addr g_allowed_pci_addr[MAX_ALLOWED_PCI_DEVICE_NUM];
 
 static uint32_t g_srq_depth;
 static const char *g_core_mask;
+static volatile uint32_t g_num_workers_not_ready;
 
 struct trid_entry {
 	struct spdk_nvme_transport_id	trid;
