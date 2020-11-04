@@ -44,7 +44,6 @@ override_dh_auto_configure:
 		--without-fio \
 		--with-vhost \
 		--without-pmdk \
-		--without-vpp \
 		--without-rbd \
 		--with-rdma \
 		--without-vtune \

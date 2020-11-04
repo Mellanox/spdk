@@ -1,6 +1,6 @@
 # Copyright (c) 2018-2020, Mellanox Technologies. All rights reserved.
 
-%define scm_version 20.07
+%define scm_version 20.10
 %define unmangled_version %{scm_version}
 %define scm_rev %{_rev}
 Epoch: 0
@@ -17,10 +17,6 @@ Group: 		System Environment/Daemons
 License: 	BSD and LGPLv2 and GPLv2
 URL: 		http://www.spdk.io
 Source0:	spdk-%{version}.tar.gz
-#Source1:	spdk-dpdk-%{version}.tar.gz
-#Source2:	spdk-intel-ipsec-mb-%{version}.tar.gz
-#Source3:	spdk-isa-l-%{version}.tar.gz
-#Source4:	spdk-ocf-%{version}.tar.gz
 
 %define package_version %{epoch}:%{version}-%{release}
 %define install_datadir %{buildroot}/%{_datadir}/%{name}
@@ -30,7 +26,7 @@ Source0:	spdk-%{version}.tar.gz
 
 # It is somewhat hard to get SPDK RPC working with python 2.7
 # Distros that don't support python3 will use python2
-%if 0%{rhel} == 7
+%if 0%{rhel} >= 7
 # So, let's switch to Python36 from IUS repo - https://github.com/iusrepo/python36
 %define use_python python3.6
 %define python_ver 3.6
@@ -77,7 +73,9 @@ BuildRequires: libiscsi-devel
 BuildRequires:	git make gcc gcc-c++
 BuildRequires:	CUnit-devel, libaio-devel, openssl-devel, libuuid-devel 
 BuildRequires:	libiscsi-devel
+%if 0%{rhel} != 8
 BuildRequires:  lcov
+%endif
 # Additional dependencies for NVMe over Fabrics
 BuildRequires:	libibverbs-devel, librdmacm-devel
 
@@ -128,7 +126,6 @@ export LDFLAGS
 	--without-fio \
 	--with-vhost \
 	--without-pmdk \
-	--without-vpp \
 	--without-rbd \
 	--with-rdma \
 	--without-vtune \
@@ -217,6 +214,10 @@ esac
 %changelog
 * %{_date} Yuriy Shestakov <yuriis@mellanox.com>
 - build from %{_branch} (sha1 %{_sha1})
+
+* Wed Nov 4 2020 Andrii Holovchenko <andriih@nvidia.com>
+- ported to v20.10 release
+- add rhel8 support
 
 * Tue Aug 11 2020 Andrii Holovchenko <andriih@nvidia.com>
 - ported to v20.07 release
