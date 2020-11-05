@@ -139,7 +139,6 @@ make %{?_smp_mflags}
 %install
 mkdir -p %{install_bindir}
 mkdir -p %{install_sbindir}
-install -p -m 755 build/bin/nvmf_tgt %{install_sbindir}
 install -p -m 755 build/bin/spdk_tgt %{install_sbindir}
 install -p -m 755 build/bin/vhost %{install_sbindir}
 install -p -m 755 build/bin/iscsi_tgt %{install_sbindir}
@@ -160,27 +159,23 @@ mkdir -p ${systemd_dir}
 mkdir -p %{buildroot}%{_sysconfdir}/default
 mkdir -p %{buildroot}%{_sysconfdir}/spdk
 mkdir -p %{install_datadir}
-install -p -m 644 include/spdk/pci_ids.h %{install_datadir}
-install -p -m 644 scripts/common.sh %{install_datadir}
-install -p -m 755 scripts/setup.sh %{install_datadir}
+mkdir -p %{install_datadir}/scripts
+mkdir -p %{install_datadir}/include/spdk
+install -p -m 644 include/spdk/pci_ids.h %{install_datadir}/include/spdk
+install -p -m 644 scripts/common.sh %{install_datadir}/scripts
+install -p -m 755 scripts/setup.sh %{install_datadir}/scripts
 mkdir -p ${RPM_BUILD_ROOT}%{pkg_prefix}
 cp -pr dpdk/build/lib ${RPM_BUILD_ROOT}%{pkg_prefix}
 cp -pr dpdk/build/include ${RPM_BUILD_ROOT}%{pkg_prefix}
 rm -rf ${RPM_BUILD_ROOT}%{pkg_prefix}/share/dpdk/examples
 cp -pr include/spdk ${RPM_BUILD_ROOT}%{pkg_prefix}/include/
 cp -pr build/lib/*.*    ${RPM_BUILD_ROOT}%{pkg_prefix}/lib/
+install -p -m 644 contrib/spdk_tgt.service ${systemd_dir}
+install -p -m 644 contrib/vhost.service ${systemd_dir}
+install -p -m 644 contrib/default/spdk_tgt %{buildroot}%{_sysconfdir}/default/spdk_tgt
+install -p -m 644 contrib/default/vhost %{buildroot}%{_sysconfdir}/default/vhost
+install -p -m 644 contrib/vhost.conf.example %{buildroot}%{_sysconfdir}/spdk/
 
-for fn in nvmf_tgt vhost spdk_tgt ; do
-  if [ -e contrib/$fn.service ] ; then
-    install -p -m 644 contrib/$fn.service ${systemd_dir}
-  fi
-  if [ -e contrib/default/$fn ] ; then
-    install -p -m 644 contrib/default/$fn %{buildroot}%{_sysconfdir}/default/$fn
-  fi
-  if [ -e contrib/$fn.conf.example ] ; then
-    install -p -m 644 contrib/$fn.conf.example %{buildroot}%{_sysconfdir}/spdk/
-  fi
-done
 # Install SPDK rpc services
 for mod in rpc spdkcli ; do
     mkdir -p %{buildroot}/%{_libdir}/python%{python_ver}/site-packages/$mod/
@@ -214,6 +209,10 @@ esac
 %changelog
 * %{_date} Yuriy Shestakov <yuriis@mellanox.com>
 - build from %{_branch} (sha1 %{_sha1})
+
+* Thu Nov 5 2020 Andrii Holovchenko <andriih@nvidia.com>
+- fix setup.sh install path
+- remove nvmf_tgt service files
 
 * Wed Nov 4 2020 Andrii Holovchenko <andriih@nvidia.com>
 - ported to v20.10 release

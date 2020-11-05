@@ -4,13 +4,26 @@
 
 # run on 4 cores out of 16 on Bluewhale server
 CPU_MASK=0x0f00
-# default config file
-NVMF_TGT_CONF=/etc/spdk/nvmf_tgt.conf
 
 # extra args like -r 0.0.0.0 to start RPC listener on
 EXTRA_ARGS=""
 
-MIN_HUGEMEM="2G"
-# used in the /usr/lib/systemd/system/nvmf_tgt.service
-# to run `hugeadm --pool-pages-min DEFAULT:2G` command
-# to allocate needed amount of huge pages for SPDK app
+# Size of hugepage memory to allocate (in MB). 
+# 2048 by default.
+HUGEMEM="2048"
+
+# Each device must be specified as a full PCI address.
+# E.g. PCI_WHITELIST="0000:01:00.0 0000:02:00.0"
+# To blacklist all PCI devices use a non-valid address.
+# E.g. PCI_WHITELIST="none"
+# If PCI_WHITELIST and PCI_BLACKLIST are empty or unset, all PCI devices
+# will be bound.
+# Each device in PCI_BLACKLIST will be ignored (driver won't be changed).
+# PCI_BLACKLIST has precedence over PCI_WHITELIST.
+PCI_WHITELIST="none"
+PCI_BLACKLIST=""
+
+# Disable automatic vfio-pci/uio_pci_generic selection and forcefully
+# bind devices to the given driver.
+# E.g. DRIVER_OVERRIDE=uio_pci_generic or DRIVER_OVERRIDE=/home/public/dpdk/build/kmod/igb_uio.ko
+DRIVER_OVERRIDE=""
