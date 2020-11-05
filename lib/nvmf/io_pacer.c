@@ -241,40 +241,6 @@ spdk_io_pacer_destroy(struct spdk_io_pacer *pacer)
 	SPDK_NOTICELOG("Destroyed IO pacer %p\n", pacer);
 }
 
-void spdk_io_pacer_drive_stats_setup(struct spdk_io_pacer_drives_stats *stats, int32_t entries)
-{
-	struct rte_hash_parameters hash_params = {
-		.name = "DRIVE_STATS",
-		.entries = entries,
-		.key_len = sizeof(uint64_t),
-		.socket_id = rte_socket_id(),
-		.hash_func = rte_jhash,
-		.hash_func_init_val = 0,
-	};
-	struct rte_hash *h = NULL;
-
-	if (stats->h != NULL) {
-		return;
-	}
-
-	rte_spinlock_lock(&drives_stats_create_lock);
-	if (stats->h != NULL) {
-		goto exit;
-	}
-
-	h = rte_hash_create(&hash_params);
-	if (h == NULL) {
-		SPDK_ERRLOG("IO pacer can't create drive statistics dict\n");
-	}
-
-	stats->h = h;
-	rte_spinlock_init(&stats->lock);
-	SPDK_NOTICELOG("Drives stats setup done\n");
-
- exit:
-	rte_spinlock_unlock(&drives_stats_create_lock);
-}
-
 int
 spdk_io_pacer_create_queue(struct spdk_io_pacer *pacer, uint64_t key)
 {
@@ -300,7 +266,6 @@ spdk_io_pacer_create_queue(struct spdk_io_pacer *pacer, uint64_t key)
 
 	pacer->queues[pacer->num_queues].key = key;
 	STAILQ_INIT(&pacer->queues[pacer->num_queues].queue);
-	spdk_io_pacer_drive_stats_setup(&drives_stats, MAX_DRIVES_STATS);
 	pacer->queues[pacer->num_queues].stats = spdk_io_pacer_drive_stats_get(&drives_stats, key);
 	pacer->num_queues++;
 	SPDK_NOTICELOG("Created IO pacer queue: pacer %p, key %016lx\n",
@@ -574,3 +539,102 @@ spdk_io_pacer_tuner2_sub(struct spdk_io_pacer_tuner2 *tuner, uint32_t value)
 	assert(tuner != NULL);
 	tuner->value -= value;
 }
+
+struct drive_stats* spdk_io_pacer_drive_stats_create(struct spdk_io_pacer_drives_stats *stats,
+								   uint64_t key,
+								   struct spdk_bdev *bdev)
+{
+	int32_t ret = 0;
+	struct drive_stats *data = NULL;
+	struct rte_hash *h = stats->h;
+
+	ret = rte_hash_lookup(h, &key);
+	if (ret != -ENOENT)
+		return 0;
+
+	drive_stats_lock(stats);
+
+	ret = rte_hash_lookup(h, &key);
+	if (ret != -ENOENT)
+		return 0;
+
+	data = calloc(1, sizeof(struct drive_stats));
+	rte_atomic32_init(&data->ops_in_flight);
+	/* FIXME just workaround to test */
+	data->bdev = bdev;
+	ret = rte_hash_add_key_data(h, (void *) &key, data);
+	if (ret < 0) {
+		SPDK_ERRLOG("Can't add key to drive statistics dict: %" PRIx64 "\n",
+			    key);
+		goto err;
+	}
+	goto exit;
+err:
+	free(data);
+	data = NULL;
+exit:
+	drive_stats_unlock(stats);
+	return data;
+}
+
+struct drive_stats * spdk_io_pacer_drive_stats_get(struct spdk_io_pacer_drives_stats *stats,
+								 uint64_t key)
+{
+	struct drive_stats *data = NULL;
+	int ret = 0;
+	ret = rte_hash_lookup_data(stats->h, (void*) &key, (void**) &data);
+	if (unlikely(ret < 0)) {
+		SPDK_ERRLOG("Drive statistics seems broken\n");
+    }
+	return data;
+}
+
+static inline void spdk_io_pacer_drive_stats_setup(struct spdk_io_pacer_drives_stats *stats, int32_t entries)
+{
+	struct rte_hash_parameters hash_params = {
+		.name = "DRIVE_STATS",
+		.entries = entries,
+		.key_len = sizeof(uint64_t),
+		.socket_id = rte_socket_id(),
+		.hash_func = rte_jhash,
+		.hash_func_init_val = 0,
+	};
+	struct rte_hash *h = NULL;
+
+	if (stats->h != NULL) {
+		return;
+	}
+
+	rte_spinlock_lock(&drives_stats_create_lock);
+	if (stats->h != NULL) {
+		goto exit;
+	}
+
+	h = rte_hash_create(&hash_params);
+	if (h == NULL) {
+		SPDK_ERRLOG("IO pacer can't create drive statistics dict\n");
+	}
+
+	stats->h = h;
+	rte_spinlock_init(&stats->lock);
+	SPDK_NOTICELOG("Drives stats setup done\n");
+
+ exit:
+	rte_spinlock_unlock(&drives_stats_create_lock);
+}
+
+void spdk_io_pacer_drive_stats_try_init(uint64_t key, struct spdk_bdev *bdev)
+{
+	struct drive_stats *data;
+	int ret = 0;
+
+	spdk_io_pacer_drive_stats_setup(&drives_stats, MAX_DRIVES_STATS);
+	ret = rte_hash_lookup_data(drives_stats.h, (void*) &key, (void**) &data);
+	if (unlikely(ret == -EINVAL)) {
+		SPDK_ERRLOG("Drive statistics seems broken\n");
+	} else if (unlikely(ret == -ENOENT)) {
+		SPDK_NOTICELOG("Creating drive stats for key: %" PRIx64 "\n", key);
+		data = spdk_io_pacer_drive_stats_create(&drives_stats, key, bdev);
+	}
+}
+

@@ -2194,6 +2194,7 @@ spdk_nvmf_rdma_request_process(struct spdk_nvmf_rdma_transport *rtransport,
 
 			rdma_req->pacer_key = ((uint64_t)rqpair->qpair.ctrlr->subsys->id << 32) +
 				rdma_req->req.cmd->nvme_cmd.nsid;
+			spdk_io_pacer_drive_stats_try_init(rdma_req->pacer_key, ns->bdev);
 			spdk_io_pacer_push(rgroup->pacer,
 					   rdma_req->pacer_key,
 					   &rdma_req->pacer_entry);
