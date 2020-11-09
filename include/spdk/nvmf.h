@@ -125,6 +125,8 @@ struct spdk_nvmf_io_pacer_stat {
 	uint64_t calls;
 	uint64_t no_ios;
 	uint64_t period_ticks;
+	uint64_t nos_credit_unavailable;
+	uint64_t nos_bytes_above_allowed;
 };
 
 struct spdk_nvmf_transport_poll_group_stat {

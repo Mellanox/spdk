@@ -57,6 +57,8 @@ struct io_pacer_queue {
 	STAILQ_HEAD(, io_pacer_queue_entry) queue;
 };
 
+struct spdk_io_pacer_tuner;
+struct spdk_io_pacer_tuner2;
 struct spdk_io_pacer {
 	uint64_t period_ticks;
 	int64_t credit;
@@ -72,6 +74,12 @@ struct spdk_io_pacer {
 	struct io_pacer_queue *queues;
 	struct spdk_poller *poller;
 	uint32_t disk_credit;
+	uint32_t pacer_tuner_type;
+	uint32_t pacer_tuner_type_proposal;
+	union {
+		struct spdk_io_pacer_tuner			*pacer_tuner;
+		struct spdk_io_pacer_tuner2			*pacer_tuner2;
+	};
 };
 
 struct spdk_io_pacer_tuner {
@@ -127,22 +135,19 @@ io_pacer_poll(void *arg)
 #endif /* SPDK_CONFIG_VTUNE */
 
 	pacer->stat.calls++;
-	if (ticks_diff < pacer->period_ticks) {
-		return 0;
-	}
-	pacer->stat.total_ticks = cur_tick - pacer->first_tick;
-	pacer->last_tick = cur_tick - ticks_diff % pacer->period_ticks;
-	pacer->stat.polls++;
-
-	pacer->remaining_credit = spdk_min(pacer->remaining_credit + pacer->credit,
-					   pacer->credit);
-
-	if (pacer->num_ios == 0) {
-		pacer->stat.no_ios++;
-	}
+    if (ticks_diff >= pacer->period_ticks){
+        pacer->stat.total_ticks = cur_tick - pacer->first_tick;
+        pacer->last_tick = cur_tick - ticks_diff % pacer->period_ticks;
+        pacer->stat.polls++;
+        pacer->remaining_credit = spdk_min(pacer->remaining_credit + pacer->credit,
+                                           pacer->credit);
+        if (pacer->num_ios == 0) {
+            pacer->stat.no_ios++;
+        }
+    }
 
 	while ((pacer->num_ios > 0) &&
-	       (pacer->remaining_credit > 0) &&
+           (is_credit_available(pacer) == true) &&
 	       (attempts_cnt < pacer->num_queues)) {
 		next_queue %= pacer->num_queues;
 		attempts_cnt++;
@@ -157,6 +162,12 @@ io_pacer_poll(void *arg)
 		entry = STAILQ_FIRST(&pacer->queues[next_queue].queue);
 		next_queue++;
 		if (entry != NULL) {
+#if SPDK_NVMF_RDMA_IO_PACER_ALLOW_IO_WITHIN_AVAIL
+            if (!is_entry_size_within_limit(pacer, entry))
+            {
+                break;
+            }
+#endif
 			STAILQ_REMOVE_HEAD(&pacer->queues[next_queue - 1].queue, link);
 			pacer->num_ios--;
 			pacer->next_queue = next_queue;
@@ -182,7 +193,8 @@ struct spdk_io_pacer *
 spdk_io_pacer_create(uint32_t period_ns,
 		     uint32_t credit,
 		     uint32_t disk_credit,
-		     spdk_io_pacer_pop_cb pop_cb)
+		     spdk_io_pacer_pop_cb pop_cb,
+		     uint32_t io_pacer_tuner_type)
 {
 	struct spdk_io_pacer *pacer;
 
@@ -201,6 +213,8 @@ spdk_io_pacer_create(uint32_t period_ns,
 	pacer->pop_cb = pop_cb;
 	pacer->first_tick = spdk_get_ticks();
 	pacer->last_tick = spdk_get_ticks();
+	pacer->stat.nos_credit_unavailable	= 0;
+	pacer->stat.nos_bytes_above_allowed	= 0;
 	pacer->poller = SPDK_POLLER_REGISTER(io_pacer_poll, (void *)pacer, 0);
 	if (!pacer->poller) {
 		SPDK_ERRLOG("Failed to create poller for IO pacer\n");
@@ -208,14 +222,15 @@ spdk_io_pacer_create(uint32_t period_ns,
 		return NULL;
 	}
 
-	SPDK_NOTICELOG("Created IO pacer %p: period_ns %u, period_ticks %lu, max_queues %u, credit %ld, disk_credit %u, core %u\n",
+	SPDK_NOTICELOG("Created IO pacer %p: period_ns %u, period_ticks %lu, max_queues %u, credit %ld, disk_credit %u, core %u, Tuner type: %u\n",
 		       pacer,
 		       period_ns,
 		       pacer->period_ticks,
 		       pacer->max_queues,
 		       pacer->credit,
 		       pacer->disk_credit,
-		       spdk_env_get_current_core());
+		       spdk_env_get_current_core(),
+		       io_pacer_tuner_type);
 
 	return pacer;
 }
@@ -395,7 +410,7 @@ io_pacer_tune(void *arg)
 				    tuner->min_pacer_period_ticks);
 
 	static __thread uint32_t log_counter = 0;
-	/* Try to log once per second */
+	/* Try to log once per second so as to reduce num of traces */
 	if (log_counter % (SPDK_SEC_TO_NSEC / tuner->period_ns) == 0) {
 		SPDK_NOTICELOG("IO pacer tuner %p: pacer %p, bytes %lu, io period %lu ns, new period %lu ns, new period %lu ticks, min %lu, max %lu\n",
 			       tuner,
@@ -435,6 +450,9 @@ spdk_io_pacer_tuner_create(struct spdk_io_pacer *pacer,
 	tuner->step_ns = step_ns;
 	tuner->min_pacer_period_ticks = pacer->period_ticks;
 	tuner->max_pacer_period_ticks = 2 * tuner->min_pacer_period_ticks;
+	pacer->pacer_tuner_type = SPDK_NVMF_RDMA_IO_PACER_TUNER_TYPE_01;
+	pacer->pacer_tuner_type_proposal = 0;
+	pacer->pacer_tuner = tuner;
 
 	if (0 != period_us) {
 		tuner->poller = SPDK_POLLER_REGISTER(io_pacer_tune, (void *)tuner, period_us);
@@ -475,6 +493,7 @@ struct spdk_io_pacer_tuner2 {
 	uint64_t min_pacer_period_ticks;
 	uint64_t max_pacer_period_ticks;
 	struct spdk_poller *poller;
+	uint64_t min_threshold_offset;
 };
 
 static int
@@ -490,16 +509,18 @@ io_pacer_tune2(void *arg)
 	new_period_ticks = spdk_min(new_period_ticks, tuner->max_pacer_period_ticks);
 
 	static __thread uint32_t log_counter = 0;
-	/* Try to log once per second, else it would be too much log  */
+	/* Try to log once per second, to limit the log */
 	if (log_counter % (SPDK_SEC_TO_NSEC / tuner->period_ns) == 0) {
-		SPDK_NOTICELOG("IO pacer tuner %p: pacer %p, value %u, new period %lu ticks, min %lu, polls %u. ios %u\n",
+		SPDK_NOTICELOG("IO pacer tuner %p: pacer %p, value %u, new period %lu ticks, min %lu, polls %lu. ios %lu, no credit %lu, abv allow %lu\n",
 			       tuner,
 			       pacer,
 			       v,
 			       new_period_ticks,
 			       tuner->min_pacer_period_ticks,
 			       pacer->stat.polls,
-			       pacer->stat.ios);
+			       pacer->stat.ios,
+			       pacer->stat.nos_credit_unavailable,
+			       pacer->stat.nos_bytes_above_allowed);
 	}
 	log_counter++;
 
@@ -515,6 +536,7 @@ spdk_io_pacer_tuner2_create(struct spdk_io_pacer *pacer,
 			    uint64_t factor)
 {
 	struct spdk_io_pacer_tuner2 *tuner;
+	uint32_t    min_threshold_margin;
 
 	assert(pacer != NULL);
 
@@ -531,6 +553,12 @@ spdk_io_pacer_tuner2_create(struct spdk_io_pacer *pacer,
 	tuner->factor = factor;
 	tuner->min_pacer_period_ticks = pacer->period_ticks;
 	tuner->max_pacer_period_ticks = 4 * tuner->min_pacer_period_ticks;
+	pacer->pacer_tuner_type = SPDK_NVMF_RDMA_IO_PACER_TUNER_TYPE_02;
+	pacer->pacer_tuner_type_proposal = 0;
+	pacer->pacer_tuner2     = tuner;
+
+	min_threshold_margin    = 100 / SPDK_NVMF_RDMA_IO_PACER_DEFAULT_MARGIN_ABOVE_CREDIT; /* variable parameter */
+	tuner->min_threshold_offset    = (tuner->min_threshold / min_threshold_margin);
 
 	if (0 != period_us) {
 		tuner->poller = SPDK_POLLER_REGISTER(io_pacer_tune2, (void *)tuner, period_us);
@@ -541,12 +569,13 @@ spdk_io_pacer_tuner2_create(struct spdk_io_pacer *pacer,
 		}
 	}
 
-	SPDK_NOTICELOG("Created IO pacer tuner %p: pacer %p, period_ns %lu, threshold %u, factor %lu\n",
+	SPDK_NOTICELOG("Created IO pacer tuner %p: pacer %p, period_ns %lu, threshold %u, factor %lu, allowed offset %lu\n",
 		       tuner,
 		       pacer,
 		       tuner->period_ns,
 		       tuner->min_threshold,
-		       tuner->factor);
+		       tuner->factor,
+		       tuner->min_threshold_offset);
 
 	return tuner;
 }
@@ -574,3 +603,45 @@ spdk_io_pacer_tuner2_sub(struct spdk_io_pacer_tuner2 *tuner, uint32_t value)
 	assert(tuner != NULL);
 	tuner->value -= value;
 }
+
+bool
+is_credit_available(struct spdk_io_pacer *pacer){
+#if SPDK_NVMF_RDMA_IO_PACER_ALLOW_WITHIN_CREDIT_ONLY
+	/*
+	 * Check the bytes in fight within allowed offset above the minimum allowed
+	 * threshold value
+	 */ 
+	if (pacer->pacer_tuner_type == SPDK_NVMF_RDMA_IO_PACER_TUNER_TYPE_02){
+		struct spdk_io_pacer_tuner2 *pacer_tuner = pacer->pacer_tuner2;
+		if ((pacer->remaining_credit > 0)&&
+			(pacer_tuner->value <= pacer_tuner->min_threshold + pacer_tuner->min_threshold_offset)){
+			return true;
+		}
+	} else if (pacer->remaining_credit > 0){
+		return true;
+	}
+#else
+    else if (pacer->remaining_credit > 0){
+        return true;
+    }
+#endif
+    pacer->stat.nos_credit_unavailable++;
+    return false;
+}
+
+#if SPDK_NVMF_RDMA_IO_PACER_ALLOW_IO_WITHIN_AVAIL
+bool
+is_entry_size_within_limit(struct spdk_io_pacer *pacer, struct io_pacer_queue_entry *entry)
+{
+	if (pacer->pacer_tuner_type == SPDK_NVMF_RDMA_IO_PACER_TUNER_TYPE_02){
+		if ((pacer_tuner->value + entry->size) <= (pacer_tuner->min_threshold + pacer_tuner->min_threshold_offset)){
+			return true;
+		} else {
+			pacer->stat.no_bytes_above_allowed++;
+			return false;
+		}
+	} else {
+		return true;
+	}
+}
+#endif
