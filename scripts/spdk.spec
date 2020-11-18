@@ -70,12 +70,17 @@ BuildRequires: numactl-devel
 BuildRequires: libiscsi-devel
 
 # SPDK build dependencies
-BuildRequires:	git make gcc gcc-c++
+BuildRequires:	make gcc gcc-c++
 BuildRequires:	CUnit-devel, libaio-devel, openssl-devel, libuuid-devel 
 BuildRequires:	libiscsi-devel
-%if 0%{rhel} != 8
+
+%if 0%{rhel} == 8
+BuildRequires:  git-core
+%else
+BuildRequires:  git
 BuildRequires:  lcov
 %endif
+
 # Additional dependencies for NVMe over Fabrics
 BuildRequires:	libibverbs-devel, librdmacm-devel
 
@@ -113,6 +118,7 @@ applications.
 # test -e ./dpdk/config/common_linuxapp
 
 %build
+sed -i -e 's!/usr/bin/python$!/usr/bin/python'%{python_ver}'!' dpdk/config/arm/armv8_machine.py
 sed -i 's#CONFIG_PREFIX="/usr/local"#CONFIG_PREFIX="'%{pkg_prefix}'"#' CONFIG
 LDFLAGS="$LDFLAGS -Wl,-rpath,%{pkg_prefix}/lib"
 export LDFLAGS
@@ -209,6 +215,10 @@ esac
 %changelog
 * %{_date} Yuriy Shestakov <yuriis@mellanox.com>
 - build from %{_branch} (sha1 %{_sha1})
+
+* Wed Nov 18 2020 Andrii Holovchenko <andriih@nvidia.com>
+- build requires git-core for rhel 8.x
+- explicitly define python version in dpdk/config/arm/armv8_machine.py
 
 * Thu Nov 5 2020 Andrii Holovchenko <andriih@nvidia.com>
 - fix setup.sh install path
