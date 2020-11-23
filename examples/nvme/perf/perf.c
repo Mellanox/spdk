@@ -1011,7 +1011,6 @@ static void
 nvme_cleanup_ns_worker_ctx(struct ns_worker_ctx *ns_ctx)
 {
 	int i;
-
 	for (i = 0; i < ns_ctx->u.nvme.num_all_qpairs; i++) {
 		spdk_nvme_poll_group_remove(ns_ctx->u.nvme.group, ns_ctx->u.nvme.qpair[i]);
 		spdk_nvme_ctrlr_free_io_qpair(ns_ctx->u.nvme.qpair[i]);
@@ -1759,7 +1758,6 @@ static void usage(char *program_name)
 	printf("\t[--transport-stats dump transport statistics]\n");
 	printf("\t[--iova-mode <mode> specify DPDK IOVA mode: va|pa]\n");
 #endif
-	printf("\t[-S SRQ depth for RDMA transport. Default 0 (do not use SRQ)]\n");
 }
 
 static void
@@ -2280,6 +2278,7 @@ parse_args(int argc, char **argv, struct spdk_env_opts *env_opts)
 		case PERF_RW_MIXREAD:
 		case PERF_NUM_UNUSED_IO_QPAIRS:
 		case PERF_SKIP_ERRRORS:
+		case PERF_SRQ_DEPTH:
 			val = spdk_strtol(optarg, 10);
 			if (val < 0) {
 				fprintf(stderr, "Converting a string to integer failed\n");

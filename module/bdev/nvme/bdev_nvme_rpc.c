@@ -118,6 +118,59 @@ SPDK_RPC_REGISTER("bdev_nvme_set_options", rpc_bdev_nvme_set_options,
 		  SPDK_RPC_STARTUP | SPDK_RPC_RUNTIME)
 SPDK_RPC_REGISTER_ALIAS_DEPRECATED(bdev_nvme_set_options, set_bdev_nvme_options)
 
+static const struct spdk_json_object_decoder rpc_bdev_nvme_transport_options_decoders[] = {
+	{"srq_depth", offsetof(struct spdk_bdev_nvme_transport_opts, srq_depth), spdk_json_decode_uint32, true},
+	{"trtype", offsetof(struct spdk_bdev_nvme_transport_opts, trtype), spdk_json_decode_string, true},
+};
+
+static void
+rpc_bdev_nvme_transport_set_options(struct spdk_jsonrpc_request *request,
+			  const struct spdk_json_val *params)
+{
+	struct spdk_bdev_nvme_transport_opts opts = {};
+	struct spdk_nvme_transport_opts nvme_transport_opts = {};
+
+	struct spdk_json_write_ctx *w;
+	struct spdk_nvme_transport_id trid = {};
+
+	int rc;
+
+	if (params && spdk_json_decode_object(params, rpc_bdev_nvme_transport_options_decoders,
+					      SPDK_COUNTOF(rpc_bdev_nvme_transport_options_decoders),
+					      &opts)) {
+		SPDK_ERRLOG("spdk_json_decode_object failed\n");
+		spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INTERNAL_ERROR,
+						 "spdk_json_decode_object failed");
+		goto exit;
+	}
+
+	rc = spdk_nvme_transport_id_populate_trstring(&trid, opts.trtype);
+
+	/* Parse trstring */
+	rc = spdk_nvme_transport_id_populate_trstring(&trid, opts.trtype);
+	if (rc < 0) {
+		SPDK_ERRLOG("Failed to parse trtype: %s\n", opts.trtype);
+		spdk_jsonrpc_send_error_response_fmt(request, -EINVAL, "Failed to parse trtype: %s",
+						     opts.trtype);
+		goto exit;
+	}
+
+
+	nvme_transport_get_opts(opts.trtype, &nvme_transport_opts);
+	nvme_transport_opts.srq_depth = opts.srq_depth;
+	nvme_transport_set_opts(opts.trtype, &nvme_transport_opts);
+
+	w = spdk_jsonrpc_begin_result(request);
+	spdk_json_write_bool(w, true);
+	spdk_jsonrpc_end_result(request, w);
+
+exit:
+	return;
+}
+
+SPDK_RPC_REGISTER("bdev_nvme_transport_set_options", rpc_bdev_nvme_transport_set_options,
+		  SPDK_RPC_STARTUP | SPDK_RPC_RUNTIME)
+
 struct rpc_bdev_nvme_hotplug {
 	bool enabled;
 	uint64_t period_us;

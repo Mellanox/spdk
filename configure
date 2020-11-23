@@ -306,6 +306,9 @@ for i in "$@"; do
 		--without-rdma)
 			CONFIG[RDMA]=n
 			;;
+		--with-rdma-path=*)
+			CONFIG[RDMA_PATH]=$(readlink -f ${i#*=})
+			;;
 		--with-fc=*)
 			CONFIG[FC]=y
 			CONFIG[FC_PATH]=$(readlink -f ${i#*=})
@@ -598,22 +601,24 @@ if [[ $sys_name != "Linux" ]]; then
 fi
 
 if [ "${CONFIG[RDMA]}" = "y" ]; then
-	if [[ ! "${CONFIG[RDMA_PROV]}" == "verbs" ]] && [[ ! "${CONFIG[RDMA_PROV]}" == "mlx5_dv" ]]; then
-		echo "Invalid RDMA provider specified, must be \"verbs\" or \"mlx5_dv\""
+	if [[ ! "${CONFIG[RDMA_PROV]}" == "verbs" ]] && [[ ! "${CONFIG[RDMA_PROV]}" == "mlx5_dv" ]] && [[ ! "${CONFIG[RDMA_PROV]}" == "mlx5_dv_dc" ]]; then
+		echo "Invalid RDMA provider specified, must be \"verbs\" or \"mlx5_dv\" or \"mlx5_dv_dc\""
 		exit 1
 	fi
-
+	if [ -n "${CONFIG[RDMA_PATH]}" ]; then
+            RDMA_BUILD_FLAGS="-I${CONFIG[RDMA_PATH]}/include -L${CONFIG[RDMA_PATH]}/lib"
+	fi
 	if ! echo -e '#include <infiniband/verbs.h>\n#include <rdma/rdma_verbs.h>\n' \
 		'int main(void) { return 0; }\n' \
-		| "${BUILD_CMD[@]}" -libverbs -lrdmacm - 2> /dev/null; then
-		echo "--with-rdma requires libverbs and librdmacm."
-		echo "Please install then re-run this script."
+		| ${BUILD_CMD[@]} $RDMA_BUILD_FLAGS -libverbs -lrdmacm - 2>/dev/null; then
+		echo --with-rdma requires libverbs and librdmacm.
+		echo Please install then re-run this script.
 		exit 1
 	fi
-
-	if echo -e '#include <infiniband/verbs.h>\n' \
+    
+	if [[ ! "${CONFIG[RDMA_PROV]}" == "mlx5_dv_dc" ]] && echo -e '#include <infiniband/verbs.h>\n' \
 		'int main(void) { return !!IBV_WR_SEND_WITH_INV; }\n' \
-		| "${BUILD_CMD[@]}" -c - 2> /dev/null; then
+		| ${BUILD_CMD[@]} $RDMA_BUILD_FLAGS -c - 2>/dev/null; then
 		CONFIG[RDMA_SEND_WITH_INVAL]="y"
 	else
 		CONFIG[RDMA_SEND_WITH_INVAL]="n"
@@ -635,23 +640,23 @@ than or equal to 4.14 will see significantly reduced performance.
 
 	if echo -e '#include <rdma/rdma_cma.h>\n' \
 		'int main(void) { return !!RDMA_OPTION_ID_ACK_TIMEOUT; }\n' \
-		| "${BUILD_CMD[@]}" -c - 2> /dev/null; then
+		| ${BUILD_CMD[@]} $RDMA_BUILD_FLAGS -c - 2>/dev/null; then
 		CONFIG[RDMA_SET_ACK_TIMEOUT]="y"
 	else
 		CONFIG[RDMA_SET_ACK_TIMEOUT]="n"
 		echo "RDMA_OPTION_ID_ACK_TIMEOUT is not supported"
 	fi
 
-	if [ "${CONFIG[RDMA_PROV]}" == "mlx5_dv" ]; then
-		if ! echo -e '#include <spdk/stdinc.h>\n' \
-			'#include <infiniband/mlx5dv.h>\n' \
-			'#include <rdma/rdma_cma.h>\n' \
-			'int main(void) { return rdma_establish(NULL) || ' \
-			'!!IBV_QP_INIT_ATTR_SEND_OPS_FLAGS || !!MLX5_OPCODE_RDMA_WRITE; }\n' \
-			| "${BUILD_CMD[@]}" -lmlx5 -I${rootdir}/include -c - 2> /dev/null; then
-			echo "mlx5_dv provider is not supported"
-			exit 1
-		fi
+	if [ "${CONFIG[RDMA_PROV]}" == "mlx5_dv" ] || [ "${CONFIG[RDMA_PROV]}" == "mlx5_dv_dc" ]; then
+	  if ! echo -e '#include <spdk/stdinc.h>\n' \
+	    '#include <infiniband/mlx5dv.h>\n' \
+	    '#include <rdma/rdma_cma.h>\n' \
+		  'int main(void) { return rdma_establish(NULL) || ' \
+		  '!!IBV_QP_INIT_ATTR_SEND_OPS_FLAGS || !!MLX5_OPCODE_RDMA_WRITE; }\n' \
+		  | ${BUILD_CMD[@]} $RDMA_BUILD_FLAGS -lmlx5 -I${rootdir}/include -c - 2>/dev/null; then
+      echo "mlx5_dv provider is not supported"
+		  exit 1
+	  fi
 	fi
 
 	echo "Using '${CONFIG[RDMA_PROV]}' RDMA provider"

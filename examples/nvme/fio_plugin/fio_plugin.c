@@ -95,6 +95,7 @@ struct spdk_fio_options {
 	int	initial_zone_reset;
 	int	zone_append;
 	int	print_qid_mappings;
+	int     srq_depth;
 };
 
 struct spdk_fio_request {
@@ -625,6 +626,14 @@ static int spdk_fio_setup(struct thread_data *td)
 				snprintf(trid.subnqn, sizeof(trid.subnqn), "%s",
 					 SPDK_NVMF_DISCOVERY_NQN);
 			}
+		}
+
+		{
+			struct spdk_nvme_transport_opts opts;
+			nvme_transport_get_opts(trid.trstring, &opts);
+			opts.srq_depth = fio_options->srq_depth;
+			fprintf(stderr, "Got SRQ depth: %d\n", opts.srq_depth);
+			nvme_transport_set_opts(trid.trstring, &opts);
 		}
 
 		fio_thread->current_f = f;
@@ -1647,6 +1656,16 @@ static struct fio_option options[] = {
 		.help		= "Print job-to-qid mappings (0=disable, 1=enable)",
 		.category	= FIO_OPT_C_ENGINE,
 		.group		= FIO_OPT_G_INVALID,
+	},
+	{
+		.name           = "srq_depth",
+		.lname          = "SRQ depth on iniator side",
+		.type           = FIO_OPT_INT,
+		.off1           = offsetof(struct spdk_fio_options, srq_depth),
+		.def            = "128",
+		.help           = "DC requires SRQ on both side, so queue depth must be set",
+		.category       = FIO_OPT_C_ENGINE,
+		.group          = FIO_OPT_G_INVALID,
 	},
 	{
 		.name		= NULL,

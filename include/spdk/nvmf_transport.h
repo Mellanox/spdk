@@ -45,7 +45,7 @@
 #include "spdk/nvmf_spec.h"
 #include "spdk/memory.h"
 
-#define SPDK_NVMF_MAX_SGL_ENTRIES	16
+#define SPDK_NVMF_MAX_SGL_ENTRIES	11
 
 /* The maximum number of buffers per request */
 #define NVMF_REQ_MAX_BUFFERS	(SPDK_NVMF_MAX_SGL_ENTRIES * 2 + 1)

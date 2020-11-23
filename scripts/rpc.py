@@ -452,6 +452,20 @@ if __name__ == "__main__":
     p.add_argument('name', help='uring bdev name')
     p.set_defaults(func=bdev_uring_delete)
 
+    def bdev_nvme_transport_set_options(args):
+        rpc.bdev.bdev_nvme_transport_set_options(args.client,
+                                                 trtype = args.trtype,
+                                                 srq_depth=args.srq_depth)
+
+    p = subparsers.add_parser('bdev_nvme_transport_set_options',
+                                  help='Set options for the bdev nvme transport type.')
+    p.add_argument('-s', '--srq-depth', type=int, required=True,
+                       help='SRQ depth for NVME initiator')
+    p.add_argument('-t', '--trtype', type=str, required=True,
+                       help='transport type for NVME initiator')
+
+    p.set_defaults(func=bdev_nvme_transport_set_options)
+
     def bdev_nvme_set_options(args):
         rpc.bdev.bdev_nvme_set_options(args.client,
                                        action_on_timeout=args.action_on_timeout,

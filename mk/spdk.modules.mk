@@ -65,6 +65,9 @@ BLOCKDEV_MODULES_PRIVATE_LIBS += -libverbs -lrdmacm
 ifeq ($(CONFIG_RDMA_PROV),mlx5_dv)
 BLOCKDEV_MODULES_PRIVATE_LIBS += -lmlx5
 endif
+ifeq ($(CONFIG_RDMA_PROV),mlx5_dv_dc)
+SYS_LIBS += -lmlx5
+endif
 endif
 
 ifeq ($(OS),Linux)

@@ -457,14 +457,18 @@ struct spdk_nvmf_rdma_request_private_data {
 	uint16_t	hrqsize;	/* host receive queue size */
 	uint16_t	hsqsize;	/* host send queue size */
 	uint16_t	cntlid;		/* controller id */
-	uint8_t		reserved[22];
+	uint32_t        dctn;
+	uint32_t        assigned_id;
+	uint8_t		reserved[14];
 };
 SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_rdma_request_private_data) == 32, "Incorrect size");
 
 struct spdk_nvmf_rdma_accept_private_data {
 	uint16_t	recfmt; /* record format */
 	uint16_t	crqsize;	/* controller receive queue size */
-	uint8_t		reserved[28];
+	uint32_t        dctn;
+	uint32_t        assigned_id;
+	uint8_t		reserved[20];
 };
 SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_rdma_accept_private_data) == 32, "Incorrect size");
 

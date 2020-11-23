@@ -1353,6 +1353,7 @@ int64_t nvme_transport_poll_group_process_completions(struct spdk_nvme_transport
 		uint32_t completions_per_qpair, spdk_nvme_disconnected_qpair_cb disconnected_qpair_cb);
 int nvme_transport_poll_group_destroy(struct spdk_nvme_transport_poll_group *tgroup);
 
+
 int nvme_transport_poll_group_get_stats(struct spdk_nvme_transport_poll_group *tgroup,
 					struct spdk_nvme_transport_poll_group_stat **stats);
 void nvme_transport_poll_group_free_stats(struct spdk_nvme_transport_poll_group *tgroup,

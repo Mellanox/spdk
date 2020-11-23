@@ -62,6 +62,11 @@ extern "C" {
  */
 struct spdk_nvme_ctrlr;
 
+struct spdk_nvme_transport_opts {
+	/* SRQ depth for RDMA transport. If zero SRQ is not used */
+	uint32_t srq_depth;
+};
+
 /**
  * NVMe controller initialization options.
  *
@@ -256,6 +261,11 @@ struct spdk_nvme_ctrlr_opts {
 	 * this controller in microseconds.
 	 */
 	uint64_t fabrics_connect_timeout_us;
+
+	/**
+	 * The specific nvme_transport options
+	 */
+	struct spdk_nvme_transport_opts nvme_transport_opts;
 };
 
 /**
@@ -3563,11 +3573,6 @@ struct nvme_request;
 
 struct spdk_nvme_transport;
 
-struct spdk_nvme_transport_opts {
-	/* SRQ depth for RDMA transport. If zero SRQ is not used */
-	uint32_t srq_depth;
-};
-
 struct spdk_nvme_transport_ops {
 	char name[SPDK_NVMF_TRSTRING_MAX_LEN + 1];
 
@@ -3669,6 +3674,11 @@ struct spdk_nvme_transport_ops {
  * \param ops The operations associated with an NVMe-oF transport.
  */
 void spdk_nvme_transport_register(const struct spdk_nvme_transport_ops *ops);
+void nvme_transport_get_opts(const char *transport_name,
+			     struct spdk_nvme_transport_opts *opts);
+void nvme_transport_set_opts(const char *transport_name,
+			     const struct spdk_nvme_transport_opts *opts);
+
 
 /*
  * Macro used to register new transports.

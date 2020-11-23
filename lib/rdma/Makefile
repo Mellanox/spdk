@@ -48,6 +48,9 @@ C_SRCS += rdma_verbs.c
 else ifeq ($(CONFIG_RDMA_PROV),mlx5_dv)
 C_SRCS += rdma_mlx5_dv.c
 LOCAL_SYS_LIBS += -lmlx5
+else ifeq ($(CONFIG_RDMA_PROV),mlx5_dv_dc)
+C_SRCS += dc_mlx5_dv.c
+LOCAL_SYS_LIBS += -lmlx5
 else
 $(error Wrong RDMA provider specified: $(CONFIG_RDMA_PROV))
 endif

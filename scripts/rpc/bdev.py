@@ -424,6 +424,21 @@ def bdev_uring_delete(client, name):
     return client.call('bdev_uring_delete', params)
 
 
+def bdev_nvme_transport_set_options(client, trtype, srq_depth=None):
+    """Set parameters for nvme transport
+
+    Args:
+        srq_depth: Shared receive queue depth
+        trtype: transport type ("PCIe", "RDMA", "FC", "TCP")
+    """
+    params = {'trtype': trtype}
+
+    if srq_depth is not None:
+        params['srq_depth'] = srq_depth
+
+    return client.call('bdev_nvme_transport_set_options', params)
+
+
 @deprecated_alias('set_bdev_nvme_options')
 def bdev_nvme_set_options(client, action_on_timeout=None, timeout_us=None, keep_alive_timeout_ms=None,
                           retry_count=None, arbitration_burst=None, low_priority_weight=None,

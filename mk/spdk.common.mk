@@ -83,6 +83,8 @@ endif
 
 COMMON_CFLAGS = -g $(C_OPT) -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wmissing-declarations -fno-strict-aliasing -I$(SPDK_ROOT_DIR)/include
 
+LDFLAGS += -L/hpc/local/work/denisn/dc/rdma-core/build/lib
+
 ifneq ($(filter powerpc% ppc%,$(TARGET_MACHINE)),)
 COMMON_CFLAGS += -mcpu=$(TARGET_ARCHITECTURE)
 else ifeq ($(TARGET_MACHINE),aarch64)
@@ -165,7 +167,11 @@ COMMON_CFLAGS += -I$(CONFIG_PMDK_DIR)/src/include
 endif
 
 ifeq ($(CONFIG_RDMA),y)
-SYS_LIBS += -libverbs -lrdmacm
+SYS_LIBS += -libverbs -lrdmacm -lmlx5
+ifneq ($(strip $(CONFIG_RDMA_PATH)),)
+CFLAGS += -I$(CONFIG_RDMA_PATH)/include
+LDFLAGS += -L$(CONFIG_RDMA_PATH)/lib
+endif
 endif
 
 ifeq ($(CONFIG_URING),y)
@@ -283,7 +289,7 @@ COMMON_CFLAGS += -pthread
 LDFLAGS += -pthread
 endif
 
-CFLAGS   += $(COMMON_CFLAGS) -Wno-pointer-sign -Wstrict-prototypes -Wold-style-definition -std=gnu99
+CFLAGS   += $(COMMON_CFLAGS) -Wno-pointer-sign -Wstrict-prototypes -Wold-style-definition -std=gnu11
 CXXFLAGS += $(COMMON_CFLAGS)
 
 SYS_LIBS += -lrt

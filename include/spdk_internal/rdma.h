@@ -217,6 +217,22 @@ int spdk_rdma_qp_flush_send_wrs(struct spdk_rdma_qp *spdk_rdma_qp, struct ibv_se
  * \return true if there were no outstanding WRs before, false otherwise
  */
 bool spdk_rdma_qp_queue_recv_wrs(struct spdk_rdma_qp *spdk_rdma_qp, struct ibv_recv_wr *first);
+struct spdk_rdma_poller_context;
+struct spdk_rdma_poller_context *
+spdk_rdma_create_poller_context(struct rdma_cm_id *cm_id, struct spdk_rdma_qp_init_attr *qp_attr);
+
+int spdk_rdma_qp_set_poller_context(struct spdk_rdma_qp *spdk_rdma_qp,
+                                            struct spdk_rdma_poller_context *poller_ctx);
+uint32_t spdk_rdma_send_qp_num(struct spdk_rdma_qp *spdk_rdma_qp);
+uint32_t spdk_rdma_recv_qp_num(struct spdk_rdma_qp *spdk_rdma_qp);
+
+struct ibv_pd *spdk_rdma_qp_pd(struct spdk_rdma_qp *spdk_rdma_qp);
+int spdk_rdma_query_qp_dci(struct spdk_rdma_qp *spdk_rdma_qp,  struct ibv_qp_attr *attr,
+			   enum ibv_qp_attr_mask attr_mask,
+			   struct ibv_qp_init_attr *init_attr);
+int spdk_rdma_query_qp_dct(struct spdk_rdma_qp *spdk_rdma_qp,  struct ibv_qp_attr *attr,
+			   enum ibv_qp_attr_mask attr_mask,
+			   struct ibv_qp_init_attr *init_attr);
 
 /**
  * Submit all queued recv Work Request
@@ -286,5 +302,17 @@ static inline uint32_t spdk_rdma_memory_translation_get_rkey(struct spdk_rdma_me
 	return translation->translation_type == SPDK_RDMA_TRANSLATION_MR ?
 	       translation->mr_or_key.mr->rkey : (uint32_t)translation->mr_or_key.key;
 }
+
+void spdk_rdma_qp_set_remote_dctn(struct spdk_rdma_qp *spdk_rdma_qp, uint32_t dctn);
+uint32_t spdk_rdma_qp_get_local_dctn(struct spdk_rdma_qp *spdk_rdma_qp);
+bool spdk_rdma_is_corresponded_qp(struct spdk_rdma_qp *spdk_rdma_qp, struct ibv_wc *wc);
+void spdk_rdma_qp_set_remote_dci(struct spdk_rdma_qp *spdk_rdma_qp, uint32_t dci_qp_num);
+struct ibv_qp *spdk_rdma_receive_qp(struct spdk_rdma_qp *spdk_rdma_qp);
+struct ibv_qp *spdk_rdma_send_qp(struct spdk_rdma_qp *spdk_rdma_qp);
+uint32_t spdk_rdma_generate_qpair_id(struct spdk_rdma_qp *spdk_rdma_qp);
+void spdk_rdma_qp_assign_id(struct spdk_rdma_qp *spdk_rdma_qp, uint32_t assigned_id);
+void spdk_rdma_notify_qp_on_send_completion(struct spdk_rdma_qp *spdk_rdma_qp, uint32_t wrs_released);
+int spdk_rdma_qp_get_qpn_reservation(struct spdk_rdma_qp *spdk_rdma_qp, uint32_t *qpn_reservation);
+void spdk_rdma_qp_reset(struct spdk_rdma_qp *spdk_rdma_qp);
 
 #endif /* SPDK_RDMA_H */

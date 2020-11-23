@@ -129,6 +129,10 @@ static struct spdk_bdev_nvme_opts g_opts = {
 	.delay_cmd_submit = SPDK_BDEV_NVME_DEFAULT_DELAY_CMD_SUBMIT,
 };
 
+static struct spdk_bdev_nvme_transport_opts g_transport_opts = {
+	.srq_depth = 128,
+};
+
 #define NVME_HOTPLUG_POLL_PERIOD_MAX			10000000ULL
 #define NVME_HOTPLUG_POLL_PERIOD_DEFAULT		100000ULL
 
@@ -1978,6 +1982,26 @@ bdev_nvme_set_opts(const struct spdk_bdev_nvme_opts *opts)
 	return 0;
 }
 
+void
+bdev_nvme_transport_get_opts(struct spdk_bdev_nvme_transport_opts *opts)
+{
+	*opts = g_transport_opts;
+}
+
+int
+bdev_nvme_transport_set_opts(const struct spdk_bdev_nvme_transport_opts *opts)
+{
+	if (g_bdev_nvme_init_thread != NULL) {
+		if (!TAILQ_EMPTY(&g_nvme_bdev_ctrlrs)) {
+			return -EPERM;
+		}
+	}
+
+	g_transport_opts = *opts;
+
+	return 0;
+}
+
 struct set_nvme_hotplug_ctx {
 	uint64_t period_us;
 	bool enabled;
@@ -2308,6 +2332,7 @@ bdev_nvme_create(struct spdk_nvme_transport_id *trid,
 
 	ctx->opts.transport_retry_count = g_opts.retry_count;
 	ctx->opts.keep_alive_timeout_ms = g_opts.keep_alive_timeout_ms;
+	ctx->opts.nvme_transport_opts.srq_depth = g_transport_opts.srq_depth;
 
 	if (hostnqn) {
 		snprintf(ctx->opts.hostnqn, sizeof(ctx->opts.hostnqn), "%s", hostnqn);
