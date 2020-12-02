@@ -105,7 +105,7 @@ BuildRequires:	python3-pep8 python3-configshell
 %description
 The Storage Performance Development Kit (SPDK) provides a set of tools and
 libraries for writing high performance, scalable, user-mode storage
-applications.
+applications (sha1 %{_sha1}).
 
 %global debug_package %{nil}
 
