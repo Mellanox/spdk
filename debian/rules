@@ -72,6 +72,7 @@ override_dh_auto_install:
 	install -p -m 755 build/bin/spdk_trace debian/tmp/usr/bin
 	install -p -m 755 build/bin/spdk_lspci debian/tmp/usr/bin
 	install -p -m 755 build/bin/spdk_trace_record debian/tmp/usr/bin
+	install -p -m 755 build/bin/spdk_top debian/tmp/usr/bin
 	install -p -m 755 build/examples/perf debian/tmp/usr/sbin/nvme-perf
 	install -p -m 755 build/examples/identify debian/tmp/usr/sbin/nvme-identify
 	install -p -m 755 build/examples/nvme_manage debian/tmp/usr/sbin/
