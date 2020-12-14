@@ -152,6 +152,7 @@ install -p -m 755 build/bin/iscsi_top %{install_bindir}
 install -p -m 755 build/bin/spdk_trace %{install_bindir}
 install -p -m 755 build/bin/spdk_lspci %{install_bindir}
 install -p -m 755 build/bin/spdk_trace_record %{install_bindir}
+install -p -m 755 build/bin/spdk_top %{install_bindir}
 install -p -m 755 build/examples/perf %{install_sbindir}/nvme-perf
 install -p -m 755 build/examples/identify %{install_sbindir}/nvme-identify
 install -p -m 755 build/examples/nvme_manage %{install_sbindir}/
@@ -215,6 +216,9 @@ esac
 %changelog
 * %{_date} Yuriy Shestakov <yuriis@mellanox.com>
 - build from %{_branch} (sha1 %{_sha1})
+
+* Mon Dec 14 2020 Andrii Holovchenko <andriih@nvidia.com>
+- Install spdk_top
 
 * Wed Nov 18 2020 Andrii Holovchenko <andriih@nvidia.com>
 - build requires git-core for rhel 8.x
