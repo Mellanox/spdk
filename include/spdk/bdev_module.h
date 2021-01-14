@@ -222,6 +222,9 @@ struct spdk_bdev_fn_table {
 
 	/** Get bdev module context. */
 	void *(*get_module_ctx)(void *ctx);
+
+	/** Get block device capabilities */
+	void (*get_caps)(void *ctx, struct spdk_bdev_capability *caps);
 };
 
 /** bdev I/O completion status */
@@ -685,6 +688,14 @@ struct spdk_bdev_io {
 
 		/** Enables queuing parent I/O when no bdev_ios available for split children. */
 		struct spdk_bdev_io_wait_entry waitq_entry;
+
+		/** Copy of structure passed by the user in ext API */
+		struct spdk_bdev_ext_io_opts ext_opts;
+
+		/** Contains callbacks passed by the user in ext API. Content of this structure is valid if
+		 * SPDK_BDEV_EXT_IO_OPTS_MEM_TYPE flag is set in \b ext_opts */
+		struct spdk_bdev_ext_io_opts_mem_type mem_type;
+
 	} internal;
 
 	/**

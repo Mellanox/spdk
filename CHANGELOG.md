@@ -10,6 +10,13 @@ parameter in spdk_bdev_get_opts function. Two fields `small_buf_pool_size` and
 `large_buf_pool_size` were added into spdk_bdev_opts, which were used to determine
 the small and large buffer pool size of the whole bdev module.
 
+New API `spdk_bdev_get_caps` has been added, it allows to get extended bdev module
+capabilities.
+
+New API functions `spdk_bdev_readv_blocks_with_md_ext` and `spdk_bdev_writev_blocks_with_md_ext`
+have been added. These function accept `spdk_bdev_ext_io_opts` structure with extended IO request
+options. `opts_size` member of this structure must be set to valid value.
+
 ### blob
 
 An `opts_size` element was added in the `spdk_bs_opts` structure to solve the

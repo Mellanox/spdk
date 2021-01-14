@@ -671,6 +671,16 @@ vbdev_delay_write_config_json(struct spdk_bdev *bdev, struct spdk_json_write_ctx
 	/* No config per bdev needed */
 }
 
+static void
+vbdev_delay_get_caps(void *ctx, struct spdk_bdev_capability *caps)
+{
+	struct vbdev_delay *delay_node = (struct vbdev_delay *)ctx;
+
+	if (delay_node->base_bdev->fn_table->get_caps) {
+		delay_node->base_bdev->fn_table->get_caps(delay_node->base_bdev, caps);
+	}
+}
+
 /* When we register our bdev this is how we specify our entry points. */
 static const struct spdk_bdev_fn_table vbdev_delay_fn_table = {
 	.destruct		= vbdev_delay_destruct,
@@ -679,6 +689,7 @@ static const struct spdk_bdev_fn_table vbdev_delay_fn_table = {
 	.get_io_channel		= vbdev_delay_get_io_channel,
 	.dump_info_json		= vbdev_delay_dump_info_json,
 	.write_config_json	= vbdev_delay_write_config_json,
+	.get_caps		= vbdev_delay_get_caps,
 };
 
 static void

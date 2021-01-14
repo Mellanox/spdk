@@ -892,6 +892,88 @@ int spdk_bdev_readv_blocks_with_md(struct spdk_bdev_desc *desc, struct spdk_io_c
 				   spdk_bdev_io_completion_cb cb, void *cb_arg);
 
 /**
+ * Callback used to get a Memory Key per IO request
+ *
+ * pd is input parameter and should point to a memory domain
+ * mkey is an output value
+ */
+typedef int (*spdk_bdev_io_get_mkey)(void *cb_arg, void *address, size_t length, void *pd,
+				     uint32_t *mkey);
+
+enum spdk_bdev_ext_io_opts_mem_types {
+	/** Memory in IO request belongs to another memory domain and it is described by Memory Key.
+	 * If this value is set then \b mkey structure in spdk_bdev_ext_io_opts_mem_type contains a callback
+	 * and its argument that can be used to get a Memory Key */
+	SPDK_BDEV_EXT_IO_OPTS_MEM_TYPE_MEMORY_KEY = 0,
+};
+
+struct spdk_bdev_ext_io_opts_mem_type {
+	/** This value determines which part of union should be used. Provides extensibility of this structure */
+	enum spdk_bdev_ext_io_opts_mem_types type;
+	union {
+		struct {
+			spdk_bdev_io_get_mkey get_mkey_cb;
+			void *get_mkey_cb_arg;
+		} mkey;
+	} u;
+};
+
+enum spdk_bdev_ext_io_opts_flags {
+	/** This flag determines the type of memory passed in IO request.
+	 * Refer to \ref spdk_bdev_ext_io_opts_mem_types for more information.
+	 * If this flag is set in spdk_bdev_ext_io_opts then \b mem_type member of \b spdk_bdev_ext_io_opt
+	 * should point to a structure that describes memory buffer */
+	SPDK_BDEV_EXT_IO_OPTS_MEM_TYPE = 1u << 0,
+};
+
+/**
+ * Structure with optional IO request parameters
+ */
+struct spdk_bdev_ext_io_opts {
+	/** Combination of bits defined in \b enum spdk_bdev_ext_io_opts_flags */
+	uint64_t flags;
+	/** Describes type of the memory used in IO request. Applicable for block devices that report
+	 * SPDK_BDEV_CAP_EXT_MEMORY_TYPE_MKEY capability in \ref spdk_bdev_get_caps function
+	 * This structure must be filled by the user if \b SPDK_BDEV_EXT_IO_OPTS_MEM_TYPE bit is set
+	 * in \b flags member */
+	struct spdk_bdev_ext_io_opts_mem_type *mem_type;
+};
+
+/**
+ * Submit a read request to the bdev on the given channel. This differs from
+ * spdk_bdev_read by allowing the data buffer to be described in a scatter
+ * gather list. Some physical devices place memory alignment requirements on
+ * data or metadata and may not be able to directly transfer into the buffers
+ * provided. In this case, the request may fail. This function uses separate
+ * buffer for metadata transfer (valid only if bdev supports this mode).
+ *
+ * \ingroup bdev_io_submit_functions
+ *
+ * \param desc Block device descriptor.
+ * \param ch I/O channel. Obtained by calling spdk_bdev_get_io_channel().
+ * \param iov A scatter gather list of buffers to be read into.
+ * \param iovcnt The number of elements in iov.
+ * \param md Metadata buffer.
+ * \param offset_blocks The offset, in blocks, from the start of the block device.
+ * \param num_blocks The number of blocks to read.
+ * \param cb Called when the request is complete.
+ * \param cb_arg Argument passed to cb.
+ * \param opts Optional structure with extended IO request options.
+ *
+ * \return 0 on success. On success, the callback will always
+ * be called (even if the request ultimately failed). Return
+ * negated errno on failure, in which case the callback will not be called.
+ *   * -EINVAL - offset_blocks and/or num_blocks are out of range or separate
+ *               metadata is not supported or opts_size is incorrect
+ *   * -ENOMEM - spdk_bdev_io buffer cannot be allocated
+ */
+int spdk_bdev_readv_blocks_with_md_ext(struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
+				       struct iovec *iov, int iovcnt, void *md,
+				       uint64_t offset_blocks, uint64_t num_blocks,
+				       spdk_bdev_io_completion_cb cb, void *cb_arg,
+				       struct spdk_bdev_ext_io_opts *opts);
+
+/**
  * Submit a write request to the bdev on the given channel.
  *
  * \ingroup bdev_io_submit_functions
@@ -1059,6 +1141,41 @@ int spdk_bdev_writev_blocks_with_md(struct spdk_bdev_desc *desc, struct spdk_io_
 				    struct iovec *iov, int iovcnt, void *md,
 				    uint64_t offset_blocks, uint64_t num_blocks,
 				    spdk_bdev_io_completion_cb cb, void *cb_arg);
+
+/**
+ * Submit a write request to the bdev on the given channel. This differs from
+ * spdk_bdev_write by allowing the data buffer to be described in a scatter
+ * gather list. Some physical devices place memory alignment requirements on
+ * data or metadata and may not be able to directly transfer out of the buffers
+ * provided. In this case, the request may fail.  This function uses separate
+ * buffer for metadata transfer (valid only if bdev supports this mode).
+ *
+ * \ingroup bdev_io_submit_functions
+ *
+ * \param desc Block device descriptor.
+ * \param ch I/O channel. Obtained by calling spdk_bdev_get_io_channel().
+ * \param iov A scatter gather list of buffers to be written from.
+ * \param iovcnt The number of elements in iov.
+ * \param md Metadata buffer.
+ * \param offset_blocks The offset, in blocks, from the start of the block device.
+ * \param num_blocks The number of blocks to write.
+ * \param cb Called when the request is complete.
+ * \param cb_arg Argument passed to cb.
+ * \param opts Optional structure with extended IO request options.
+ *
+ * \return 0 on success. On success, the callback will always
+ * be called (even if the request ultimately failed). Return
+ * negated errno on failure, in which case the callback will not be called.
+ *   * -EINVAL - offset_blocks and/or num_blocks are out of range or separate
+ *               metadata is not supported or opts_size is incorrect
+ *   * -ENOMEM - spdk_bdev_io buffer cannot be allocated
+ *   * -EBADF - desc not open for writing
+ */
+int spdk_bdev_writev_blocks_with_md_ext(struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
+					struct iovec *iov, int iovcnt, void *md,
+					uint64_t offset_blocks, uint64_t num_blocks,
+					spdk_bdev_io_completion_cb cb, void *cb_arg,
+					struct spdk_bdev_ext_io_opts *opts);
 
 /**
  * Submit a compare request to the bdev on the given channel.
@@ -1732,6 +1849,30 @@ void spdk_bdev_histogram_get(struct spdk_bdev *bdev, struct spdk_histogram_data 
  */
 size_t spdk_bdev_get_media_events(struct spdk_bdev_desc *bdev_desc,
 				  struct spdk_bdev_media_event *events, size_t max_events);
+
+enum spdk_bdev_capability_type {
+	/** Bdev supports indirect memory access using Memory Key.
+	 * That means that the user of ext bdev API can fill spdk_bdev_ext_io_opts_mem_type
+	 * structure and set SPDK_BDEV_EXT_IO_OPTS_MEM_TYPE flag in spdk_bdev_ext_io_opts structure */
+	SPDK_BDEV_CAP_EXT_MEMORY_TYPE_MKEY = 1u << 0u,
+};
+
+/** Describes capabilities of Block device */
+struct spdk_bdev_capability {
+	/** Size of this structure in bytes, should be set by the user */
+	size_t size;
+	/** bitwise combination of \ref spdk_bdev_capability_type */
+	uint64_t flags;
+};
+
+/**
+ * Get bdev capabilities
+ *
+ * \param bdev Block device
+ * \param caps Capabilities of Block device to be filled by this function
+ * \return 0 on success, negated errno on failure.
+ */
+int spdk_bdev_get_caps(struct spdk_bdev *bdev, struct spdk_bdev_capability *caps);
 
 #ifdef __cplusplus
 }

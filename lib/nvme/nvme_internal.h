@@ -215,11 +215,20 @@ struct nvme_payload {
 	spdk_nvme_req_next_sge_cb next_sge_fn;
 
 	/**
+	 * Function to be used to get an mkey for scattered payload
+	 */
+	spdk_nvme_ns_cmd_io_get_mkey get_sge_mkey;
+
+	/**
 	 * If reset_sgl_fn == NULL, this is a contig payload, and contig_or_cb_arg contains the
 	 * virtual memory address of a single virtually contiguous buffer.
 	 *
 	 * If reset_sgl_fn != NULL, this is a SGL payload, and contig_or_cb_arg contains the
 	 * cb_arg that will be passed to the SGL callback functions.
+	 *
+	 * If get_sgl_mkey != NULL, this is a SGL payload, and contig_or_cb_arg contains the
+	 * cb_arg that will be passed to the get_sge_mkey callback function. Moreover data returned
+	 * by next_sge_fn and get_sgl_mkey belongs to another memory domain and can not be accessed by SPDK
 	 */
 	void *contig_or_cb_arg;
 

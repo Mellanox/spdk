@@ -348,14 +348,18 @@ static void bdev_enable_qos_msg(struct spdk_io_channel_iter *i);
 static void bdev_enable_qos_done(struct spdk_io_channel_iter *i, int status);
 
 static int
-bdev_readv_blocks_with_md(struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
-			  struct iovec *iov, int iovcnt, void *md_buf, uint64_t offset_blocks,
-			  uint64_t num_blocks, spdk_bdev_io_completion_cb cb, void *cb_arg);
+bdev_rw_blocks_with_md(struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
+		       struct iovec *iov, int iovcnt, void *md_buf,
+		       uint64_t offset_blocks, uint64_t num_blocks,
+		       spdk_bdev_io_completion_cb cb, void *cb_arg,
+		       enum spdk_bdev_io_type io_type);
+
 static int
-bdev_writev_blocks_with_md(struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
+bdev_rw_blocks_with_md_ext(struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
 			   struct iovec *iov, int iovcnt, void *md_buf,
 			   uint64_t offset_blocks, uint64_t num_blocks,
-			   spdk_bdev_io_completion_cb cb, void *cb_arg);
+			   spdk_bdev_io_completion_cb cb, void *cb_arg,
+			   enum spdk_bdev_io_type io_type, struct spdk_bdev_ext_io_opts *opts);
 
 static int
 bdev_lock_lba_range(struct spdk_bdev_desc *desc, struct spdk_io_channel *_ch,
@@ -2114,19 +2118,13 @@ _bdev_io_split(void *_bdev_io)
 
 		bdev_io->u.bdev.split_outstanding++;
 
-		if (bdev_io->type == SPDK_BDEV_IO_TYPE_READ) {
-			rc = bdev_readv_blocks_with_md(bdev_io->internal.desc,
-						       spdk_io_channel_from_ctx(bdev_io->internal.ch),
-						       iov, iovcnt, md_buf, current_offset,
-						       to_next_boundary,
-						       bdev_io_split_done, bdev_io);
-		} else {
-			rc = bdev_writev_blocks_with_md(bdev_io->internal.desc,
-							spdk_io_channel_from_ctx(bdev_io->internal.ch),
-							iov, iovcnt, md_buf, current_offset,
-							to_next_boundary,
-							bdev_io_split_done, bdev_io);
-		}
+		rc = bdev_rw_blocks_with_md_ext(bdev_io->internal.desc,
+						spdk_io_channel_from_ctx(bdev_io->internal.ch),
+						iov, iovcnt, md_buf, current_offset,
+						to_next_boundary,
+						bdev_io_split_done, bdev_io,
+						(enum spdk_bdev_io_type)bdev_io->type,
+						&bdev_io->internal.ext_opts);
 
 		if (rc == 0) {
 			current_offset += to_next_boundary;
@@ -2396,6 +2394,7 @@ bdev_io_init(struct spdk_bdev_io *bdev_io,
 	bdev_io->num_retries = 0;
 	bdev_io->internal.get_buf_cb = NULL;
 	bdev_io->internal.get_aux_buf_cb = NULL;
+	bdev_io->internal.ext_opts.flags = 0;
 }
 
 static bool
@@ -3562,14 +3561,38 @@ spdk_bdev_readv(struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
 	return spdk_bdev_readv_blocks(desc, ch, iov, iovcnt, offset_blocks, num_blocks, cb, cb_arg);
 }
 
+static inline void
+bdev_fill_rw_io(struct spdk_bdev_desc *desc,  struct iovec *iov, int iovcnt, void *md_buf,
+		uint64_t offset_blocks, uint64_t num_blocks,
+		spdk_bdev_io_completion_cb cb, void *cb_arg,
+		struct spdk_bdev_io *bdev_io, struct spdk_bdev_channel *channel,
+		struct spdk_bdev *bdev, enum spdk_bdev_io_type io_type)
+{
+	bdev_io->internal.ch = channel;
+	bdev_io->internal.desc = desc;
+	bdev_io->type = io_type;
+	bdev_io->u.bdev.iovs = iov;
+	bdev_io->u.bdev.iovcnt = iovcnt;
+	bdev_io->u.bdev.md_buf = md_buf;
+	bdev_io->u.bdev.num_blocks = num_blocks;
+	bdev_io->u.bdev.offset_blocks = offset_blocks;
+	bdev_io_init(bdev_io, bdev, cb_arg, cb);
+}
+
 static int
-bdev_readv_blocks_with_md(struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
-			  struct iovec *iov, int iovcnt, void *md_buf, uint64_t offset_blocks,
-			  uint64_t num_blocks, spdk_bdev_io_completion_cb cb, void *cb_arg)
+bdev_rw_blocks_with_md(struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
+		       struct iovec *iov, int iovcnt, void *md_buf,
+		       uint64_t offset_blocks, uint64_t num_blocks,
+		       spdk_bdev_io_completion_cb cb, void *cb_arg,
+		       enum spdk_bdev_io_type io_type)
 {
 	struct spdk_bdev *bdev = spdk_bdev_desc_get_bdev(desc);
 	struct spdk_bdev_io *bdev_io;
 	struct spdk_bdev_channel *channel = spdk_io_channel_get_ctx(ch);
+
+	if (io_type == SPDK_BDEV_IO_TYPE_WRITE && !desc->write) {
+		return -EBADF;
+	}
 
 	if (!bdev_io_valid_blocks(bdev, offset_blocks, num_blocks)) {
 		return -EINVAL;
@@ -3580,17 +3603,54 @@ bdev_readv_blocks_with_md(struct spdk_bdev_desc *desc, struct spdk_io_channel *c
 		return -ENOMEM;
 	}
 
-	bdev_io->internal.ch = channel;
-	bdev_io->internal.desc = desc;
-	bdev_io->type = SPDK_BDEV_IO_TYPE_READ;
-	bdev_io->u.bdev.iovs = iov;
-	bdev_io->u.bdev.iovcnt = iovcnt;
-	bdev_io->u.bdev.md_buf = md_buf;
-	bdev_io->u.bdev.num_blocks = num_blocks;
-	bdev_io->u.bdev.offset_blocks = offset_blocks;
-	bdev_io_init(bdev_io, bdev, cb_arg, cb);
+	bdev_fill_rw_io(desc, iov, iovcnt, md_buf, offset_blocks, num_blocks, cb, cb_arg, bdev_io, channel,
+			bdev, io_type);
 
 	bdev_io_submit(bdev_io);
+
+	return 0;
+}
+
+static int
+bdev_rw_blocks_with_md_ext(struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
+			   struct iovec *iov, int iovcnt, void *md_buf,
+			   uint64_t offset_blocks, uint64_t num_blocks,
+			   spdk_bdev_io_completion_cb cb, void *cb_arg,
+			   enum spdk_bdev_io_type io_type,
+			   struct spdk_bdev_ext_io_opts *opts)
+{
+	struct spdk_bdev *bdev = spdk_bdev_desc_get_bdev(desc);
+	struct spdk_bdev_io *bdev_io;
+	struct spdk_bdev_channel *channel = spdk_io_channel_get_ctx(ch);
+
+	if (io_type == SPDK_BDEV_IO_TYPE_WRITE && !desc->write) {
+		return -EBADF;
+	}
+
+	if (!bdev_io_valid_blocks(bdev, offset_blocks, num_blocks)) {
+		return -EINVAL;
+	}
+
+	bdev_io = bdev_channel_get_io(channel);
+	if (!bdev_io) {
+		return -ENOMEM;
+	}
+
+	bdev_fill_rw_io(desc, iov, iovcnt, md_buf, offset_blocks, num_blocks, cb, cb_arg, bdev_io, channel,
+			bdev, io_type);
+
+	if (opts) {
+		bdev_io->internal.ext_opts.flags = opts->flags;
+		bdev_io->internal.ext_opts.mem_type = &bdev_io->internal.mem_type;
+
+		if (bdev_io->internal.ext_opts.flags & SPDK_BDEV_EXT_IO_OPTS_MEM_TYPE) {
+			assert(opts->mem_type);
+			bdev_io->internal.mem_type = *opts->mem_type;
+		}
+	}
+
+	bdev_io_submit(bdev_io);
+
 	return 0;
 }
 
@@ -3599,8 +3659,8 @@ int spdk_bdev_readv_blocks(struct spdk_bdev_desc *desc, struct spdk_io_channel *
 			   uint64_t offset_blocks, uint64_t num_blocks,
 			   spdk_bdev_io_completion_cb cb, void *cb_arg)
 {
-	return bdev_readv_blocks_with_md(desc, ch, iov, iovcnt, NULL, offset_blocks,
-					 num_blocks, cb, cb_arg);
+	return bdev_rw_blocks_with_md(desc, ch, iov, iovcnt, NULL, offset_blocks,
+				      num_blocks, cb, cb_arg, SPDK_BDEV_IO_TYPE_READ);
 }
 
 int
@@ -3617,8 +3677,27 @@ spdk_bdev_readv_blocks_with_md(struct spdk_bdev_desc *desc, struct spdk_io_chann
 		return -EINVAL;
 	}
 
-	return bdev_readv_blocks_with_md(desc, ch, iov, iovcnt, md_buf, offset_blocks,
-					 num_blocks, cb, cb_arg);
+	return bdev_rw_blocks_with_md(desc, ch, iov, iovcnt, md_buf, offset_blocks,
+				      num_blocks, cb, cb_arg, SPDK_BDEV_IO_TYPE_READ);
+}
+
+int
+spdk_bdev_readv_blocks_with_md_ext(struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
+				   struct iovec *iov, int iovcnt, void *md,
+				   uint64_t offset_blocks, uint64_t num_blocks,
+				   spdk_bdev_io_completion_cb cb, void *cb_arg,
+				   struct spdk_bdev_ext_io_opts *opts)
+{
+	if (!spdk_bdev_is_md_separate(spdk_bdev_desc_get_bdev(desc))) {
+		return -EINVAL;
+	}
+
+	if (!_bdev_io_check_md_buf(iov, md)) {
+		return -EINVAL;
+	}
+
+	return bdev_rw_blocks_with_md_ext(desc, ch, iov, iovcnt, md, offset_blocks,
+					  num_blocks, cb, cb_arg, SPDK_BDEV_IO_TYPE_READ, opts);
 }
 
 static int
@@ -3704,43 +3783,6 @@ spdk_bdev_write_blocks_with_md(struct spdk_bdev_desc *desc, struct spdk_io_chann
 					 cb, cb_arg);
 }
 
-static int
-bdev_writev_blocks_with_md(struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
-			   struct iovec *iov, int iovcnt, void *md_buf,
-			   uint64_t offset_blocks, uint64_t num_blocks,
-			   spdk_bdev_io_completion_cb cb, void *cb_arg)
-{
-	struct spdk_bdev *bdev = spdk_bdev_desc_get_bdev(desc);
-	struct spdk_bdev_io *bdev_io;
-	struct spdk_bdev_channel *channel = spdk_io_channel_get_ctx(ch);
-
-	if (!desc->write) {
-		return -EBADF;
-	}
-
-	if (!bdev_io_valid_blocks(bdev, offset_blocks, num_blocks)) {
-		return -EINVAL;
-	}
-
-	bdev_io = bdev_channel_get_io(channel);
-	if (!bdev_io) {
-		return -ENOMEM;
-	}
-
-	bdev_io->internal.ch = channel;
-	bdev_io->internal.desc = desc;
-	bdev_io->type = SPDK_BDEV_IO_TYPE_WRITE;
-	bdev_io->u.bdev.iovs = iov;
-	bdev_io->u.bdev.iovcnt = iovcnt;
-	bdev_io->u.bdev.md_buf = md_buf;
-	bdev_io->u.bdev.num_blocks = num_blocks;
-	bdev_io->u.bdev.offset_blocks = offset_blocks;
-	bdev_io_init(bdev_io, bdev, cb_arg, cb);
-
-	bdev_io_submit(bdev_io);
-	return 0;
-}
-
 int
 spdk_bdev_writev(struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
 		 struct iovec *iov, int iovcnt,
@@ -3763,8 +3805,8 @@ spdk_bdev_writev_blocks(struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
 			uint64_t offset_blocks, uint64_t num_blocks,
 			spdk_bdev_io_completion_cb cb, void *cb_arg)
 {
-	return bdev_writev_blocks_with_md(desc, ch, iov, iovcnt, NULL, offset_blocks,
-					  num_blocks, cb, cb_arg);
+	return bdev_rw_blocks_with_md(desc, ch, iov, iovcnt, NULL, offset_blocks,
+				      num_blocks, cb, cb_arg, SPDK_BDEV_IO_TYPE_WRITE);
 }
 
 int
@@ -3781,8 +3823,27 @@ spdk_bdev_writev_blocks_with_md(struct spdk_bdev_desc *desc, struct spdk_io_chan
 		return -EINVAL;
 	}
 
-	return bdev_writev_blocks_with_md(desc, ch, iov, iovcnt, md_buf, offset_blocks,
-					  num_blocks, cb, cb_arg);
+	return bdev_rw_blocks_with_md(desc, ch, iov, iovcnt, NULL, offset_blocks,
+				      num_blocks, cb, cb_arg, SPDK_BDEV_IO_TYPE_WRITE);
+}
+
+int
+spdk_bdev_writev_blocks_with_md_ext(struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
+				    struct iovec *iov, int iovcnt, void *md,
+				    uint64_t offset_blocks, uint64_t num_blocks,
+				    spdk_bdev_io_completion_cb cb, void *cb_arg,
+				    struct spdk_bdev_ext_io_opts *opts)
+{
+	if (!spdk_bdev_is_md_separate(spdk_bdev_desc_get_bdev(desc))) {
+		return -EINVAL;
+	}
+
+	if (!_bdev_io_check_md_buf(iov, md)) {
+		return -EINVAL;
+	}
+
+	return bdev_rw_blocks_with_md_ext(desc, ch, iov, iovcnt, md, offset_blocks,
+					  num_blocks, cb, cb_arg, SPDK_BDEV_IO_TYPE_WRITE, opts);
 }
 
 static void
@@ -6810,6 +6871,29 @@ bdev_unlock_lba_range(struct spdk_bdev_desc *desc, struct spdk_io_channel *_ch,
 
 	spdk_for_each_channel(__bdev_to_io_dev(bdev), bdev_unlock_lba_range_get_channel, ctx,
 			      bdev_unlock_lba_range_cb);
+	return 0;
+}
+
+int
+spdk_bdev_get_caps(struct spdk_bdev *bdev, struct spdk_bdev_capability *caps)
+{
+	struct spdk_bdev_capability caps_local;
+
+	if (!caps || !caps->size) {
+		return -EINVAL;
+	}
+
+	memset(&caps_local, 0, sizeof(caps_local));
+	caps_local.size = spdk_min(sizeof(caps_local), caps->size);
+
+	if (bdev->fn_table->get_caps) {
+		bdev->fn_table->get_caps(bdev->ctxt, &caps_local);
+	}
+
+	/* The user may use older or newer SPDK version where size of this structure can be different.
+	 * Here we copy only the number of bytes requested by the user and supported by SPDK */
+	memcpy(caps, &caps_local, caps_local.size);
+
 	return 0;
 }
 

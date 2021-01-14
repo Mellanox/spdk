@@ -2546,6 +2546,90 @@ int spdk_nvme_ns_cmd_writev_with_md(struct spdk_nvme_ns *ns, struct spdk_nvme_qp
 				    uint16_t apptag_mask, uint16_t apptag);
 
 /**
+ * Callback used to get a Memory Key per IO request
+ *
+ * pd is input parameter and should point to a memory domain
+ * mkey is an output value
+ */
+typedef int (*spdk_nvme_ns_cmd_io_get_mkey)(void *cb_arg, void *address, size_t length, void *pd,
+		uint32_t *mkey);
+
+enum spdk_nvme_ns_cmd_ext_io_opts_mem_types {
+	/** Memory in IO request belongs to another memory domain and it is described by Memory Key.
+	 * If this value is set then \b mkey structure in spdk_nvme_ns_cmd_ext_io_opts_mem_type contains
+	 * a callback and its argument that can be used to get a Memory Key */
+	SPDK_NVME_NS_CMD_EXT_IO_OPTS_MEM_TYPE_MEMORY_KEY = 0,
+};
+
+struct spdk_nvme_ns_cmd_ext_io_opts_mem_type {
+	/** This value determines which part of union should be used. Provides extensibility for this structure */
+	enum spdk_nvme_ns_cmd_ext_io_opts_mem_types type;
+	union {
+		struct {
+			spdk_nvme_ns_cmd_io_get_mkey get_mkey_cb;
+		} mkey;
+	} u;
+};
+
+enum spdk_nvme_ns_cmd_ext_io_opts_flags {
+	/** This flag determines the type of memory passed in IO request.
+	 * Refer to \ref spdk_nvme_ns_cmd_ext_io_opts_mem_types for more information.
+	 * If this flag is set in spdk_nvme_ns_cmd_ext_io_opts then \b mem_type member of
+	 * \b spdk_nvme_ns_cmd_ext_io_opts should point to a structure that describes memory buffer */
+	SPDK_NVME_NS_CMD_EXT_IO_OPTS_MEM_TYPE = 1u << 0,
+};
+
+/**
+ * Structure with optional IO request parameters
+ */
+struct spdk_nvme_ns_cmd_ext_io_opts {
+	/** Combination of bits defined in \b enum spdk_nvme_ns_cmd_ext_io_opts_flags */
+	uint64_t flags;
+	/** Describes type of the memory used in IO request
+	 * This structure must be filled by the user if \b SPDK_NVME_NS_CMD_EXT_IO_OPTS_MEM_TYPE bit is set
+	 * in \b flags member. Used by RDMA transport, other transports ignore this extension */
+	struct spdk_nvme_ns_cmd_ext_io_opts_mem_type *mem_type;
+};
+
+/**
+ * Submit a write I/O to the specified NVMe namespace.
+ *
+ * The command is submitted to a qpair allocated by spdk_nvme_ctrlr_alloc_io_qpair().
+ * The user must ensure that only one thread submits I/O on a given qpair at any
+ * given time.
+ *
+ * \param ns NVMe namespace to submit the write I/O
+ * \param qpair I/O queue pair to submit the request
+ * \param lba starting LBA to write the data
+ * \param lba_count length (in sectors) for the write operation
+ * \param cb_fn callback function to invoke when the I/O is completed
+ * \param cb_arg argument to pass to the callback function
+ * \param io_flags set flags, defined in nvme_spec.h, for this I/O
+ * \param reset_sgl_fn callback function to reset scattered payload
+ * \param next_sge_fn callback function to iterate each scattered
+ * payload memory segment
+ * \param metadata virtual address pointer to the metadata payload, the length
+ * of metadata is specified by spdk_nvme_ns_get_md_size()
+ * \param apptag_mask application tag mask.
+ * \param apptag application tag to use end-to-end protection information.
+ * \param opts Optional structure with extended IO request options.
+ *
+ * \return 0 if successfully submitted, negated errnos on the following error conditions:
+ * -EINVAL: The request is malformed.
+ * -ENOMEM: The request cannot be allocated.
+ * -ENXIO: The qpair is failed at the transport level.
+ * -EFAULT: Invalid address was specified as part of payload.  cb_fn is also called
+ *          with error status including dnr=1 in this case.
+ */
+int spdk_nvme_ns_cmd_writev_with_md_ext(struct spdk_nvme_ns *ns, struct spdk_nvme_qpair *qpair,
+					uint64_t lba, uint32_t lba_count,
+					spdk_nvme_cmd_cb cb_fn, void *cb_arg, uint32_t io_flags,
+					spdk_nvme_req_reset_sgl_cb reset_sgl_fn,
+					spdk_nvme_req_next_sge_cb next_sge_fn, void *metadata,
+					uint16_t apptag_mask, uint16_t apptag,
+					struct spdk_nvme_ns_cmd_ext_io_opts *opts);
+
+/**
  * Submit a write I/O to the specified NVMe namespace.
  *
  * The command is submitted to a qpair allocated by spdk_nvme_ctrlr_alloc_io_qpair().
@@ -2724,6 +2808,43 @@ int spdk_nvme_ns_cmd_readv_with_md(struct spdk_nvme_ns *ns, struct spdk_nvme_qpa
 				   spdk_nvme_req_reset_sgl_cb reset_sgl_fn,
 				   spdk_nvme_req_next_sge_cb next_sge_fn, void *metadata,
 				   uint16_t apptag_mask, uint16_t apptag);
+
+/**
+ * Submit a read I/O to the specified NVMe namespace.
+ *
+ * The command is submitted to a qpair allocated by spdk_nvme_ctrlr_alloc_io_qpair().
+ * The user must ensure that only one thread submits I/O on a given qpair at any given time.
+ *
+ * \param ns NVMe namespace to submit the read I/O
+ * \param qpair I/O queue pair to submit the request
+ * \param lba starting LBA to read the data
+ * \param lba_count length (in sectors) for the read operation
+ * \param cb_fn callback function to invoke when the I/O is completed
+ * \param cb_arg argument to pass to the callback function
+ * \param io_flags set flags, defined in nvme_spec.h, for this I/O
+ * \param reset_sgl_fn callback function to reset scattered payload
+ * \param next_sge_fn callback function to iterate each scattered
+ * payload memory segment
+ * \param metadata virtual address pointer to the metadata payload, the length
+ *	           of metadata is specified by spdk_nvme_ns_get_md_size()
+ * \param apptag_mask application tag mask.
+ * \param apptag application tag to use end-to-end protection information.
+ * \param opts Optional structure with extended IO request options.
+ *
+ * \return 0 if successfully submitted, negated errnos on the following error conditions:
+ * -EINVAL: The request is malformed.
+ * -ENOMEM: The request cannot be allocated.
+ * -ENXIO: The qpair is failed at the transport level.
+ * -EFAULT: Invalid address was specified as part of payload.  cb_fn is also called
+ *          with error status including dnr=1 in this case.
+ */
+int spdk_nvme_ns_cmd_readv_with_md_ext(struct spdk_nvme_ns *ns, struct spdk_nvme_qpair *qpair,
+				       uint64_t lba, uint32_t lba_count,
+				       spdk_nvme_cmd_cb cb_fn, void *cb_arg, uint32_t io_flags,
+				       spdk_nvme_req_reset_sgl_cb reset_sgl_fn,
+				       spdk_nvme_req_next_sge_cb next_sge_fn, void *metadata,
+				       uint16_t apptag_mask, uint16_t apptag,
+				       struct spdk_nvme_ns_cmd_ext_io_opts *opts);
 
 /**
  * Submits a read I/O to the specified NVMe namespace.
