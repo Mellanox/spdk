@@ -42,6 +42,19 @@
 #include "spdk_internal/log.h"
 #include "spdk/nvmf.h"
 
+/* Tuner types
+*/
+#define SPDK_NVMF_RDMA_IO_PACER_TUNER_TYPE_01  01
+#define SPDK_NVMF_RDMA_IO_PACER_TUNER_TYPE_02  02
+
+/*
+ * Configures credit availability to be calculated along with the
+ * bytes in flight within in the allowed margin offset
+ */
+#define SPDK_NVMF_RDMA_IO_PACER_CHECK_CREDITS_ONLY_AT_PACER_PERIOD	1
+#define SPDK_NVMF_RDMA_IO_PACER_ALLOW_WITHIN_CREDIT_ONLY			1
+#define SPDK_NVMF_RDMA_IO_PACER_DEFAULT_MARGIN_ABOVE_CREDIT			1
+
 struct spdk_io_pacer;
 struct spdk_io_pacer_tuner;
 struct spdk_io_pacer_tuner2;
@@ -68,7 +81,8 @@ typedef void (*spdk_io_pacer_pop_cb)(void *io);
 struct spdk_io_pacer *spdk_io_pacer_create(uint32_t period_ns,
 					   uint32_t credit,
 					   uint32_t disk_credit,
-					   spdk_io_pacer_pop_cb pop_cb);
+					   spdk_io_pacer_pop_cb pop_cb,
+					   uint32_t io_pacer_tuner_type);
 void spdk_io_pacer_destroy(struct spdk_io_pacer *pacer);
 int spdk_io_pacer_create_queue(struct spdk_io_pacer *pacer, uint64_t key);
 int spdk_io_pacer_destroy_queue(struct spdk_io_pacer *pacer, uint64_t key);
@@ -88,6 +102,8 @@ struct spdk_io_pacer_tuner2 *spdk_io_pacer_tuner2_create(struct spdk_io_pacer *p
 void spdk_io_pacer_tuner2_destroy(struct spdk_io_pacer_tuner2 *tuner);
 void spdk_io_pacer_tuner2_add(struct spdk_io_pacer_tuner2 *tuner, uint32_t value);
 void spdk_io_pacer_tuner2_sub(struct spdk_io_pacer_tuner2 *tuner, uint32_t value);
+
+bool is_credit_available(struct spdk_io_pacer *pacer);
 
 static inline void drive_stats_lock(struct spdk_io_pacer_drives_stats *stats) {
 	rte_spinlock_lock(&stats->lock);
