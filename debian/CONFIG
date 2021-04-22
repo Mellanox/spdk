@@ -76,6 +76,9 @@ CONFIG_UNIT_TESTS=y
 # Build examples
 CONFIG_EXAMPLES=y
 
+# Build with Control-flow Enforcement Technology (CET)
+CONFIG_CET=n
+
 # Directory that contains the desired SPDK environment library.
 # By default, this is implemented using DPDK.
 CONFIG_ENV=
@@ -117,6 +120,9 @@ CONFIG_VHOST=y
 # Build vhost initiator (Virtio) driver.
 CONFIG_VIRTIO=y
 
+# Build custom vfio-user transport for NVMf target and NVMe initiator.
+CONFIG_VFIO_USER=n
+
 # Build with PMDK backends
 CONFIG_PMDK=n
 CONFIG_PMDK_DIR=
@@ -136,9 +142,6 @@ CONFIG_SHARED=n
 # Build with VTune suport.
 CONFIG_VTUNE=n
 CONFIG_VTUNE_DIR=
-
-# Build the dpdk igb_uio driver
-CONFIG_IGB_UIO_DRIVER=n
 
 # Build Intel IPSEC_MB library
 CONFIG_IPSEC_MB=n
