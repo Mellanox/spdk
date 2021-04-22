@@ -1,6 +1,6 @@
-# Copyright (c) 2018-2020, Mellanox Technologies. All rights reserved.
+# Copyright (c) 2018-2021, Mellanox Technologies. All rights reserved.
 
-%define scm_version 20.10
+%define scm_version 21.01.1
 %define unmangled_version %{scm_version}
 %define scm_rev %{_rev}
 Epoch: 0
@@ -216,6 +216,9 @@ esac
 %changelog
 * %{_date} Yuriy Shestakov <yuriis@mellanox.com>
 - build from %{_branch} (sha1 %{_sha1})
+
+* Thu Apr 22 2021 Andrii Holovchenko <andriih@nvidia.com>
+- Ported to v21.01.1 release
 
 * Mon Dec 14 2020 Andrii Holovchenko <andriih@nvidia.com>
 - Install spdk_top
