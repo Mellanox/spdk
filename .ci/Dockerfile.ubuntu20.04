@@ -1,0 +1,48 @@
+FROM ubuntu:20.04
+ARG _UID=6213
+ARG _GID=11429
+ARG _LOGIN=swx-jenkins
+ARG _HOME=/var/home/$_LOGIN
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
+USER root
+
+RUN apt-get update && \
+    apt-get install -y \
+      git \
+      wget \
+      python3 \
+      python3-distutils \
+      dpkg-dev \
+      dpkg-sig \
+      sudo \
+      debhelper \
+      autotools-dev \
+      dh-python \
+      libiscsi-dev \
+      meson \
+      uuid-dev \
+      libssl-dev \
+      libaio-dev \
+      libncurses-dev \
+      libcunit1-dev \
+      patchelf
+
+RUN echo "deb [trusted=yes] http://swx-repos.mtr.labs.mlnx:8081/repository/liburing-focal-apt/ focal main" > /etc/apt/sources.list.d/liburing.list && \
+    apt update && apt install -y liburing-dev
+
+RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | \
+    sudo apt-key add - && \
+    wget https://linux.mellanox.com/public/repo/mlnx_ofed/5.3-1.0.0.1/ubuntu20.04/mellanox_mlnx_ofed.list -P /etc/apt/sources.list.d/ && \
+    apt update && apt install -y mlnx-ofed-basic-user-only
+
+RUN echo "${_LOGIN} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+RUN mkdir -p $_HOME
+RUN groupadd -f -g "$_GID" "$_LOGIN"
+RUN useradd -u "$_UID" -g "$_GID" -s /bin/bash -m -d ${_HOME} "$_LOGIN"
+RUN chown $_LOGIN $_HOME
+
+SHELL ["/bin/bash"]
+
+USER "${_LOGIN}"
+ENTRYPOINT [ "/bin/bash", "--login", "--rcfile", "/etc/bashrc", "-c" ]

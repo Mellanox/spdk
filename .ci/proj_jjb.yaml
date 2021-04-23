@@ -1,0 +1,70 @@
+- job-template:
+    name: "{jjb_proj}-{git_branch}"
+    project-type: pipeline
+    properties:
+        - github:
+            url: "{jjb_git}"
+        - build-discarder:
+            days-to-keep: 50
+            num-to-keep: 20
+        - inject:
+            keep-system-variables: true
+            properties-content: |
+              jjb_proj={jjb_proj}
+    description: Do NOT edit this job through the Web GUI !
+    concurrent: true
+    sandbox: true
+    parameters:
+        - bool:
+            name: "build_dockers"
+            default: false
+            description: "Rebuild docker containers"
+        - string:
+            name: "conf_file"
+            default: "{conf_file|.ci/job_matrix.yaml}"
+            description: "Regex to select job config file"
+        - bool:
+            name: "do_release"
+            default: false
+            description: "Release packages"
+        - string:
+            name: "release_dir"
+            default: "/auto/mtrswgwork/swx_devops/{jjb_proj}"
+            description: "Location to release rpm to"
+        - string:
+            name: "script"
+            default: "{jjb_jenkinsfile}"
+            description: "Jenkinsfile to load on trigger"
+        - string:
+            name: "REPO_URL"
+            default: "http://swx-repos.mtr.labs.mlnx:8081"
+            description: "Repository manager URL"
+        - string:
+            name: "GPG_KEY_PATH"
+            default: "/auto/mtrswgwork/swx_devops/swx-debs-keyring/mellanox-debs-keyring.key"
+            description: "GPG key file location"
+        - string:
+            name: "DEBUG"
+            default: 0
+            description: "Enable debug prints and traces, valid values are 0-9"
+    pipeline-scm:
+      scm:
+        - git:
+            url: "{jjb_git}"
+            branches:
+              - 'origin/{git_branch}'
+
+      script-path: "$script"
+
+- project:
+    name: proj_name
+    jjb_email: 'andiih@nvidia.com'
+    jjb_proj: 'spdk'
+    git_branch:
+      - v21.01.1.mlnx:
+          conf_file: '.ci/job_matrix.yaml'
+    jjb_git: 'git@github.com:Mellanox/spdk.git'
+    jjb_owner: 'andriih@nvidia.com'
+    jjb_jenkinsfile: '.ci/Jenkinsfile.shlib'
+    jobs:
+      - '{jjb_proj}-{git_branch}'

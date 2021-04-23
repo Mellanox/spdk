@@ -1,0 +1,53 @@
+FROM centos:7.9.2009
+ARG _UID=6213
+ARG _GID=11429
+ARG _LOGIN=swx-jenkins
+ARG _HOME=/var/home/$_LOGIN
+ENV LANG=en_US.utf-8
+USER root
+
+RUN yum install -y \
+    epel-release
+
+RUN yum install -y \
+    sudo \
+    git \
+    wget \
+    fakeroot \
+    ncurses-devel \
+    rpm-build doxygen \
+    graphviz \
+    numactl-devel \
+    libiscsi-devel \
+    make \
+    gcc \
+    CUnit-devel \
+    libaio-devel \
+    openssl-devel \
+    libuuid-devel \
+    lcov \
+    gcc-c++ \
+    python36 \
+    meson
+
+RUN set -eux; \
+    wget https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox; \
+    sudo rpm --import RPM-GPG-KEY-Mellanox; \
+    if [ $(uname -m) == "aarch64" ]; then \
+      ln -s /usr/bin/ninja-build /usr/bin/ninja; \
+      wget https://linux.mellanox.com/public/repo/mlnx_ofed/5.3-1.0.0.1/rhel7.6alternate/mellanox_mlnx_ofed.repo -P /etc/yum.repos.d/; \
+    elif [ $(uname -m) == "x86_64" ]; then \
+      wget https://linux.mellanox.com/public/repo/mlnx_ofed/5.3-1.0.0.1/rhel7.9/mellanox_mlnx_ofed.repo -P /etc/yum.repos.d/; \
+    fi; \
+    yum install mlnx-ofed-basic-user-only -y 
+
+RUN echo "${_LOGIN} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+RUN mkdir -p $_HOME
+RUN groupadd -f -g "$_GID" "$_LOGIN"
+RUN useradd -u "$_UID" -g "$_GID" -s /bin/bash -m -d ${_HOME} "$_LOGIN"
+RUN chown $_LOGIN $_HOME
+RUN yum clean all
+
+SHELL ["/bin/bash"]
+USER "${_LOGIN}"
+ENTRYPOINT [ "/bin/bash", "--login", "--rcfile", "/etc/bashrc", "-c" ]
