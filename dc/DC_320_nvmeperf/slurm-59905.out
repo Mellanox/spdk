@@ -1,0 +1,156 @@
+== Starting run at Mon Aug 16 10:19:28 IDT 2021
+== Job ID: 59905
+== Totally nodes: 
+== Node list: jazz[09-10]
+== Submit dir. : /hpc/local/work/denisn/dc/spdk/dc_testing
+== Servers number: 1
+== SPDK_DIR: /labhome/denisn/dc/spdk
+== RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+== TGT_MASK: 0x1
+== PERF_MASK: 0x1
+== Server nodelist: jazz09
+== Client nodelist: jazz10
+== Servers running...
+srun -l -O --nodes 1 --ntasks 1 --nodelist=jazz09 --export=ALL ./server_run.sh &
+== Clients running... 
+srun -l --nodes 1 --ntasks 1 --nodelist=jazz10 --export=ALL ./nvmeperf_run.sh
+0: Server's Servers number: 1
+0: Server's SPDK_DIR: /labhome/denisn/dc/spdk
+0: Server's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+0: Server's TGT_MASK: 0x1
+0: Server's PERF_MASK: 0x1
+0: Mounting hugetlbfs at /mnt/huge
+0: Initiator's Servers number: 1
+0: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk
+0: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+0: Initiator's TGT_MASK: 0x1
+0: Initiator's PERF_MASK: 0x1
+0: Mounting hugetlbfs at /mnt/huge
+0: Waiting for 1 servers started... now there are 0 servers
+0: sudo env LD_LIBRARY_PATH=/labhome/denisn/dc/rdma-core/build/lib /labhome/denisn/dc/spdk/install/bin/spdk_tgt -m 0x1 2>&1 | tee -a /hpc/local/work/denisn/dc/spdk/dc_testing/job.59905/spdk_tgt.0.log &
+0: Waiting for 3s after spdk_tgt run ...
+0: [2021-08-16 10:19:29.567821] Starting SPDK v21.04 git sha1 e2b1ba5 / DPDK 20.11.0 initialization...
+0: [2021-08-16 10:19:29.567881] [ DPDK EAL parameters: [2021-08-16 10:19:29.567890] spdk_tgt [2021-08-16 10:19:29.567895] --no-shconf [2021-08-16 10:19:29.567901] -c 0x1 [2021-08-16 10:19:29.567905] --log-level=lib.eal:6 [2021-08-16 10:19:29.567911] --log-level=lib.cryptodev:5 [2021-08-16 10:19:29.567916] --log-level=user1:6 [2021-08-16 10:19:29.567922] --base-virtaddr=0x200000000000 [2021-08-16 10:19:29.567926] --match-allocations [2021-08-16 10:19:29.567931] --file-prefix=spdk_pid75511 [2021-08-16 10:19:29.567936] ]
+0: EAL: No available hugepages reported in hugepages-1048576kB
+0: EAL: No free hugepages reported in hugepages-2048kB
+0: EAL: No legacy callbacks, legacy socket not created
+0: [2021-08-16 10:19:29.632401] app.c: 535:spdk_app_start: *NOTICE*: Total cores available: 1
+0: [2021-08-16 10:19:29.794222] reactor.c: 929:reactor_run: *NOTICE*: Reactor started on core 0
+0: [2021-08-16 10:19:29.794304] accel_engine.c: 852:spdk_accel_engine_initialize: *NOTICE*: Accel engine initialized to use software engine.
+0: Waiting for 1 servers started... now there are 0 servers
+0: Waiting for 1 servers started... now there are 0 servers
+0: Waiting for 1 servers started... now there are 0 servers
+0: spdk_tgt pid: 75511
+0: Null0
+0: !!!! max_wqe_sz_sq:1024
+0: !!!! max_wqe_sz_rq:512
+0: !!!! max_wqe_sz_sq_dc:256
+0: !!!! max_wqe_sz_sq:1024
+0: !!!! max_wqe_sz_rq:512
+0: !!!! max_wqe_sz_sq_dc:256
+0: !!!! max_wqe_sz_sq:1024
+0: !!!! max_wqe_sz_rq:512
+0: !!!! max_wqe_sz_sq_dc:256
+0: !!!! max_wqe_sz_sq:1024
+0: !!!! max_wqe_sz_rq:512
+0: !!!! max_wqe_sz_sq_dc:256
+0: !!!! max_wqe_sz_sq:1024
+0: !!!! max_wqe_sz_rq:512
+0: !!!! max_wqe_sz_sq_dc:256
+0: !!!! max_wqe_sz_sq:1024
+0: !!!! max_wqe_sz_rq:512
+0: !!!! max_wqe_sz_sq_dc:256
+0: [2021-08-16 10:19:32.917510] rdma.c:2515:nvmf_rdma_create: *NOTICE*: Adjusting the io unit size to fit the device's maximum I/O size. New I/O unit size 12288
+0: Waiting for 1 servers started... now there are 0 servers
+0: [2021-08-16 10:19:33.340048] rdma.c:2733:nvmf_rdma_listen: *NOTICE*: *** NVMe/RDMA Target Listening on 172.24.0.9 port 4420 ***
+0: Waiting for 1 servers started... now there are 0 servers
+0: /hpc/local/work/denisn/dc/spdk/dc_testing/./server_run.sh: line 38: wait: pid 75511 is not a child of this shell
+0: 
+0: Got servers list: 172.24.0.9
+0: sudo env LD_LIBRARY_PATH=/labhome/denisn/dc/rdma-core/build/lib /labhome/denisn/dc/spdk/install/bin/spdk_nvme_perf 	 --srq-depth 128 -r "trtype:rdma adrfam:ipv4 traddr:172.24.0.9 trsvcid:4420" 	 -c 0x1 -q 32 -o 131072 -w randread -t 10 	  2>&1 | tee -a /hpc/local/work/denisn/dc/spdk/dc_testing/job.59905/perf.0.log
+0: [2021-08-16 10:19:35.060695] Starting SPDK v21.04 git sha1 e2b1ba5 / DPDK 20.11.0 initialization...
+0: [2021-08-16 10:19:35.060772] [ DPDK EAL parameters: [2021-08-16 10:19:35.060780] perf [2021-08-16 10:19:35.060801] --no-shconf [2021-08-16 10:19:35.060816] -c 0x1 [2021-08-16 10:19:35.060823] --no-pci [2021-08-16 10:19:35.060828] --log-level=lib.eal:6 [2021-08-16 10:19:35.060834] --log-level=lib.cryptodev:5 [2021-08-16 10:19:35.060839] --log-level=user1:6 [2021-08-16 10:19:35.060845] --base-virtaddr=0x200000000000 [2021-08-16 10:19:35.060849] --match-allocations [2021-08-16 10:19:35.060855] --file-prefix=spdk_pid53881 [2021-08-16 10:19:35.060869] ]
+0: EAL: No available hugepages reported in hugepages-1048576kB
+0: EAL: No free hugepages reported in hugepages-2048kB
+0: EAL: No legacy callbacks, legacy socket not created
+0: !!!! max_wqe_sz_sq:1024
+0: !!!! max_wqe_sz_rq:512
+0: !!!! max_wqe_sz_sq_dc:256
+0: !!!! max_wqe_sz_sq:1024
+0: !!!! max_wqe_sz_rq:512
+0: !!!! max_wqe_sz_sq_dc:256
+0: !!!! max_wqe_sz_sq:1024
+0: !!!! max_wqe_sz_rq:512
+0: !!!! max_wqe_sz_sq_dc:256
+0: !!!! max_wqe_sz_sq:1024
+0: !!!! max_wqe_sz_rq:512
+0: !!!! max_wqe_sz_sq_dc:256
+0: !!!! max_wqe_sz_sq:1024
+0: !!!! max_wqe_sz_rq:512
+0: !!!! max_wqe_sz_sq_dc:256
+0: !!!! max_wqe_sz_sq:1024
+0: !!!! max_wqe_sz_rq:512
+0: !!!! max_wqe_sz_sq_dc:256
+0: mlx5dv_reserved_qpn_alloc 1 1
+0: [2021-08-16 10:19:35.128728] rdma.c:2990:nvmf_process_cm_event: *NOTICE*: In RDMA_CM_EVENT_CONNECT_REQUEST
+0: mlx5dv_reserved_qpn_alloc 1 1
+0: [2021-08-16 10:19:35.140923] nvme_rdma.c:1386:_nvme_rdma_ctrlr_connect_qpair: *NOTICE*: Connect rdma qpair: pg (nil), srq depth 128
+0: [2021-08-16 10:19:35.141011] nvme_rdma.c:1020:nvme_rdma_create_resources: *NOTICE*: Created resources: qp 0x14fc560, poller (nil), num_entries 32
+0: mlx5dv_reserved_qpn_alloc 1 1
+0: [2021-08-16 10:19:35.151206] rdma.c:2990:nvmf_process_cm_event: *NOTICE*: In RDMA_CM_EVENT_CONNECT_REQUEST
+0: mlx5dv_reserved_qpn_alloc 1 1
+0: [2021-08-16 10:19:35.151432] nvme_rdma.c:1386:_nvme_rdma_ctrlr_connect_qpair: *NOTICE*: Connect rdma qpair: pg (nil), srq depth 128
+0: [2021-08-16 10:19:35.151503] nvme_rdma.c:1020:nvme_rdma_create_resources: *NOTICE*: Created resources: qp 0x1503420, poller (nil), num_entries 32
+0: [2021-08-16 10:19:35.151790] dc_mlx5_dv.c: 963:spdk_rdma_qp_reset: *NOTICE*: Reset called for qp: 0x1500dd0
+0: [2021-08-16 10:19:35.163417] nvme_rdma.c:2525:nvme_rdma_poller_create: *NOTICE*: Created SRQ 0x14f3a78, device mlx5_0
+0: [2021-08-16 10:19:35.163435] nvme_rdma.c: 928:nvme_rdma_register_rsps: *NOTICE*: res->poller->pd: 0x1500b20
+0: [2021-08-16 10:19:35.163505] nvme_rdma.c:1020:nvme_rdma_create_resources: *NOTICE*: Created resources: qp (nil), poller 0x14f3bf0, num_entries 128
+0: [2021-08-16 10:19:35.164470] nvme_rdma.c:2525:nvme_rdma_poller_create: *NOTICE*: Created SRQ 0x14fbe98, device mlx5_1
+0: [2021-08-16 10:19:35.164490] nvme_rdma.c: 928:nvme_rdma_register_rsps: *NOTICE*: res->poller->pd: 0x14fbe60
+0: [2021-08-16 10:19:35.164564] nvme_rdma.c:1020:nvme_rdma_create_resources: *NOTICE*: Created resources: qp (nil), poller 0x14fbd60, num_entries 128
+0: [2021-08-16 10:19:35.166634] nvme_rdma.c:2525:nvme_rdma_poller_create: *NOTICE*: Created SRQ 0x1579da8, device mlx5_2
+0: [2021-08-16 10:19:35.166688] nvme_rdma.c: 928:nvme_rdma_register_rsps: *NOTICE*: res->poller->pd: 0x1579d70
+0: [2021-08-16 10:19:35.166765] nvme_rdma.c:1020:nvme_rdma_create_resources: *NOTICE*: Created resources: qp (nil), poller 0x15008a0, num_entries 128
+0: [2021-08-16 10:19:35.168439] nvme_rdma.c:2525:nvme_rdma_poller_create: *NOTICE*: Created SRQ 0x1598bc8, device mlx5_3
+0: [2021-08-16 10:19:35.168477] nvme_rdma.c: 928:nvme_rdma_register_rsps: *NOTICE*: res->poller->pd: 0x1579fc0
+0: [2021-08-16 10:19:35.168555] nvme_rdma.c:1020:nvme_rdma_create_resources: *NOTICE*: Created resources: qp (nil), poller 0x1598860, num_entries 128
+0: [2021-08-16 10:19:35.169597] nvme_rdma.c:2525:nvme_rdma_poller_create: *NOTICE*: Created SRQ 0x14f5148, device mlx5_4
+0: [2021-08-16 10:19:35.169616] nvme_rdma.c: 928:nvme_rdma_register_rsps: *NOTICE*: res->poller->pd: 0x1598ee0
+0: [2021-08-16 10:19:35.169680] nvme_rdma.c:1020:nvme_rdma_create_resources: *NOTICE*: Created resources: qp (nil), poller 0x1598de0, num_entries 128
+0: [2021-08-16 10:19:35.170680] nvme_rdma.c:2525:nvme_rdma_poller_create: *NOTICE*: Created SRQ 0x15b2868, device mlx5_5
+0: [2021-08-16 10:19:35.170709] nvme_rdma.c: 928:nvme_rdma_register_rsps: *NOTICE*: res->poller->pd: 0x1598fc0
+0: [2021-08-16 10:19:35.170782] nvme_rdma.c:1020:nvme_rdma_create_resources: *NOTICE*: Created resources: qp (nil), poller 0x14f52b0, num_entries 128
+0: mlx5dv_reserved_qpn_alloc 1 1
+0: [2021-08-16 10:19:35.181206] rdma.c:2990:nvmf_process_cm_event: *NOTICE*: In RDMA_CM_EVENT_CONNECT_REQUEST
+0: mlx5dv_reserved_qpn_alloc 1 1
+0: [2021-08-16 10:19:35.181469] nvme_rdma.c:1386:_nvme_rdma_ctrlr_connect_qpair: *NOTICE*: Connect rdma qpair: pg 0x1503f70, srq depth 128
+0: [2021-08-16 10:19:45.184973] dc_mlx5_dv.c: 963:spdk_rdma_qp_reset: *NOTICE*: Reset called for qp: 0x15b2eb0
+0: [2021-08-16 10:19:45.199206] dc_mlx5_dv.c: 963:spdk_rdma_qp_reset: *NOTICE*: Reset called for qp: 0x1503c00
+0: Initializing NVMe Controllers
+0: Attached to NVMe over Fabrics controller at 172.24.0.9:4420: nqn.2016-06.io.spdk:cnode1
+0: Controller attach time is 19980.945 us (47954268 ticks)
+0: Associating RDMA (addr:172.24.0.9 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 0
+0: Initialization complete. Launching workers.
+0: IO qp on core 0 total time 20314.650 us (48755160 ticks), connect time 11377.398 us (27305756 ticks)
+0: ========================================================
+0:                                                                                                                 Latency(us)
+0: Device Information                                                          :       IOPS      MiB/s    Average        min        max
+0: RDMA (addr:172.24.0.9 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  0:   47019.70    5877.46     680.45     526.25    1637.28
+0: ========================================================
+0: Total                                                                       :   47019.70    5877.46     680.45     526.25    1637.28
+0: 
+== Servers stopping... 
+srun -l -O --nodes 1 --ntasks 1 --nodelist=jazz09 --export=ALL ./stop_tgt.sh
+0: == TGT Memory usage ==
+0: Huge pages: 916 MB, HWM: 192.594
+0: [2021-08-16 10:19:45.597183] common.c: 279:spdk_rdma_srq_destroy: *ERROR*: SRQ destroy failed with 16
+srun: error: jazz09: task 0: Exited with exit code 127
+srun: launch/slurm: _step_signal: Terminating StepId=59905.0
+jazz09: Error while connecting to /var/tmp/spdk.sock
+jazz09: Is SPDK application running?
+jazz09: Error details: [Errno -2] Name or service not known
+pdsh@jazz09: jazz09: ssh exited with exit code 1
+jazz10: Error while connecting to /var/tmp/spdk.sock
+jazz10: Is SPDK application running?
+jazz10: Error details: [Errno -2] Name or service not known
+pdsh@jazz09: jazz10: ssh exited with exit code 1

@@ -1,0 +1,535 @@
+== Starting run at Fri Oct 15 09:52:50 IDT 2021
+== Job ID: 76248
+== Totally nodes: 
+== Node list: jazz[02-04,06-11,18-25,30-32]
+== Submit dir. : /hpc/local/work/denisn/dc/spdk/dc
+== Servers number: 1
+== SPDK_DIR: /labhome/denisn/dc/spdk_release
+== RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+== TGT_MASK: 0xFFFF
+== PERF_MASK: 0xFFFFFF
+== SPDK_DIR: /labhome/denisn/dc/spdk_release
+== Server nodelist: jazz02
+== Client nodelist: jazz03,jazz04,jazz06,jazz07,jazz08,jazz09,jazz10,jazz11,jazz18,jazz19,jazz20,jazz21,jazz22,jazz23,jazz24,jazz25,jazz30,jazz31,jazz32
+== Servers running...
+srun -l -O --nodes 1 --ntasks 1 --nodelist=jazz02 --export=ALL ./server_run.sh &
+== Clients running... 
+srun -l --nodes 19 --ntasks 19 --nodelist=jazz03,jazz04,jazz06,jazz07,jazz08,jazz09,jazz10,jazz11,jazz18,jazz19,jazz20,jazz21,jazz22,jazz23,jazz24,jazz25,jazz30,jazz31,jazz32 --export=ALL ./nvmeperf_run.sh
+0: Server's Servers number: 1
+0: Server's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 1: Initiator's Servers number: 1
+ 0: Initiator's Servers number: 1
+ 3: Initiator's Servers number: 1
+ 1: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 5: Initiator's Servers number: 1
+ 4: Initiator's Servers number: 1
+12: Initiator's Servers number: 1
+ 0: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 8: Initiator's Servers number: 1
+ 1: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 3: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 7: Initiator's Servers number: 1
+ 5: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+12: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 0: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 4: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+14: Initiator's Servers number: 1
+17: Initiator's Servers number: 1
+ 1: Initiator's TGT_MASK: 0xFFFF
+11: Initiator's Servers number: 1
+ 3: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 2: Initiator's Servers number: 1
+ 8: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 6: Initiator's Servers number: 1
+10: Initiator's Servers number: 1
+ 5: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 7: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 9: Initiator's Servers number: 1
+13: Initiator's Servers number: 1
+16: Initiator's Servers number: 1
+12: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 1: Initiator's PERF_MASK: 0xFFFFFF
+ 0: Initiator's TGT_MASK: 0xFFFF
+17: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+18: Initiator's Servers number: 1
+ 4: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+11: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 3: Initiator's TGT_MASK: 0xFFFF
+14: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 5: Initiator's TGT_MASK: 0xFFFF
+ 2: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 8: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 7: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 6: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+10: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+12: Initiator's TGT_MASK: 0xFFFF
+17: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 9: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 0: Initiator's PERF_MASK: 0xFFFFFF
+13: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+16: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+11: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 4: Initiator's TGT_MASK: 0xFFFF
+18: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+14: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 6: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 7: Initiator's TGT_MASK: 0xFFFF
+ 5: Initiator's PERF_MASK: 0xFFFFFF
+17: Initiator's TGT_MASK: 0xFFFF
+ 3: Initiator's PERF_MASK: 0xFFFFFF
+ 8: Initiator's TGT_MASK: 0xFFFF
+ 2: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+10: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+13: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 9: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+11: Initiator's TGT_MASK: 0xFFFF
+ 4: Initiator's PERF_MASK: 0xFFFFFF
+16: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+18: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 8: Initiator's PERF_MASK: 0xFFFFFF
+ 6: Initiator's TGT_MASK: 0xFFFF
+12: Initiator's PERF_MASK: 0xFFFFFF
+14: Initiator's TGT_MASK: 0xFFFF
+17: Initiator's PERF_MASK: 0xFFFFFF
+ 2: Initiator's TGT_MASK: 0xFFFF
+10: Initiator's TGT_MASK: 0xFFFF
+ 9: Initiator's TGT_MASK: 0xFFFF
+13: Initiator's TGT_MASK: 0xFFFF
+ 7: Initiator's PERF_MASK: 0xFFFFFF
+11: Initiator's PERF_MASK: 0xFFFFFF
+16: Initiator's TGT_MASK: 0xFFFF
+18: Initiator's TGT_MASK: 0xFFFF
+ 6: Initiator's PERF_MASK: 0xFFFFFF
+14: Initiator's PERF_MASK: 0xFFFFFF
+ 2: Initiator's PERF_MASK: 0xFFFFFF
+10: Initiator's PERF_MASK: 0xFFFFFF
+ 9: Initiator's PERF_MASK: 0xFFFFFF
+13: Initiator's PERF_MASK: 0xFFFFFF
+16: Initiator's PERF_MASK: 0xFFFFFF
+18: Initiator's PERF_MASK: 0xFFFFFF
+0: Server's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+0: Server's TGT_MASK: 0xFFFF
+0: Server's PERF_MASK: 0xFFFFFF
+0: Server's IFACE: 
+0: Server's Need IP 
+0: Mounting hugetlbfs at /mnt/huge
+ 3: Mounting hugetlbfs at /mnt/huge
+10: Mounting hugetlbfs at /mnt/huge
+ 4: Mounting hugetlbfs at /mnt/huge
+ 8: Mounting hugetlbfs at /mnt/huge
+17: Mounting hugetlbfs at /mnt/huge
+12: Mounting hugetlbfs at /mnt/huge
+ 0: Mounting hugetlbfs at /mnt/huge
+ 9: Mounting hugetlbfs at /mnt/huge
+ 1: Mounting hugetlbfs at /mnt/huge
+13: Mounting hugetlbfs at /mnt/huge
+ 5: Mounting hugetlbfs at /mnt/huge
+16: Mounting hugetlbfs at /mnt/huge
+14: Mounting hugetlbfs at /mnt/huge
+11: Mounting hugetlbfs at /mnt/huge
+ 2: Mounting hugetlbfs at /mnt/huge
+ 6: Mounting hugetlbfs at /mnt/huge
+ 7: Mounting hugetlbfs at /mnt/huge
+ 3: Waiting for 1 servers started... now there are 0 servers
+18: Mounting hugetlbfs at /mnt/huge
+10: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+17: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+16: Waiting for 1 servers started... now there are 0 servers
+14: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+18: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+17: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+16: Waiting for 1 servers started... now there are 0 servers
+14: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+18: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+17: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+16: Waiting for 1 servers started... now there are 0 servers
+14: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+18: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+17: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+16: Waiting for 1 servers started... now there are 0 servers
+14: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+18: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+17: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+16: Waiting for 1 servers started... now there are 0 servers
+14: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+18: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+17: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+16: Waiting for 1 servers started... now there are 0 servers
+14: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+18: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+17: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+16: Waiting for 1 servers started... now there are 0 servers
+14: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+18: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+17: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+16: Waiting for 1 servers started... now there are 0 servers
+14: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+18: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+17: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+16: Waiting for 1 servers started... now there are 0 servers
+14: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+18: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+17: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+16: Waiting for 1 servers started... now there are 0 servers
+14: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+18: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+17: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+16: Waiting for 1 servers started... now there are 0 servers
+14: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+18: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+17: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+16: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+14: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+18: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+17: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+16: Waiting for 1 servers started... now there are 0 servers
+14: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+18: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+17: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+16: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+14: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+18: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+17: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+16: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+14: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+18: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+17: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+16: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+14: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+18: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+17: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+16: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+14: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+18: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+17: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+16: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+14: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+18: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+17: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+16: Waiting for 1 servers started... now there are 0 servers
+14: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+18: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+17: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+16: Waiting for 1 servers started... now there are 0 servers
+14: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+18: Waiting for 1 servers started... now there are 0 servers
+srun: error: slurm_receive_msgs: Socket timed out on send/recv operation
+srun: error: Task launch for StepId=76248.1 failed on node jazz25: Socket timed out on send/recv operation
+srun: error: Application launch failed: Socket timed out on send/recv operation
+srun: Job step aborted: Waiting up to 12 seconds for job step to finish.
+ 0: slurmstepd: error: *** STEP 76248.1 ON jazz03 CANCELLED AT 2021-10-15T09:53:10 ***
+srun: error: jazz19: task 9: Killed
+srun: launch/slurm: _step_signal: Terminating StepId=76248.1
+srun: error: jazz21: task 11: Killed
+srun: error: jazz09: task 5: Killed
+srun: error: jazz04: task 1: Killed
+srun: error: jazz03: task 0: Killed
+srun: error: jazz11: task 7: Killed
+srun: error: jazz22: task 12: Killed
+srun: error: jazz23: task 13: Killed
+srun: error: jazz07: task 3: Killed
+srun: error: jazz18: task 8: Killed
+srun: error: jazz30: task 16: Killed
+srun: error: jazz10: task 6: Killed
+srun: error: jazz06: task 2: Killed
+srun: error: jazz08: task 4: Killed
+srun: error: jazz24: task 14: Killed
+srun: error: jazz32: task 18: Killed
+srun: error: jazz20: task 10: Killed
+srun: error: jazz31: task 17: Killed
+srun: First task exited 10s ago
+srun: StepId=76248.1 tasks 0-14,16-18: exited abnormally
+srun: StepId=76248.1 task 15: unknown
+srun: launch/slurm: _step_signal: Terminating StepId=76248.1
+srun: error: Timed out waiting for job step to complete
+== Servers stopping... 
+srun -l -O --nodes 1 --ntasks 1 --nodelist=jazz02 --export=ALL ./stop_tgt.sh
+srun: Job step aborted: Waiting up to 12 seconds for job step to finish.
+srun: Job step aborted: Waiting up to 12 seconds for job step to finish.
+0: slurmstepd: error: *** STEP 76248.2 ON jazz02 CANCELLED AT 2021-10-15T10:16:09 ***
+srun: got SIGCONT
+srun: got SIGCONT
+0: slurmstepd: error: *** STEP 76248.0 ON jazz02 CANCELLED AT 2021-10-15T10:16:09 ***
+slurmstepd: error: *** JOB 76248 ON jazz02 CANCELLED AT 2021-10-15T10:16:09 ***
+srun: forcing job termination
+srun: forcing job termination
+srun: error: Timed out waiting for job step to complete
+srun: error: Timed out waiting for job step to complete

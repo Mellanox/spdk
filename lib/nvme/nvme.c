@@ -967,7 +967,7 @@ nvme_ctrlr_opts_init(struct spdk_nvme_ctrlr_opts *opts,
 	/* Do not remove this statement. When you add a new field, please do update this
 	 * assert with the correct size. And do not forget to add a new SET_FIELD statement
 	 * related with your new added field. */
-	SPDK_STATIC_ASSERT(sizeof(struct spdk_nvme_ctrlr_opts) == 608, "Incorrect size");
+	SPDK_STATIC_ASSERT(sizeof(struct spdk_nvme_ctrlr_opts) == 616, "Incorrect size");
 
 #undef FIELD_OK
 #undef SET_FIELD

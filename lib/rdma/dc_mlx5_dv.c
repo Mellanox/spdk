@@ -765,8 +765,8 @@ static uint32_t spdk_dc_poller_context_submit_wrs(struct spdk_dc_mlx5_dv_poller_
 	while (registered_qp-- && poller_ctx->available_in_dci && wrs_sent == 0) {
 		struct spdk_dc_mlx5_dv_qp *qp = poller_ctx->current_qpe->qp;
 		if (qp->not_sent_yet) {
-//			SPDK_NOTICELOG("calling send_wrs, wrs_sent == %d\n", wrs_sent);
 			wrs_sent = spdk_dc_qp_queue_send_wrs(qp);
+			/* TODO check if we can reduce latency by scheduling the next qp at the moment */
 		}
 		poller_ctx->current_qpe = CIRCLEQ_LOOP_NEXT(&poller_ctx->qps,
 							    poller_ctx->current_qpe,
@@ -960,7 +960,7 @@ void spdk_rdma_qp_assign_id(struct spdk_rdma_qp *spdk_rdma_qp, uint32_t assigned
 
 void spdk_rdma_qp_reset(struct spdk_rdma_qp *spdk_rdma_qp) {
 	struct spdk_dc_mlx5_dv_qp *qp = SPDK_CONTAINEROF(spdk_rdma_qp, struct spdk_dc_mlx5_dv_qp, common);
-	SPDK_NOTICELOG("Reset called for qp: %p\n", qp);
+	/* SPDK_NOTICELOG("Reset called for qp: %p\n", qp); */ /* TODO clarify if it should be called so ofter */
 	spdk_dc_qp_reset_dci(qp);
 	return;
 }

@@ -1,0 +1,1555 @@
+== Starting run at Thu Oct 14 11:34:05 IDT 2021
+== Job ID: 75941
+== Totally nodes: 
+== Node list: jazz[05-08,15-25]
+== Submit dir. : /hpc/local/work/denisn/dc/spdk/dc
+== Servers number: 1
+== SPDK_DIR: /labhome/denisn/dc/spdk_release
+== RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+== TGT_MASK: 0xFF
+== PERF_MASK: 0xFFFFFF
+== SPDK_DIR: /labhome/denisn/dc/spdk_release
+== Server nodelist: jazz05
+== Client nodelist: jazz06,jazz07,jazz08,jazz15,jazz16,jazz17,jazz18,jazz19,jazz20,jazz21,jazz22,jazz23,jazz24,jazz25
+== Servers running...
+srun -l -O --nodes 1 --ntasks 1 --nodelist=jazz05 --export=ALL ./server_run.sh &
+== Clients running... 
+srun -l --nodes 14 --ntasks 14 --nodelist=jazz06,jazz07,jazz08,jazz15,jazz16,jazz17,jazz18,jazz19,jazz20,jazz21,jazz22,jazz23,jazz24,jazz25 --export=ALL ./nvmeperf_run.sh
+0: Server's Servers number: 1
+0: Server's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 0: Initiator's Servers number: 1
+ 4: Initiator's Servers number: 1
+ 2: Initiator's Servers number: 1
+ 3: Initiator's Servers number: 1
+ 1: Initiator's Servers number: 1
+ 5: Initiator's Servers number: 1
+ 6: Initiator's Servers number: 1
+ 7: Initiator's Servers number: 1
+ 8: Initiator's Servers number: 1
+13: Initiator's Servers number: 1
+12: Initiator's Servers number: 1
+ 9: Initiator's Servers number: 1
+11: Initiator's Servers number: 1
+10: Initiator's Servers number: 1
+0: Server's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+0: Server's TGT_MASK: 0xFF
+0: Server's PERF_MASK: 0xFFFFFF
+0: Server's IFACE: 
+0: Server's Need IP 
+ 0: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 0: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 0: Initiator's TGT_MASK: 0xFF
+ 0: Initiator's PERF_MASK: 0xFFFFFF
+ 1: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 2: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 3: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 4: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 5: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 1: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 2: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 3: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 4: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 5: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 1: Initiator's TGT_MASK: 0xFF
+ 2: Initiator's TGT_MASK: 0xFF
+ 3: Initiator's TGT_MASK: 0xFF
+ 4: Initiator's TGT_MASK: 0xFF
+ 5: Initiator's TGT_MASK: 0xFF
+ 1: Initiator's PERF_MASK: 0xFFFFFF
+ 2: Initiator's PERF_MASK: 0xFFFFFF
+ 3: Initiator's PERF_MASK: 0xFFFFFF
+ 4: Initiator's PERF_MASK: 0xFFFFFF
+ 5: Initiator's PERF_MASK: 0xFFFFFF
+ 6: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 7: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 6: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 7: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 6: Initiator's TGT_MASK: 0xFF
+ 7: Initiator's TGT_MASK: 0xFF
+ 6: Initiator's PERF_MASK: 0xFFFFFF
+ 7: Initiator's PERF_MASK: 0xFFFFFF
+ 8: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 8: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 8: Initiator's TGT_MASK: 0xFF
+ 8: Initiator's PERF_MASK: 0xFFFFFF
+12: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+12: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+13: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+12: Initiator's TGT_MASK: 0xFF
+13: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+12: Initiator's PERF_MASK: 0xFFFFFF
+13: Initiator's TGT_MASK: 0xFF
+13: Initiator's PERF_MASK: 0xFFFFFF
+11: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+ 9: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+11: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+ 9: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+11: Initiator's TGT_MASK: 0xFF
+ 9: Initiator's TGT_MASK: 0xFF
+11: Initiator's PERF_MASK: 0xFFFFFF
+ 9: Initiator's PERF_MASK: 0xFFFFFF
+10: Initiator's SPDK_DIR: /labhome/denisn/dc/spdk_release
+10: Initiator's RDMA_CORE_DIR: /labhome/denisn/dc/rdma-core/build/lib
+10: Initiator's TGT_MASK: 0xFF
+10: Initiator's PERF_MASK: 0xFFFFFF
+0: Mounting hugetlbfs at /mnt/huge
+12: Mounting hugetlbfs at /mnt/huge
+10: Mounting hugetlbfs at /mnt/huge
+ 0: Mounting hugetlbfs at /mnt/huge
+13: Mounting hugetlbfs at /mnt/huge
+ 6: Mounting hugetlbfs at /mnt/huge
+ 1: Mounting hugetlbfs at /mnt/huge
+ 7: Mounting hugetlbfs at /mnt/huge
+ 2: Mounting hugetlbfs at /mnt/huge
+11: Mounting hugetlbfs at /mnt/huge
+ 5: Mounting hugetlbfs at /mnt/huge
+ 9: Mounting hugetlbfs at /mnt/huge
+ 8: Mounting hugetlbfs at /mnt/huge
+ 4: Mounting hugetlbfs at /mnt/huge
+ 3: Mounting hugetlbfs at /mnt/huge
+12: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+0: sudo env LD_LIBRARY_PATH=/labhome/denisn/dc/rdma-core/build/lib /labhome/denisn/dc/spdk_release/install/bin/spdk_tgt -m 0xFF 2>&1 | tee -a /hpc/local/work/denisn/dc/spdk/dc/job.75941/spdk_tgt.0.log &
+0: Waiting for 3s after spdk_tgt run ...
+12: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+0: [2021-10-14 11:34:06.949610] Starting SPDK v21.04 git sha1 8016710 / DPDK 21.05.0 initialization...
+0: [2021-10-14 11:34:06.949673] [ DPDK EAL parameters: [2021-10-14 11:34:06.949682] spdk_tgt [2021-10-14 11:34:06.949687] --no-shconf [2021-10-14 11:34:06.949691] -c 0xFF [2021-10-14 11:34:06.949696] --log-level=lib.eal:6 [2021-10-14 11:34:06.949700] --log-level=lib.cryptodev:5 [2021-10-14 11:34:06.949711] --log-level=user1:6 [2021-10-14 11:34:06.949719] --base-virtaddr=0x200000000000 [2021-10-14 11:34:06.949723] --match-allocations [2021-10-14 11:34:06.949729] --file-prefix=spdk_pid59131 [2021-10-14 11:34:06.949733] ]
+0: EAL: No available 1048576 kB hugepages reported
+0: EAL: No free 2048 kB hugepages reported on node 1
+0: TELEMETRY: No legacy callbacks, legacy socket not created
+0: [2021-10-14 11:34:07.002425] app.c: 535:spdk_app_start: *NOTICE*: Total cores available: 8
+0: [2021-10-14 11:34:07.173283] reactor.c: 929:reactor_run: *NOTICE*: Reactor started on core 1
+0: [2021-10-14 11:34:07.173366] reactor.c: 929:reactor_run: *NOTICE*: Reactor started on core 2
+0: [2021-10-14 11:34:07.173419] reactor.c: 929:reactor_run: *NOTICE*: Reactor started on core 4
+0: [2021-10-14 11:34:07.173463] reactor.c: 929:reactor_run: *NOTICE*: Reactor started on core 5
+0: [2021-10-14 11:34:07.173404] reactor.c: 929:reactor_run: *NOTICE*: Reactor started on core 3
+0: [2021-10-14 11:34:07.173597] reactor.c: 929:reactor_run: *NOTICE*: Reactor started on core 7
+0: [2021-10-14 11:34:07.173537] reactor.c: 929:reactor_run: *NOTICE*: Reactor started on core 6
+0: [2021-10-14 11:34:07.173598] reactor.c: 929:reactor_run: *NOTICE*: Reactor started on core 0
+0: [2021-10-14 11:34:07.173731] accel_engine.c: 852:spdk_accel_engine_initialize: *NOTICE*: Accel engine initialized to use software engine.
+12: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+12: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+0: spdk_tgt pid: 59131
+12: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+0: Null0
+12: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+0: sudo /labhome/denisn/dc/spdk_release/scripts/rpc.py  nvmf_subsystem_add_listener -t rdma -a 1.1.3.5 -f ipv4 -s 4420 nqn.2016-06.io.spdk:cnode1 2>&1 | tee -a /hpc/local/work/denisn/dc/spdk/dc/job.75941/spdk_tgt.0.log
+0: [2021-10-14 11:34:11.328585] rdma.c:2651:nvmf_rdma_listen: *NOTICE*: *** NVMe/RDMA Target Listening on 1.1.3.5 port 4420 ***
+12: Waiting for 1 servers started... now there are 0 servers
+10: Waiting for 1 servers started... now there are 0 servers
+ 0: Waiting for 1 servers started... now there are 0 servers
+13: Waiting for 1 servers started... now there are 0 servers
+ 6: Waiting for 1 servers started... now there are 0 servers
+11: Waiting for 1 servers started... now there are 0 servers
+ 7: Waiting for 1 servers started... now there are 0 servers
+ 1: Waiting for 1 servers started... now there are 0 servers
+ 2: Waiting for 1 servers started... now there are 0 servers
+ 8: Waiting for 1 servers started... now there are 0 servers
+ 5: Waiting for 1 servers started... now there are 0 servers
+ 9: Waiting for 1 servers started... now there are 0 servers
+ 4: Waiting for 1 servers started... now there are 0 servers
+ 3: Waiting for 1 servers started... now there are 0 servers
+0: /hpc/local/work/denisn/dc/spdk/dc/./server_run.sh: line 44: wait: pid 59131 is not a child of this shell
+12: 
+10: 
+ 0: 
+12: Got servers list: 1.1.3.5
+12: sudo env LD_LIBRARY_PATH=/labhome/denisn/dc/rdma-core/build/lib /labhome/denisn/dc/spdk_release/install/bin/spdk_nvme_perf 	 --srq-depth 128 -r "trtype:rdma adrfam:ipv4 traddr:1.1.3.5 trsvcid:4420" 	 -c 0xFFFFFF -q 1 -o 4096 -w randread -t 60 	  2>&1 | tee -a /hpc/local/work/denisn/dc/spdk/dc/job.75941/perf.12.log
+10: Got servers list: 1.1.3.5
+10: sudo env LD_LIBRARY_PATH=/labhome/denisn/dc/rdma-core/build/lib /labhome/denisn/dc/spdk_release/install/bin/spdk_nvme_perf 	 --srq-depth 128 -r "trtype:rdma adrfam:ipv4 traddr:1.1.3.5 trsvcid:4420" 	 -c 0xFFFFFF -q 1 -o 4096 -w randread -t 60 	  2>&1 | tee -a /hpc/local/work/denisn/dc/spdk/dc/job.75941/perf.10.log
+ 0: Got servers list: 1.1.3.5
+13: 
+ 0: sudo env LD_LIBRARY_PATH=/labhome/denisn/dc/rdma-core/build/lib /labhome/denisn/dc/spdk_release/install/bin/spdk_nvme_perf 	 --srq-depth 128 -r "trtype:rdma adrfam:ipv4 traddr:1.1.3.5 trsvcid:4420" 	 -c 0xFFFFFF -q 1 -o 4096 -w randread -t 60 	  2>&1 | tee -a /hpc/local/work/denisn/dc/spdk/dc/job.75941/perf.0.log
+ 6: 
+13: Got servers list: 1.1.3.5
+13: sudo env LD_LIBRARY_PATH=/labhome/denisn/dc/rdma-core/build/lib /labhome/denisn/dc/spdk_release/install/bin/spdk_nvme_perf 	 --srq-depth 128 -r "trtype:rdma adrfam:ipv4 traddr:1.1.3.5 trsvcid:4420" 	 -c 0xFFFFFF -q 1 -o 4096 -w randread -t 60 	  2>&1 | tee -a /hpc/local/work/denisn/dc/spdk/dc/job.75941/perf.13.log
+ 6: Got servers list: 1.1.3.5
+ 6: sudo env LD_LIBRARY_PATH=/labhome/denisn/dc/rdma-core/build/lib /labhome/denisn/dc/spdk_release/install/bin/spdk_nvme_perf 	 --srq-depth 128 -r "trtype:rdma adrfam:ipv4 traddr:1.1.3.5 trsvcid:4420" 	 -c 0xFFFFFF -q 1 -o 4096 -w randread -t 60 	  2>&1 | tee -a /hpc/local/work/denisn/dc/spdk/dc/job.75941/perf.6.log
+11: 
+ 7: 
+ 1: 
+ 2: 
+11: Got servers list: 1.1.3.5
+ 8: 
+11: sudo env LD_LIBRARY_PATH=/labhome/denisn/dc/rdma-core/build/lib /labhome/denisn/dc/spdk_release/install/bin/spdk_nvme_perf 	 --srq-depth 128 -r "trtype:rdma adrfam:ipv4 traddr:1.1.3.5 trsvcid:4420" 	 -c 0xFFFFFF -q 1 -o 4096 -w randread -t 60 	  2>&1 | tee -a /hpc/local/work/denisn/dc/spdk/dc/job.75941/perf.11.log
+ 9: 
+ 7: Got servers list: 1.1.3.5
+ 1: Got servers list: 1.1.3.5
+ 5: 
+ 1: sudo env LD_LIBRARY_PATH=/labhome/denisn/dc/rdma-core/build/lib /labhome/denisn/dc/spdk_release/install/bin/spdk_nvme_perf 	 --srq-depth 128 -r "trtype:rdma adrfam:ipv4 traddr:1.1.3.5 trsvcid:4420" 	 -c 0xFFFFFF -q 1 -o 4096 -w randread -t 60 	  2>&1 | tee -a /hpc/local/work/denisn/dc/spdk/dc/job.75941/perf.1.log
+ 7: sudo env LD_LIBRARY_PATH=/labhome/denisn/dc/rdma-core/build/lib /labhome/denisn/dc/spdk_release/install/bin/spdk_nvme_perf 	 --srq-depth 128 -r "trtype:rdma adrfam:ipv4 traddr:1.1.3.5 trsvcid:4420" 	 -c 0xFFFFFF -q 1 -o 4096 -w randread -t 60 	  2>&1 | tee -a /hpc/local/work/denisn/dc/spdk/dc/job.75941/perf.7.log
+ 2: Got servers list: 1.1.3.5
+ 2: sudo env LD_LIBRARY_PATH=/labhome/denisn/dc/rdma-core/build/lib /labhome/denisn/dc/spdk_release/install/bin/spdk_nvme_perf 	 --srq-depth 128 -r "trtype:rdma adrfam:ipv4 traddr:1.1.3.5 trsvcid:4420" 	 -c 0xFFFFFF -q 1 -o 4096 -w randread -t 60 	  2>&1 | tee -a /hpc/local/work/denisn/dc/spdk/dc/job.75941/perf.2.log
+ 8: Got servers list: 1.1.3.5
+ 4: 
+ 8: sudo env LD_LIBRARY_PATH=/labhome/denisn/dc/rdma-core/build/lib /labhome/denisn/dc/spdk_release/install/bin/spdk_nvme_perf 	 --srq-depth 128 -r "trtype:rdma adrfam:ipv4 traddr:1.1.3.5 trsvcid:4420" 	 -c 0xFFFFFF -q 1 -o 4096 -w randread -t 60 	  2>&1 | tee -a /hpc/local/work/denisn/dc/spdk/dc/job.75941/perf.8.log
+ 3: 
+ 5: Got servers list: 1.1.3.5
+ 9: Got servers list: 1.1.3.5
+ 5: sudo env LD_LIBRARY_PATH=/labhome/denisn/dc/rdma-core/build/lib /labhome/denisn/dc/spdk_release/install/bin/spdk_nvme_perf 	 --srq-depth 128 -r "trtype:rdma adrfam:ipv4 traddr:1.1.3.5 trsvcid:4420" 	 -c 0xFFFFFF -q 1 -o 4096 -w randread -t 60 	  2>&1 | tee -a /hpc/local/work/denisn/dc/spdk/dc/job.75941/perf.5.log
+ 9: sudo env LD_LIBRARY_PATH=/labhome/denisn/dc/rdma-core/build/lib /labhome/denisn/dc/spdk_release/install/bin/spdk_nvme_perf 	 --srq-depth 128 -r "trtype:rdma adrfam:ipv4 traddr:1.1.3.5 trsvcid:4420" 	 -c 0xFFFFFF -q 1 -o 4096 -w randread -t 60 	  2>&1 | tee -a /hpc/local/work/denisn/dc/spdk/dc/job.75941/perf.9.log
+ 3: Got servers list: 1.1.3.5
+ 3: sudo env LD_LIBRARY_PATH=/labhome/denisn/dc/rdma-core/build/lib /labhome/denisn/dc/spdk_release/install/bin/spdk_nvme_perf 	 --srq-depth 128 -r "trtype:rdma adrfam:ipv4 traddr:1.1.3.5 trsvcid:4420" 	 -c 0xFFFFFF -q 1 -o 4096 -w randread -t 60 	  2>&1 | tee -a /hpc/local/work/denisn/dc/spdk/dc/job.75941/perf.3.log
+12: [2021-10-14 11:34:13.060980] Starting SPDK v21.04 git sha1 8016710 / DPDK 21.05.0 initialization...
+12: [2021-10-14 11:34:13.061056] [ DPDK EAL parameters: [2021-10-14 11:34:13.061063] perf [2021-10-14 11:34:13.061087] --no-shconf [2021-10-14 11:34:13.061091] -c 0xFFFFFF [2021-10-14 11:34:13.061097] --no-pci [2021-10-14 11:34:13.061102] --log-level=lib.eal:6 [2021-10-14 11:34:13.061107] --log-level=lib.cryptodev:5 [2021-10-14 11:34:13.061114] --log-level=user1:6 [2021-10-14 11:34:13.061119] --base-virtaddr=0x200000000000 [2021-10-14 11:34:13.061124] --match-allocations [2021-10-14 11:34:13.061129] --file-prefix=spdk_pid169913 [2021-10-14 11:34:13.061134] ]
+12: EAL: No available 1048576 kB hugepages reported
+12: EAL: No free 2048 kB hugepages reported on node 1
+ 3: [2021-10-14 11:34:13.078390] Starting SPDK v21.04 git sha1 8016710 / DPDK 21.05.0 initialization...
+ 3: [2021-10-14 11:34:13.078463] [ DPDK EAL parameters: [2021-10-14 11:34:13.078470] perf [2021-10-14 11:34:13.078501] --no-shconf [2021-10-14 11:34:13.078506] -c 0xFFFFFF [2021-10-14 11:34:13.078519] --no-pci [2021-10-14 11:34:13.078526] --log-level=lib.eal:6 [2021-10-14 11:34:13.078531] --log-level=lib.cryptodev:5 [2021-10-14 11:34:13.078536] --log-level=user1:6 [2021-10-14 11:34:13.078541] --base-virtaddr=0x200000000000 [2021-10-14 11:34:13.078547] --match-allocations [2021-10-14 11:34:13.078552] --file-prefix=spdk_pid164960 [2021-10-14 11:34:13.078558] ]
+ 3: EAL: No available 1048576 kB hugepages reported
+ 3: EAL: No free 2048 kB hugepages reported on node 1
+12: TELEMETRY: No legacy callbacks, legacy socket not created
+ 8: [2021-10-14 11:34:13.092632] Starting SPDK v21.04 git sha1 8016710 / DPDK 21.05.0 initialization...
+ 8: [2021-10-14 11:34:13.092711] [ DPDK EAL parameters: [2021-10-14 11:34:13.092718] perf [2021-10-14 11:34:13.092723] --no-shconf [2021-10-14 11:34:13.092731] -c 0xFFFFFF [2021-10-14 11:34:13.092736] --no-pci [2021-10-14 11:34:13.092742] --log-level=lib.eal:6 [2021-10-14 11:34:13.092747] --log-level=lib.cryptodev:5 [2021-10-14 11:34:13.092753] --log-level=user1:6 [2021-10-14 11:34:13.092757] --base-virtaddr=0x200000000000 [2021-10-14 11:34:13.092763] --match-allocations [2021-10-14 11:34:13.092768] --file-prefix=spdk_pid139901 [2021-10-14 11:34:13.092774] ]
+ 7: [2021-10-14 11:34:13.095846] Starting SPDK v21.04 git sha1 8016710 / DPDK 21.05.0 initialization...
+ 7: [2021-10-14 11:34:13.095928] [ DPDK EAL parameters: [2021-10-14 11:34:13.095935] perf [2021-10-14 11:34:13.095940] --no-shconf [2021-10-14 11:34:13.095951] -c 0xFFFFFF [2021-10-14 11:34:13.095955] --no-pci [2021-10-14 11:34:13.095961] --log-level=lib.eal:6 [2021-10-14 11:34:13.095965] --log-level=lib.cryptodev:5 [2021-10-14 11:34:13.095971] --log-level=user1:6 [2021-10-14 11:34:13.095976] --base-virtaddr=0x200000000000 [2021-10-14 11:34:13.095982] --match-allocations [2021-10-14 11:34:13.095986] --file-prefix=spdk_pid4172 [2021-10-14 11:34:13.095992] ]
+ 8: EAL: No available 1048576 kB hugepages reported
+ 8: EAL: No free 2048 kB hugepages reported on node 1
+ 3: TELEMETRY: No legacy callbacks, legacy socket not created
+ 7: EAL: No available 1048576 kB hugepages reported
+ 7: EAL: No free 2048 kB hugepages reported on node 1
+ 8: TELEMETRY: No legacy callbacks, legacy socket not created
+ 7: TELEMETRY: No legacy callbacks, legacy socket not created
+ 4: Got servers list: 1.1.3.5
+ 4: sudo env LD_LIBRARY_PATH=/labhome/denisn/dc/rdma-core/build/lib /labhome/denisn/dc/spdk_release/install/bin/spdk_nvme_perf 	 --srq-depth 128 -r "trtype:rdma adrfam:ipv4 traddr:1.1.3.5 trsvcid:4420" 	 -c 0xFFFFFF -q 1 -o 4096 -w randread -t 60 	  2>&1 | tee -a /hpc/local/work/denisn/dc/spdk/dc/job.75941/perf.4.log
+ 4: [2021-10-14 11:34:13.312619] Starting SPDK v21.04 git sha1 8016710 / DPDK 21.05.0 initialization...
+ 4: [2021-10-14 11:34:13.312693] [ DPDK EAL parameters: [2021-10-14 11:34:13.312702] perf [2021-10-14 11:34:13.312708] --no-shconf [2021-10-14 11:34:13.312727] -c 0xFFFFFF [2021-10-14 11:34:13.312733] --no-pci [2021-10-14 11:34:13.312739] --log-level=lib.eal:6 [2021-10-14 11:34:13.312745] --log-level=lib.cryptodev:5 [2021-10-14 11:34:13.312751] --log-level=user1:6 [2021-10-14 11:34:13.312757] --base-virtaddr=0x200000000000 [2021-10-14 11:34:13.312763] --match-allocations [2021-10-14 11:34:13.312769] --file-prefix=spdk_pid156882 [2021-10-14 11:34:13.312775] ]
+13: [2021-10-14 11:34:13.323401] Starting SPDK v21.04 git sha1 8016710 / DPDK 21.05.0 initialization...
+13: [2021-10-14 11:34:13.323477] [ DPDK EAL parameters: [2021-10-14 11:34:13.323484] perf [2021-10-14 11:34:13.323489] --no-shconf [2021-10-14 11:34:13.323522] -c 0xFFFFFF [2021-10-14 11:34:13.323526] --no-pci [2021-10-14 11:34:13.323532] --log-level=lib.eal:6 [2021-10-14 11:34:13.323536] --log-level=lib.cryptodev:5 [2021-10-14 11:34:13.323551] --log-level=user1:6 [2021-10-14 11:34:13.323557] --base-virtaddr=0x200000000000 [2021-10-14 11:34:13.323561] --match-allocations [2021-10-14 11:34:13.323566] --file-prefix=spdk_pid18101 [2021-10-14 11:34:13.323571] ]
+ 4: EAL: No available 1048576 kB hugepages reported
+ 4: EAL: No free 2048 kB hugepages reported on node 1
+10: [2021-10-14 11:34:13.326388] Starting SPDK v21.04 git sha1 8016710 / DPDK 21.05.0 initialization...
+10: [2021-10-14 11:34:13.326466] [ DPDK EAL parameters: [2021-10-14 11:34:13.326473] perf [2021-10-14 11:34:13.326489] --no-shconf [2021-10-14 11:34:13.326499] -c 0xFFFFFF [2021-10-14 11:34:13.326505] --no-pci [2021-10-14 11:34:13.326510] --log-level=lib.eal:6 [2021-10-14 11:34:13.326516] --log-level=lib.cryptodev:5 [2021-10-14 11:34:13.326521] --log-level=user1:6 [2021-10-14 11:34:13.326525] --base-virtaddr=0x200000000000 [2021-10-14 11:34:13.326531] --match-allocations [2021-10-14 11:34:13.326535] --file-prefix=spdk_pid118609 [2021-10-14 11:34:13.326541] ]
+13: EAL: No available 1048576 kB hugepages reported
+13: EAL: No free 2048 kB hugepages reported on node 1
+10: EAL: No available 1048576 kB hugepages reported
+10: EAL: No free 2048 kB hugepages reported on node 1
+ 4: TELEMETRY: No legacy callbacks, legacy socket not created
+13: TELEMETRY: No legacy callbacks, legacy socket not created
+10: TELEMETRY: No legacy callbacks, legacy socket not created
+ 6: [2021-10-14 11:34:13.359121] Starting SPDK v21.04 git sha1 8016710 / DPDK 21.05.0 initialization...
+ 6: [2021-10-14 11:34:13.359184] [ DPDK EAL parameters: [2021-10-14 11:34:13.359210] perf [2021-10-14 11:34:13.359217] --no-shconf [2021-10-14 11:34:13.359224] -c 0xFFFFFF [2021-10-14 11:34:13.359230] --no-pci [2021-10-14 11:34:13.359236] --log-level=lib.eal:6 [2021-10-14 11:34:13.359243] --log-level=lib.cryptodev:5 [2021-10-14 11:34:13.359249] --log-level=user1:6 [2021-10-14 11:34:13.359255] --base-virtaddr=0x200000000000 [2021-10-14 11:34:13.359261] --match-allocations [2021-10-14 11:34:13.359267] --file-prefix=spdk_pid5511 [2021-10-14 11:34:13.359271] ]
+ 9: [2021-10-14 11:34:13.360116] Starting SPDK v21.04 git sha1 8016710 / DPDK 21.05.0 initialization...
+ 9: [2021-10-14 11:34:13.360188] [ DPDK EAL parameters: [2021-10-14 11:34:13.360195] perf [2021-10-14 11:34:13.360217] --no-shconf [2021-10-14 11:34:13.360221] -c 0xFFFFFF [2021-10-14 11:34:13.360241] --no-pci [2021-10-14 11:34:13.360247] --log-level=lib.eal:6 [2021-10-14 11:34:13.360252] --log-level=lib.cryptodev:5 [2021-10-14 11:34:13.360258] --log-level=user1:6 [2021-10-14 11:34:13.360265] --base-virtaddr=0x200000000000 [2021-10-14 11:34:13.360272] --match-allocations [2021-10-14 11:34:13.360276] --file-prefix=spdk_pid189596 [2021-10-14 11:34:13.360282] ]
+ 6: EAL: No available 1048576 kB hugepages reported
+ 6: EAL: No free 2048 kB hugepages reported on node 1
+ 9: EAL: No available 1048576 kB hugepages reported
+ 9: EAL: No free 2048 kB hugepages reported on node 1
+ 6: TELEMETRY: No legacy callbacks, legacy socket not created
+ 9: TELEMETRY: No legacy callbacks, legacy socket not created
+ 3: Initializing NVMe Controllers
+ 3: Attached to NVMe over Fabrics controller at 1.1.3.5:4420: nqn.2016-06.io.spdk:cnode1
+ 3: Controller attach time is 17213.507 us (41312418 ticks)
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 0
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 1
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 2
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 3
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 4
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 5
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 6
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 7
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 8
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 9
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 10
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 11
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 12
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 13
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 14
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 15
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 16
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 17
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 18
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 19
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 20
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 21
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 22
+ 3: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 23
+ 3: Initialization complete. Launching workers.
+ 3: IO qp on core 3 total time 17932.236 us (43037367 ticks), connect time 5043.969 us (12105525 ticks)
+ 3: IO qp on core 0 total time 27424.521 us (65818851 ticks), connect time 13663.475 us (32792340 ticks)
+ 3: IO qp on core 4 total time 37986.646 us (91167951 ticks), connect time 24035.409 us (57684981 ticks)
+ 3: IO qp on core 1 total time 48676.371 us (116823291 ticks), connect time 33101.739 us (79444173 ticks)
+ 3: IO qp on core 2 total time 57234.555 us (137362932 ticks), connect time 42459.066 us (101901759 ticks)
+ 3: IO qp on core 17 total time 67215.303 us (161316726 ticks), connect time 52657.846 us (126378831 ticks)
+ 3: IO qp on core 5 total time 77364.954 us (185675889 ticks), connect time 62472.020 us (149932848 ticks)
+ 3: IO qp on core 10 total time 86906.193 us (208574862 ticks), connect time 71927.464 us (172625913 ticks)
+ 3: IO qp on core 23 total time 97152.321 us (233165571 ticks), connect time 81912.901 us (196590963 ticks)
+ 3: IO qp on core 21 total time 107194.643 us (257267142 ticks), connect time 88864.034 us (213273681 ticks)
+ 3: IO qp on core 7 total time 117199.875 us (281279700 ticks), connect time 98700.027 us (236880066 ticks)
+ 3: IO qp on core 6 total time 127234.649 us (305363157 ticks), connect time 108443.181 us (260263635 ticks)
+ 3: IO qp on core 13 total time 137190.201 us (329256482 ticks), connect time 117412.097 us (281789033 ticks)
+ 3: IO qp on core 15 total time 138894.620 us (333347089 ticks), connect time 127241.340 us (305379217 ticks)
+ 3: IO qp on core 9 total time 157289.340 us (377494416 ticks), connect time 137276.895 us (329464548 ticks)
+ 3: IO qp on core 8 total time 166956.771 us (400696251 ticks), connect time 146791.641 us (352299939 ticks)
+ 3: IO qp on core 16 total time 176969.217 us (424726122 ticks), connect time 156669.337 us (376006410 ticks)
+ 8: Initializing NVMe Controllers
+ 8: Attached to NVMe over Fabrics controller at 1.1.3.5:4420: nqn.2016-06.io.spdk:cnode1
+ 8: Controller attach time is 19429.400 us (46630560 ticks)
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 0
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 1
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 2
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 3
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 4
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 5
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 6
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 7
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 8
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 9
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 10
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 11
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 12
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 13
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 14
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 15
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 16
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 17
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 18
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 19
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 20
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 21
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 22
+ 8: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 23
+ 8: Initialization complete. Launching workers.
+ 8: IO qp on core 2 total time 18574.354 us (44578449 ticks), connect time 6221.271 us (14931051 ticks)
+ 8: IO qp on core 3 total time 27934.922 us (67043813 ticks), connect time 16686.797 us (40048313 ticks)
+ 8: IO qp on core 0 total time 37594.826 us (90227583 ticks), connect time 25908.618 us (62180682 ticks)
+ 8: IO qp on core 1 total time 48922.832 us (117414796 ticks), connect time 36234.522 us (86962852 ticks)
+ 8: IO qp on core 7 total time 57419.587 us (137807009 ticks), connect time 46057.033 us (110536880 ticks)
+ 8: IO qp on core 15 total time 67390.999 us (161738397 ticks), connect time 55910.309 us (134184741 ticks)
+ 8: IO qp on core 4 total time 77323.782 us (185577076 ticks), connect time 65580.613 us (157393471 ticks)
+ 8: IO qp on core 6 total time 87277.768 us (209466642 ticks), connect time 75530.160 us (181272384 ticks)
+ 8: IO qp on core 17 total time 97274.051 us (233457723 ticks), connect time 85619.169 us (205486005 ticks)
+ 8: IO qp on core 5 total time 107997.250 us (259193401 ticks), connect time 96025.917 us (230462200 ticks)
+ 8: IO qp on core 11 total time 117349.952 us (281639885 ticks), connect time 105543.930 us (253305431 ticks)
+ 8: IO qp on core 19 total time 127311.907 us (305548576 ticks), connect time 115384.662 us (276923188 ticks)
+ 8: IO qp on core 16 total time 137226.680 us (329344032 ticks), connect time 125136.569 us (300327765 ticks)
+ 8: IO qp on core 13 total time 147317.009 us (353560822 ticks), connect time 134439.314 us (322654354 ticks)
+ 8: IO qp on core 23 total time 157259.757 us (377423416 ticks), connect time 143537.384 us (344489722 ticks)
+ 8: IO qp on core 10 total time 167135.592 us (401125422 ticks), connect time 153410.880 us (368186112 ticks)
+ 8: IO qp on core 14 total time 177130.681 us (425113635 ticks), connect time 163147.530 us (391554072 ticks)
+11: [2021-10-14 11:34:13.536740] Starting SPDK v21.04 git sha1 8016710 / DPDK 21.05.0 initialization...
+11: [2021-10-14 11:34:13.536816] [ DPDK EAL parameters: [2021-10-14 11:34:13.536823] perf [2021-10-14 11:34:13.536835] --no-shconf [2021-10-14 11:34:13.536840] -c 0xFFFFFF [2021-10-14 11:34:13.536847] --no-pci [2021-10-14 11:34:13.536880] --log-level=lib.eal:6 [2021-10-14 11:34:13.536886] --log-level=lib.cryptodev:5 [2021-10-14 11:34:13.536891] --log-level=user1:6 [2021-10-14 11:34:13.536899] --base-virtaddr=0x200000000000 [2021-10-14 11:34:13.536904] --match-allocations [2021-10-14 11:34:13.536911] --file-prefix=spdk_pid44743 [2021-10-14 11:34:13.536915] ]
+11: EAL: No available 1048576 kB hugepages reported
+11: EAL: No free 2048 kB hugepages reported on node 1
+11: TELEMETRY: No legacy callbacks, legacy socket not created
+ 0: [2021-10-14 11:34:13.567870] Starting SPDK v21.04 git sha1 8016710 / DPDK 21.05.0 initialization...
+ 0: [2021-10-14 11:34:13.567933] [ DPDK EAL parameters: [2021-10-14 11:34:13.567940] perf [2021-10-14 11:34:13.567945] --no-shconf [2021-10-14 11:34:13.567949] -c 0xFFFFFF [2021-10-14 11:34:13.567953] --no-pci [2021-10-14 11:34:13.567958] --log-level=lib.eal:6 [2021-10-14 11:34:13.567965] --log-level=lib.cryptodev:5 [2021-10-14 11:34:13.567972] --log-level=user1:6 [2021-10-14 11:34:13.567977] --base-virtaddr=0x200000000000 [2021-10-14 11:34:13.567982] --match-allocations [2021-10-14 11:34:13.567987] --file-prefix=spdk_pid72408 [2021-10-14 11:34:13.567991] ]
+ 5: [2021-10-14 11:34:13.578273] Starting SPDK v21.04 git sha1 8016710 / DPDK 21.05.0 initialization...
+ 5: [2021-10-14 11:34:13.578348] [ DPDK EAL parameters: [2021-10-14 11:34:13.578355] perf [2021-10-14 11:34:13.578376] --no-shconf [2021-10-14 11:34:13.578381] -c 0xFFFFFF [2021-10-14 11:34:13.578391] --no-pci [2021-10-14 11:34:13.578398] --log-level=lib.eal:6 [2021-10-14 11:34:13.578403] --log-level=lib.cryptodev:5 [2021-10-14 11:34:13.578408] --log-level=user1:6 [2021-10-14 11:34:13.578413] --base-virtaddr=0x200000000000 [2021-10-14 11:34:13.578419] --match-allocations [2021-10-14 11:34:13.578423] --file-prefix=spdk_pid67882 [2021-10-14 11:34:13.578429] ]
+ 0: EAL: No available 1048576 kB hugepages reported
+ 1: [2021-10-14 11:34:13.578828] Starting SPDK v21.04 git sha1 8016710 / DPDK 21.05.0 initialization...
+ 0: EAL: No free 2048 kB hugepages reported on node 1
+ 1: [2021-10-14 11:34:13.578908] [ DPDK EAL parameters: [2021-10-14 11:34:13.578916] perf [2021-10-14 11:34:13.578920] --no-shconf [2021-10-14 11:34:13.578925] -c 0xFFFFFF [2021-10-14 11:34:13.578932] --no-pci [2021-10-14 11:34:13.578936] --log-level=lib.eal:6 [2021-10-14 11:34:13.578942] --log-level=lib.cryptodev:5 [2021-10-14 11:34:13.578947] --log-level=user1:6 [2021-10-14 11:34:13.578953] --base-virtaddr=0x200000000000 [2021-10-14 11:34:13.578958] --match-allocations [2021-10-14 11:34:13.578964] --file-prefix=spdk_pid73169 [2021-10-14 11:34:13.578968] ]
+ 5: EAL: No available 1048576 kB hugepages reported
+ 5: EAL: No free 2048 kB hugepages reported on node 1
+ 1: EAL: No available 1048576 kB hugepages reported
+ 1: EAL: No free 2048 kB hugepages reported on node 1
+ 0: TELEMETRY: No legacy callbacks, legacy socket not created
+ 5: TELEMETRY: No legacy callbacks, legacy socket not created
+ 1: TELEMETRY: No legacy callbacks, legacy socket not created
+ 9: Initializing NVMe Controllers
+ 9: Attached to NVMe over Fabrics controller at 1.1.3.5:4420: nqn.2016-06.io.spdk:cnode1
+ 9: Controller attach time is 20052.116 us (48125078 ticks)
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 0
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 1
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 2
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 3
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 4
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 5
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 6
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 7
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 8
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 9
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 10
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 11
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 12
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 13
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 14
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 15
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 16
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 17
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 18
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 19
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 20
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 21
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 22
+ 9: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 23
+ 9: Initialization complete. Launching workers.
+ 9: IO qp on core 1 total time 19301.253 us (46323008 ticks), connect time 6498.871 us (15597291 ticks)
+ 9: IO qp on core 3 total time 27004.812 us (64811548 ticks), connect time 13840.103 us (33216247 ticks)
+ 9: IO qp on core 15 total time 36819.470 us (88366729 ticks), connect time 23616.692 us (56680060 ticks)
+ 9: IO qp on core 2 total time 48050.951 us (115322283 ticks), connect time 33370.039 us (80088093 ticks)
+ 9: IO qp on core 5 total time 57118.163 us (137083591 ticks), connect time 43251.283 us (103803079 ticks)
+ 9: IO qp on core 4 total time 66828.801 us (160389123 ticks), connect time 52741.191 us (126578859 ticks)
+ 9: IO qp on core 0 total time 76898.219 us (184555725 ticks), connect time 62616.201 us (150278883 ticks)
+ 9: IO qp on core 6 total time 86743.366 us (208184078 ticks), connect time 72428.320 us (173827968 ticks)
+ 9: IO qp on core 17 total time 96729.553 us (232150928 ticks), connect time 82154.460 us (197170703 ticks)
+ 9: IO qp on core 13 total time 106715.062 us (256116150 ticks), connect time 90848.074 us (218035377 ticks)
+ 9: IO qp on core 14 total time 116593.421 us (279824211 ticks), connect time 100711.071 us (241706571 ticks)
+ 9: IO qp on core 10 total time 126676.000 us (304022400 ticks), connect time 110465.351 us (265116843 ticks)
+ 9: IO qp on core 8 total time 136652.004 us (327964809 ticks), connect time 120247.764 us (288594633 ticks)
+ 9: IO qp on core 21 total time 147071.963 us (352972712 ticks), connect time 130557.735 us (313338563 ticks)
+ 9: IO qp on core 16 total time 156629.949 us (375911877 ticks), connect time 139644.896 us (335147751 ticks)
+ 9: IO qp on core 7 total time 166852.497 us (400445993 ticks), connect time 149167.666 us (358002398 ticks)
+ 9: IO qp on core 12 total time 177752.911 us (426606986 ticks), connect time 159733.031 us (383359274 ticks)
+ 6: Initializing NVMe Controllers
+ 6: Attached to NVMe over Fabrics controller at 1.1.3.5:4420: nqn.2016-06.io.spdk:cnode1
+ 6: Controller attach time is 19953.125 us (47887500 ticks)
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 0
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 1
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 2
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 3
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 4
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 5
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 6
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 7
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 8
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 9
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 10
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 11
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 12
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 13
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 14
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 15
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 16
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 17
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 18
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 19
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 20
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 21
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 22
+ 6: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 23
+ 6: Initialization complete. Launching workers.
+ 6: IO qp on core 1 total time 19638.074 us (47131377 ticks), connect time 5808.050 us (13939320 ticks)
+ 6: IO qp on core 0 total time 27253.839 us (65409213 ticks), connect time 14246.821 us (34192371 ticks)
+ 6: IO qp on core 4 total time 37110.735 us (89065764 ticks), connect time 23730.315 us (56952756 ticks)
+ 6: IO qp on core 2 total time 47945.126 us (115068303 ticks), connect time 33600.573 us (80641374 ticks)
+ 6: IO qp on core 23 total time 57154.338 us (137170410 ticks), connect time 43463.404 us (104312169 ticks)
+ 6: IO qp on core 5 total time 67460.657 us (161905576 ticks), connect time 53263.425 us (127832221 ticks)
+ 6: IO qp on core 3 total time 77345.765 us (185629835 ticks), connect time 62868.936 us (150885446 ticks)
+ 6: IO qp on core 20 total time 87003.720 us (208808928 ticks), connect time 72694.881 us (174467715 ticks)
+ 6: IO qp on core 21 total time 97185.577 us (233245385 ticks), connect time 82177.847 us (197226833 ticks)
+ 6: IO qp on core 12 total time 107055.212 us (256932510 ticks), connect time 91974.526 us (220738863 ticks)
+ 6: IO qp on core 6 total time 117172.576 us (281214183 ticks), connect time 101778.535 us (244268484 ticks)
+ 6: IO qp on core 22 total time 127454.721 us (305891331 ticks), connect time 112026.689 us (268864053 ticks)
+ 6: IO qp on core 17 total time 137081.944 us (328996665 ticks), connect time 121526.485 us (291663564 ticks)
+ 6: IO qp on core 9 total time 147152.166 us (353165199 ticks), connect time 131464.614 us (315515073 ticks)
+ 6: IO qp on core 19 total time 158639.846 us (380735630 ticks), connect time 142427.953 us (341827088 ticks)
+ 6: IO qp on core 13 total time 167338.644 us (401612745 ticks), connect time 150107.788 us (360258690 ticks)
+ 6: IO qp on core 15 total time 177249.537 us (425398889 ticks), connect time 159874.393 us (383698544 ticks)
+ 2: [2021-10-14 11:34:13.777913] Starting SPDK v21.04 git sha1 8016710 / DPDK 21.05.0 initialization...
+ 2: [2021-10-14 11:34:13.777995] [ DPDK EAL parameters: [2021-10-14 11:34:13.778021] perf [2021-10-14 11:34:13.778028] --no-shconf [2021-10-14 11:34:13.778042] -c 0xFFFFFF [2021-10-14 11:34:13.778049] --no-pci [2021-10-14 11:34:13.778053] --log-level=lib.eal:6 [2021-10-14 11:34:13.778060] --log-level=lib.cryptodev:5 [2021-10-14 11:34:13.778064] --log-level=user1:6 [2021-10-14 11:34:13.778070] --base-virtaddr=0x200000000000 [2021-10-14 11:34:13.778075] --match-allocations [2021-10-14 11:34:13.778081] --file-prefix=spdk_pid23544 [2021-10-14 11:34:13.778085] ]
+ 2: EAL: No available 1048576 kB hugepages reported
+ 2: EAL: No free 2048 kB hugepages reported on node 1
+ 2: TELEMETRY: No legacy callbacks, legacy socket not created
+11: Initializing NVMe Controllers
+11: Attached to NVMe over Fabrics controller at 1.1.3.5:4420: nqn.2016-06.io.spdk:cnode1
+11: Controller attach time is 19837.961 us (47611106 ticks)
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 0
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 1
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 2
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 3
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 4
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 5
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 6
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 7
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 8
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 9
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 10
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 11
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 12
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 13
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 14
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 15
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 16
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 17
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 18
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 19
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 20
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 21
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 22
+11: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 23
+11: Initialization complete. Launching workers.
+11: IO qp on core 2 total time 18354.255 us (44050212 ticks), connect time 2722.495 us (6533988 ticks)
+11: IO qp on core 4 total time 28181.889 us (67636533 ticks), connect time 12555.566 us (30133359 ticks)
+11: IO qp on core 5 total time 39170.645 us (94009548 ticks), connect time 23575.868 us (56582082 ticks)
+11: IO qp on core 9 total time 48031.460 us (115275504 ticks), connect time 32364.711 us (77675307 ticks)
+11: IO qp on core 6 total time 57987.734 us (139170561 ticks), connect time 42108.914 us (101061393 ticks)
+11: IO qp on core 13 total time 67920.018 us (163008042 ticks), connect time 52383.129 us (125719509 ticks)
+11: IO qp on core 7 total time 78232.564 us (187758153 ticks), connect time 62122.594 us (149094225 ticks)
+11: IO qp on core 8 total time 87993.023 us (211183254 ticks), connect time 71864.670 us (172475208 ticks)
+11: IO qp on core 11 total time 98189.173 us (235654014 ticks), connect time 82057.829 us (196938789 ticks)
+11: IO qp on core 10 total time 107858.669 us (258860805 ticks), connect time 91602.159 us (219845181 ticks)
+11: IO qp on core 14 total time 118301.143 us (283922742 ticks), connect time 102134.475 us (245122740 ticks)
+11: IO qp on core 3 total time 128697.256 us (308873415 ticks), connect time 112003.909 us (268809381 ticks)
+11: IO qp on core 12 total time 137827.997 us (330787194 ticks), connect time 121368.515 us (291284436 ticks)
+11: IO qp on core 1 total time 148568.515 us (356564436 ticks), connect time 130372.971 us (312895131 ticks)
+11: IO qp on core 0 total time 157639.750 us (378335400 ticks), connect time 139385.878 us (334526106 ticks)
+11: IO qp on core 16 total time 167837.100 us (402809040 ticks), connect time 149260.075 us (358224180 ticks)
+11: IO qp on core 20 total time 176744.014 us (424185633 ticks), connect time 158882.889 us (381318933 ticks)
+13: Initializing NVMe Controllers
+13: Attached to NVMe over Fabrics controller at 1.1.3.5:4420: nqn.2016-06.io.spdk:cnode1
+13: Controller attach time is 19896.643 us (47751942 ticks)
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 0
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 1
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 2
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 3
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 4
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 5
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 6
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 7
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 8
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 9
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 10
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 11
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 12
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 13
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 14
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 15
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 16
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 17
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 18
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 19
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 20
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 21
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 22
+13: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 23
+13: Initialization complete. Launching workers.
+13: IO qp on core 3 total time 20016.611 us (48039866 ticks), connect time 5967.523 us (14322054 ticks)
+13: IO qp on core 2 total time 28095.585 us (67429404 ticks), connect time 13595.195 us (32628468 ticks)
+13: IO qp on core 4 total time 38104.080 us (91449792 ticks), connect time 22836.436 us (54807447 ticks)
+13: IO qp on core 6 total time 47656.024 us (114374457 ticks), connect time 33074.817 us (79379562 ticks)
+13: IO qp on core 0 total time 57873.236 us (138895766 ticks), connect time 42980.368 us (103152884 ticks)
+13: IO qp on core 21 total time 67216.292 us (161319102 ticks), connect time 52672.353 us (126413646 ticks)
+13: IO qp on core 5 total time 78346.966 us (188032719 ticks), connect time 62292.073 us (149500974 ticks)
+13: IO qp on core 1 total time 88465.985 us (212318365 ticks), connect time 71186.101 us (170846643 ticks)
+13: IO qp on core 7 total time 97164.776 us (233195463 ticks), connect time 80994.312 us (194386350 ticks)
+13: IO qp on core 15 total time 107172.935 us (257215044 ticks), connect time 90995.805 us (218389932 ticks)
+13: IO qp on core 22 total time 117112.018 us (281068844 ticks), connect time 100934.468 us (242242724 ticks)
+13: IO qp on core 9 total time 127176.318 us (305223164 ticks), connect time 110250.687 us (264601649 ticks)
+13: IO qp on core 16 total time 137247.446 us (329393871 ticks), connect time 120126.711 us (288304107 ticks)
+13: IO qp on core 23 total time 147168.865 us (353205276 ticks), connect time 129535.425 us (310885020 ticks)
+13: IO qp on core 11 total time 157217.165 us (377321197 ticks), connect time 139363.855 us (334473253 ticks)
+13: IO qp on core 17 total time 167234.538 us (401362890 ticks), connect time 149369.350 us (358486440 ticks)
+13: IO qp on core 18 total time 177633.195 us (426319667 ticks), connect time 159312.827 us (382350785 ticks)
+ 7: Initializing NVMe Controllers
+ 7: Attached to NVMe over Fabrics controller at 1.1.3.5:4420: nqn.2016-06.io.spdk:cnode1
+ 7: Controller attach time is 20757.096 us (49817030 ticks)
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 0
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 1
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 2
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 3
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 4
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 5
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 6
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 7
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 8
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 9
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 10
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 11
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 12
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 13
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 14
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 15
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 16
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 17
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 18
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 19
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 20
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 21
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 22
+ 7: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 23
+ 7: Initialization complete. Launching workers.
+ 7: IO qp on core 7 total time 26430.090 us (63432216 ticks), connect time 11116.485 us (26679564 ticks)
+ 7: IO qp on core 1 total time 37477.109 us (89945061 ticks), connect time 20721.656 us (49731975 ticks)
+ 7: IO qp on core 2 total time 47277.761 us (113466627 ticks), connect time 30619.516 us (73486839 ticks)
+ 7: IO qp on core 5 total time 56375.854 us (135302049 ticks), connect time 40482.550 us (97158120 ticks)
+ 7: IO qp on core 6 total time 66317.179 us (159161229 ticks), connect time 50340.281 us (120816675 ticks)
+ 7: IO qp on core 17 total time 76318.810 us (183165144 ticks), connect time 60516.035 us (145238484 ticks)
+ 7: IO qp on core 0 total time 86533.676 us (207680823 ticks), connect time 70309.626 us (168743103 ticks)
+ 7: IO qp on core 3 total time 96577.654 us (231786369 ticks), connect time 80403.145 us (192967548 ticks)
+ 7: IO qp on core 11 total time 106601.717 us (255844122 ticks), connect time 90486.469 us (217167525 ticks)
+ 7: IO qp on core 10 total time 116202.333 us (278885598 ticks), connect time 99669.557 us (239206938 ticks)
+ 7: IO qp on core 12 total time 126302.934 us (303127041 ticks), connect time 109768.348 us (263444034 ticks)
+ 7: IO qp on core 4 total time 136394.682 us (327347238 ticks), connect time 119386.822 us (286528374 ticks)
+ 7: IO qp on core 16 total time 146086.835 us (350608404 ticks), connect time 129210.110 us (310104264 ticks)
+ 7: IO qp on core 15 total time 156491.484 us (375579561 ticks), connect time 138233.096 us (331759431 ticks)
+ 7: IO qp on core 20 total time 166191.732 us (398860157 ticks), connect time 147927.743 us (355026584 ticks)
+ 7: IO qp on core 14 total time 176266.086 us (423038607 ticks), connect time 157333.179 us (377599629 ticks)
+ 7: IO qp on core 23 total time 186185.896 us (446846150 ticks), connect time 167105.498 us (401053196 ticks)
+10: Initializing NVMe Controllers
+10: Attached to NVMe over Fabrics controller at 1.1.3.5:4420: nqn.2016-06.io.spdk:cnode1
+10: Controller attach time is 20063.735 us (48152964 ticks)
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 0
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 1
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 2
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 3
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 4
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 5
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 6
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 7
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 8
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 9
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 10
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 11
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 12
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 13
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 14
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 15
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 16
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 17
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 18
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 19
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 20
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 21
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 22
+10: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 23
+10: Initialization complete. Launching workers.
+10: IO qp on core 4 total time 28228.998 us (67749594 ticks), connect time 16006.630 us (38415912 ticks)
+10: IO qp on core 3 total time 38461.814 us (92308354 ticks), connect time 26204.752 us (62891406 ticks)
+10: IO qp on core 2 total time 48239.299 us (115774317 ticks), connect time 35974.895 us (86339748 ticks)
+10: IO qp on core 6 total time 58200.986 us (139682367 ticks), connect time 44995.429 us (107989029 ticks)
+10: IO qp on core 7 total time 67312.705 us (161550491 ticks), connect time 54987.196 us (131969270 ticks)
+10: IO qp on core 9 total time 77329.947 us (185591872 ticks), connect time 63711.222 us (152906932 ticks)
+10: IO qp on core 5 total time 88416.546 us (212199710 ticks), connect time 73736.210 us (176966903 ticks)
+10: IO qp on core 0 total time 97260.619 us (233425486 ticks), connect time 82938.817 us (199053160 ticks)
+10: IO qp on core 8 total time 107107.562 us (257058150 ticks), connect time 92127.913 us (221106990 ticks)
+10: IO qp on core 22 total time 117058.874 us (280941297 ticks), connect time 102075.845 us (244982028 ticks)
+10: IO qp on core 15 total time 127189.028 us (305253667 ticks), connect time 111957.833 us (268698799 ticks)
+10: IO qp on core 20 total time 137430.540 us (329833295 ticks), connect time 121959.036 us (292701686 ticks)
+10: IO qp on core 1 total time 148475.335 us (356340804 ticks), connect time 131666.552 us (315999725 ticks)
+10: IO qp on core 21 total time 157351.382 us (377643317 ticks), connect time 141535.010 us (339684023 ticks)
+10: IO qp on core 23 total time 167249.491 us (401398778 ticks), connect time 151185.881 us (362846114 ticks)
+10: IO qp on core 19 total time 177574.716 us (426179318 ticks), connect time 161500.662 us (387601589 ticks)
+10: IO qp on core 16 total time 178101.940 us (427444656 ticks), connect time 169072.381 us (405773715 ticks)
+ 1: Initializing NVMe Controllers
+ 1: Attached to NVMe over Fabrics controller at 1.1.3.5:4420: nqn.2016-06.io.spdk:cnode1
+ 1: Controller attach time is 20208.996 us (48501590 ticks)
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 0
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 1
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 2
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 3
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 4
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 5
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 6
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 7
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 8
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 9
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 10
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 11
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 12
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 13
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 14
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 15
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 16
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 17
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 18
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 19
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 20
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 21
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 22
+ 1: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 23
+ 1: Initialization complete. Launching workers.
+ 1: IO qp on core 8 total time 17063.356 us (40952055 ticks), connect time 3184.261 us (7642227 ticks)
+ 1: IO qp on core 2 total time 27808.643 us (66740742 ticks), connect time 12625.419 us (30301005 ticks)
+ 1: IO qp on core 4 total time 36721.470 us (88131529 ticks), connect time 22607.479 us (54257949 ticks)
+ 1: IO qp on core 0 total time 46913.129 us (112591509 ticks), connect time 32452.679 us (77886429 ticks)
+ 1: IO qp on core 6 total time 56727.142 us (136145141 ticks), connect time 42312.588 us (101550210 ticks)
+ 1: IO qp on core 20 total time 66504.040 us (159609696 ticks), connect time 52270.408 us (125448978 ticks)
+ 1: IO qp on core 3 total time 77427.140 us (185825136 ticks), connect time 62928.549 us (151028517 ticks)
+ 1: IO qp on core 11 total time 86777.884 us (208266921 ticks), connect time 72362.865 us (173670876 ticks)
+ 1: IO qp on core 5 total time 96971.577 us (232731785 ticks), connect time 82119.077 us (197085785 ticks)
+ 1: IO qp on core 1 total time 108190.985 us (259658364 ticks), connect time 91978.367 us (220748080 ticks)
+ 1: IO qp on core 9 total time 116599.983 us (279839959 ticks), connect time 101721.008 us (244130419 ticks)
+ 1: IO qp on core 19 total time 126943.977 us (304665544 ticks), connect time 112063.715 us (268952917 ticks)
+ 1: IO qp on core 15 total time 136662.759 us (327990622 ticks), connect time 121005.700 us (290413681 ticks)
+ 1: IO qp on core 16 total time 146743.853 us (352185246 ticks), connect time 131084.152 us (314601966 ticks)
+ 1: IO qp on core 21 total time 156943.763 us (376665031 ticks), connect time 139598.139 us (335035534 ticks)
+ 1: IO qp on core 22 total time 166729.425 us (400150620 ticks), connect time 149200.095 us (358080228 ticks)
+ 1: IO qp on core 13 total time 176830.249 us (424392598 ticks), connect time 159143.235 us (381943765 ticks)
+ 5: Initializing NVMe Controllers
+ 5: Attached to NVMe over Fabrics controller at 1.1.3.5:4420: nqn.2016-06.io.spdk:cnode1
+ 5: Controller attach time is 20536.678 us (49288026 ticks)
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 0
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 1
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 2
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 3
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 4
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 5
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 6
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 7
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 8
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 9
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 10
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 11
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 12
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 13
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 14
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 15
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 16
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 17
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 18
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 19
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 20
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 21
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 22
+ 5: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 23
+ 5: Initialization complete. Launching workers.
+ 5: IO qp on core 5 total time 26729.717 us (64151321 ticks), connect time 11492.975 us (27583139 ticks)
+ 5: IO qp on core 6 total time 36739.924 us (88175817 ticks), connect time 21144.725 us (50747340 ticks)
+ 5: IO qp on core 7 total time 46865.272 us (112476654 ticks), connect time 30899.237 us (74158170 ticks)
+ 5: IO qp on core 2 total time 56627.071 us (135904971 ticks), connect time 40528.204 us (97267689 ticks)
+ 5: IO qp on core 3 total time 66834.625 us (160403100 ticks), connect time 50621.034 us (121490481 ticks)
+ 5: IO qp on core 1 total time 76850.024 us (184440058 ticks), connect time 60528.185 us (145267644 ticks)
+ 5: IO qp on core 18 total time 85092.780 us (204222672 ticks), connect time 70020.485 us (168049164 ticks)
+ 5: IO qp on core 4 total time 96457.079 us (231496989 ticks), connect time 79773.345 us (191456028 ticks)
+ 5: IO qp on core 0 total time 105777.804 us (253866729 ticks), connect time 89811.540 us (215547696 ticks)
+ 5: IO qp on core 21 total time 115021.338 us (276051211 ticks), connect time 99687.805 us (239250733 ticks)
+ 5: IO qp on core 20 total time 125366.857 us (300880458 ticks), connect time 109969.044 us (263925705 ticks)
+ 5: IO qp on core 19 total time 135159.295 us (324382308 ticks), connect time 119335.500 us (286405200 ticks)
+ 5: IO qp on core 13 total time 145245.923 us (348590215 ticks), connect time 128290.237 us (307896568 ticks)
+ 5: IO qp on core 8 total time 154868.647 us (371684754 ticks), connect time 137130.842 us (329114022 ticks)
+ 5: IO qp on core 22 total time 165250.059 us (396600141 ticks), connect time 147504.557 us (354010938 ticks)
+ 5: IO qp on core 11 total time 175327.246 us (420785390 ticks), connect time 157117.808 us (377082740 ticks)
+ 5: IO qp on core 15 total time 185227.437 us (444545849 ticks), connect time 166938.362 us (400652069 ticks)
+12: Initializing NVMe Controllers
+12: Attached to NVMe over Fabrics controller at 1.1.3.5:4420: nqn.2016-06.io.spdk:cnode1
+12: Controller attach time is 20712.723 us (49710536 ticks)
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 0
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 1
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 2
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 3
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 4
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 5
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 6
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 7
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 8
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 9
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 10
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 11
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 12
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 13
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 14
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 15
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 16
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 17
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 18
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 19
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 20
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 21
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 22
+12: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 23
+12: Initialization complete. Launching workers.
+12: IO qp on core 2 total time 17799.198 us (42718075 ticks), connect time 5183.182 us (12439638 ticks)
+12: IO qp on core 3 total time 25586.386 us (61407327 ticks), connect time 14171.121 us (34010691 ticks)
+12: IO qp on core 1 total time 37009.566 us (88822958 ticks), connect time 24145.379 us (57948909 ticks)
+12: IO qp on core 4 total time 45331.065 us (108794556 ticks), connect time 33520.827 us (80449986 ticks)
+12: IO qp on core 12 total time 55035.325 us (132084780 ticks), connect time 43316.145 us (103958748 ticks)
+12: IO qp on core 0 total time 65579.724 us (157391337 ticks), connect time 53594.459 us (128626701 ticks)
+12: IO qp on core 5 total time 75819.625 us (181967100 ticks), connect time 63798.271 us (153115851 ticks)
+12: IO qp on core 18 total time 85626.860 us (205504464 ticks), connect time 72632.169 us (174317205 ticks)
+12: IO qp on core 9 total time 95226.835 us (228544404 ticks), connect time 81804.936 us (196331847 ticks)
+12: IO qp on core 6 total time 105232.027 us (252556866 ticks), connect time 91638.871 us (219933291 ticks)
+12: IO qp on core 17 total time 115439.495 us (277054788 ticks), connect time 102008.518 us (244820442 ticks)
+12: IO qp on core 7 total time 125321.120 us (300770687 ticks), connect time 111650.487 us (267961169 ticks)
+12: IO qp on core 16 total time 135047.057 us (324112938 ticks), connect time 121272.020 us (291052848 ticks)
+12: IO qp on core 15 total time 145326.624 us (348783897 ticks), connect time 131552.438 us (315725850 ticks)
+12: IO qp on core 20 total time 154948.057 us (371875338 ticks), connect time 140946.582 us (338271798 ticks)
+12: IO qp on core 10 total time 165046.733 us (396112158 ticks), connect time 151041.451 us (362499483 ticks)
+12: IO qp on core 8 total time 174963.716 us (419912919 ticks), connect time 160746.999 us (385792797 ticks)
+ 0: Initializing NVMe Controllers
+ 0: Attached to NVMe over Fabrics controller at 1.1.3.5:4420: nqn.2016-06.io.spdk:cnode1
+ 0: Controller attach time is 21801.432 us (52323436 ticks)
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 0
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 1
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 2
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 3
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 4
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 5
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 6
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 7
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 8
+ 4: Initializing NVMe Controllers
+ 4: Attached to NVMe over Fabrics controller at 1.1.3.5:4420: nqn.2016-06.io.spdk:cnode1
+ 4: Controller attach time is 21177.931 us (50827034 ticks)
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 0
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 1
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 2
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 3
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 4
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 5
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 6
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 7
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 8
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 9
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 10
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 11
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 12
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 13
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 14
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 15
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 16
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 17
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 18
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 19
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 9
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 10
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 11
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 12
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 13
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 14
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 15
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 16
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 17
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 18
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 19
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 20
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 21
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 22
+ 4: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 23
+ 4: Initialization complete. Launching workers.
+ 4: IO qp on core 4 total time 15593.519 us (37424445 ticks), connect time 3844.595 us (9227028 ticks)
+ 4: IO qp on core 6 total time 25265.176 us (60636423 ticks), connect time 12869.015 us (30885636 ticks)
+ 4: IO qp on core 2 total time 36010.925 us (86426221 ticks), connect time 22520.720 us (54049728 ticks)
+ 4: IO qp on core 5 total time 45906.266 us (110175038 ticks), connect time 32010.546 us (76825310 ticks)
+ 4: IO qp on core 23 total time 55233.488 us (132560371 ticks), connect time 41340.767 us (99217840 ticks)
+ 4: IO qp on core 9 total time 65182.227 us (156437344 ticks), connect time 50470.872 us (121130092 ticks)
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 20
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 21
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 22
+ 0: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 23
+ 0: Initialization complete. Launching workers.
+ 0: IO qp on core 2 total time 26326.329 us (63183189 ticks), connect time 12707.101 us (30497043 ticks)
+ 0: IO qp on core 6 total time 35331.741 us (84796179 ticks), connect time 20884.459 us (50122701 ticks)
+ 0: IO qp on core 0 total time 45453.009 us (109087221 ticks), connect time 30879.646 us (74111151 ticks)
+ 0: IO qp on core 1 total time 56690.393 us (136056942 ticks), connect time 41010.644 us (98425545 ticks)
+ 0: IO qp on core 3 total time 65666.820 us (157600368 ticks), connect time 50855.933 us (122054238 ticks)
+ 0: IO qp on core 14 total time 75081.515 us (180195636 ticks), connect time 59840.250 us (143616600 ticks)
+ 4: IO qp on core 12 total time 75064.459 us (180154701 ticks), connect time 60054.664 us (144131193 ticks)
+ 4: IO qp on core 16 total time 85013.962 us (204033510 ticks), connect time 69993.128 us (167983506 ticks)
+ 4: IO qp on core 7 total time 95228.902 us (228549365 ticks), connect time 80165.653 us (192397568 ticks)
+ 4: IO qp on core 8 total time 105017.844 us (252042825 ticks), connect time 89758.639 us (215420733 ticks)
+ 4: IO qp on core 22 total time 114953.818 us (275889162 ticks), connect time 98865.041 us (237276099 ticks)
+ 4: IO qp on core 19 total time 124953.332 us (299887996 ticks), connect time 108522.829 us (260454790 ticks)
+ 4: IO qp on core 0 total time 135125.936 us (324302247 ticks), connect time 118437.955 us (284251092 ticks)
+ 4: IO qp on core 3 total time 145158.930 us (348381433 ticks), connect time 128337.030 us (308008873 ticks)
+ 4: IO qp on core 18 total time 154764.711 us (371435307 ticks), connect time 138153.220 us (331567728 ticks)
+ 0: IO qp on core 5 total time 85546.776 us (205312263 ticks), connect time 69904.136 us (167769927 ticks)
+ 0: IO qp on core 17 total time 95243.977 us (228585546 ticks), connect time 79334.145 us (190401948 ticks)
+ 0: IO qp on core 4 total time 105414.913 us (252995790 ticks), connect time 89285.812 us (214285950 ticks)
+ 0: IO qp on core 16 total time 114876.405 us (275703372 ticks), connect time 98812.514 us (237150033 ticks)
+ 0: IO qp on core 18 total time 124879.535 us (299710884 ticks), connect time 108735.717 us (260965722 ticks)
+ 0: IO qp on core 12 total time 134890.422 us (323737014 ticks), connect time 118331.294 us (283995105 ticks)
+ 0: IO qp on core 13 total time 145086.481 us (348207555 ticks), connect time 128527.860 us (308466864 ticks)
+ 0: IO qp on core 15 total time 155150.168 us (372360402 ticks), connect time 138369.582 us (332086998 ticks)
+ 0: IO qp on core 10 total time 165046.550 us (396111720 ticks), connect time 148146.890 us (355552536 ticks)
+ 4: IO qp on core 1 total time 166146.403 us (398751368 ticks), connect time 147914.263 us (354994231 ticks)
+ 4: IO qp on core 17 total time 175224.881 us (420539714 ticks), connect time 158087.508 us (379410020 ticks)
+ 0: IO qp on core 20 total time 175379.060 us (420909744 ticks), connect time 158475.872 us (380342094 ticks)
+ 0: IO qp on core 22 total time 185062.805 us (444150732 ticks), connect time 168157.383 us (403577718 ticks)
+ 2: Initializing NVMe Controllers
+ 2: Attached to NVMe over Fabrics controller at 1.1.3.5:4420: nqn.2016-06.io.spdk:cnode1
+ 2: Controller attach time is 22119.749 us (53087397 ticks)
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 0
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 1
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 2
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 3
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 4
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 5
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 6
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 7
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 8
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 9
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 10
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 11
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 12
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 13
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 14
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 15
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 16
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 17
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 18
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 19
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 20
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 21
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 22
+ 2: Associating RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 with lcore 23
+ 2: Initialization complete. Launching workers.
+ 2: IO qp on core 2 total time 25548.180 us (61315632 ticks), connect time 6440.055 us (15456132 ticks)
+ 2: IO qp on core 15 total time 34425.880 us (82622112 ticks), connect time 10236.419 us (24567405 ticks)
+ 2: IO qp on core 5 total time 45647.989 us (109555173 ticks), connect time 26633.136 us (63919527 ticks)
+ 2: IO qp on core 3 total time 55615.067 us (133476162 ticks), connect time 36545.144 us (87708345 ticks)
+ 2: IO qp on core 9 total time 64319.515 us (154366836 ticks), connect time 44321.915 us (106372596 ticks)
+ 2: IO qp on core 1 total time 75581.301 us (181395123 ticks), connect time 54019.894 us (129647745 ticks)
+ 2: IO qp on core 4 total time 85359.545 us (204862908 ticks), connect time 63587.759 us (152610621 ticks)
+ 2: IO qp on core 8 total time 94106.164 us (225854793 ticks), connect time 73594.705 us (176627292 ticks)
+ 2: IO qp on core 17 total time 104131.628 us (249915906 ticks), connect time 82772.381 us (198653715 ticks)
+ 2: IO qp on core 7 total time 115467.750 us (277122600 ticks), connect time 92689.902 us (222455766 ticks)
+ 2: IO qp on core 0 total time 124651.390 us (299163336 ticks), connect time 102399.119 us (245757885 ticks)
+ 2: IO qp on core 19 total time 134286.366 us (322287278 ticks), connect time 112375.992 us (269702381 ticks)
+ 2: IO qp on core 21 total time 144354.578 us (346450987 ticks), connect time 121856.399 us (292455358 ticks)
+ 2: IO qp on core 20 total time 154060.217 us (369744522 ticks), connect time 131374.935 us (315299844 ticks)
+ 2: IO qp on core 22 total time 164058.473 us (393740334 ticks), connect time 141370.149 us (339288357 ticks)
+ 2: IO qp on core 18 total time 174088.871 us (417813291 ticks), connect time 151220.571 us (362929371 ticks)
+ 2: IO qp on core 12 total time 184046.465 us (441711516 ticks), connect time 160237.483 us (384569958 ticks)
+srun: error: jazz05: task 0: Exited with exit code 127
+srun: launch/slurm: _step_signal: Terminating StepId=75941.0
+ 3: IO qp on core 22 total time 186932.819 us (448638765 ticks), connect time 164788.997 us (395493594 ticks)
+ 3: IO qp on core 18 total time 196960.666 us (472705599 ticks), connect time 174798.677 us (419516826 ticks)
+ 3: IO qp on core 11 total time 207098.233 us (497035758 ticks), connect time 184956.805 us (443896332 ticks)
+ 3: IO qp on core 20 total time 216905.310 us (520572744 ticks), connect time 194700.710 us (467281704 ticks)
+ 3: IO qp on core 12 total time 226976.476 us (544743543 ticks), connect time 204535.099 us (490884237 ticks)
+ 3: IO qp on core 14 total time 236920.858 us (568610058 ticks), connect time 214448.669 us (514676805 ticks)
+ 3: IO qp on core 19 total time 238906.731 us (573376155 ticks), connect time 224717.396 us (539321751 ticks)
+ 3: ========================================================
+ 3:                                                                                                              Latency(us)
+ 3: Device Information                                                       :       IOPS      MiB/s    Average        min        max
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  0:    8148.95      31.83     122.65       5.46    1867.43
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  1:    8149.48      31.83     122.60       6.26    1657.76
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  2:    8160.00      31.88     122.52       5.35    1835.29
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  3:    8159.45      31.87     122.52       5.42    2317.31
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  4:    8174.85      31.93     122.27       4.96    1781.89
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  5:    8143.82      31.81     122.71       5.61    1782.21
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  6:    8124.45      31.74     123.04       5.01    1881.68
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  7:    8123.87      31.73     123.07       5.27    1785.94
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  8:    8112.42      31.69     123.25       5.09    1880.46
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  9:    8095.07      31.62     123.50       6.60    1860.30
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 10:    8142.83      31.81     122.78       5.25    1637.64
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 11:    8089.02      31.60     123.60       6.37    1727.95
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 12:    8098.40      31.63     123.46       5.28    1727.75
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 13:    8103.55      31.65     123.38       6.29    1835.08
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 14:    8093.67      31.62     123.53       5.49    1862.77
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 15:    8107.28      31.67     123.32       6.06    1727.93
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 16:    8101.38      31.65     123.41       5.52    1835.67
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 17:    8142.53      31.81     122.77       5.52    1731.14
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 18:    8101.70      31.65     123.41       5.61    1860.63
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 19:    8091.37      31.61     123.57       5.56    1625.43
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 20:    8102.40      31.65     123.40       4.87    1947.02
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 21:    8113.72      31.69     123.22       6.36    1728.10
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 22:    8100.55      31.64     123.41       5.22    1728.51
+ 3: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 23:    8119.80      31.72     123.13       6.24    1834.81
+ 3: ========================================================
+ 3: Total                                                                    :  194900.55     761.33     123.10       4.87    2317.31
+ 3: 
+ 8: IO qp on core 9 total time 187331.629 us (449595910 ticks), connect time 173345.198 us (416028475 ticks)
+ 8: IO qp on core 8 total time 197107.091 us (473057019 ticks), connect time 182542.965 us (438103116 ticks)
+ 8: IO qp on core 21 total time 207259.498 us (497422796 ticks), connect time 192680.592 us (462433421 ticks)
+ 8: IO qp on core 20 total time 205445.850 us (493070040 ticks), connect time 113395.645 us (272149548 ticks)
+ 8: IO qp on core 22 total time 215456.555 us (517095732 ticks), connect time 123265.824 us (295837977 ticks)
+ 8: IO qp on core 18 total time 225428.326 us (541027983 ticks), connect time 133116.794 us (319480305 ticks)
+ 8: IO qp on core 12 total time 235442.245 us (565061388 ticks), connect time 143128.635 us (343508724 ticks)
+ 8: ========================================================
+ 8:                                                                                                              Latency(us)
+ 8: Device Information                                                       :       IOPS      MiB/s    Average        min        max
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  0:    8085.55      31.58     123.60       6.16    2316.44
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  1:    8085.47      31.58     123.65       6.51    1787.80
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  2:    8129.97      31.76     122.98       5.80    1885.14
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  3:    8103.83      31.66     123.37       6.29    1905.59
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  4:    8063.37      31.50     123.92       5.97    2314.22
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  5:    8057.30      31.47     124.06       6.08    1909.28
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  6:    8064.87      31.50     123.94       6.25    1901.42
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  7:    8092.48      31.61     123.52       6.37    1885.71
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  8:    8038.47      31.40     124.38       5.80    2313.56
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  9:    8041.83      31.41     124.32       5.87    1835.45
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 10:    8051.62      31.45     124.18       5.44    1788.05
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 11:    8048.88      31.44     124.22       6.00    2308.21
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 12:    8047.08      31.43     124.24       5.76    1725.76
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 13:    8051.37      31.45     124.18       5.93    1947.94
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 14:    8052.62      31.46     124.16       5.91    1837.61
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 15:    8084.10      31.58     123.67       6.07    1908.14
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 16:    8051.63      31.45     124.18       5.78    1730.69
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 17:    8062.08      31.49     124.01       6.19    1736.11
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 18:    8050.37      31.45     124.20       5.79    1945.14
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 19:    8055.08      31.47     124.12       5.49    1784.19
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 20:    8047.33      31.43     124.24       6.11    1901.19
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 21:    8043.67      31.42     124.29       5.47    1839.78
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 22:    8046.28      31.43     124.25       5.55    1836.42
+ 8: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 23:    8040.77      31.41     124.34       6.07    2308.59
+ 8: ========================================================
+ 8: Total                                                                    :  193496.02     755.84     124.00       5.44    2316.44
+ 8: 
+ 9: IO qp on core 19 total time 186844.826 us (448427582 ticks), connect time 168642.500 us (404741999 ticks)
+ 9: IO qp on core 11 total time 196850.142 us (472440342 ticks), connect time 178267.717 us (427842522 ticks)
+ 9: IO qp on core 20 total time 206712.664 us (496110393 ticks), connect time 188087.011 us (451408827 ticks)
+ 9: IO qp on core 23 total time 216999.699 us (520799277 ticks), connect time 198359.095 us (476061828 ticks)
+ 9: IO qp on core 9 total time 226944.948 us (544667875 ticks), connect time 207665.832 us (498397996 ticks)
+ 9: IO qp on core 18 total time 228669.598 us (548807036 ticks), connect time 217808.406 us (522740174 ticks)
+ 9: IO qp on core 22 total time 247256.403 us (593415367 ticks), connect time 227961.447 us (547107472 ticks)
+ 9: ========================================================
+ 9:                                                                                                              Latency(us)
+ 9: Device Information                                                       :       IOPS      MiB/s    Average        min        max
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  0:    7826.58      30.57     127.68       8.46    1652.54
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  1:    7825.00      30.57     127.77       7.01    1832.34
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  2:    7830.60      30.59     127.68       5.74    1898.43
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  3:    7824.00      30.56     127.78       8.21    1864.70
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  4:    7826.90      30.57     127.66       8.39    1866.13
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  5:    7827.47      30.58     127.66       6.63    1739.80
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  6:    7830.92      30.59     127.62       5.87    1901.02
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  7:    7830.60      30.59     127.68       6.83    1905.82
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  8:    7830.82      30.59     127.68       7.03    1731.99
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  9:    7829.92      30.59     127.69       6.22    1879.30
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 10:    7831.32      30.59     127.67       5.91    1890.47
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 11:    7830.45      30.59     127.68       7.61    1732.78
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 12:    7827.62      30.58     127.73       6.41    1869.90
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 13:    7824.70      30.57     127.77       7.03    1829.18
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 14:    7829.98      30.59     127.69       7.28    1840.32
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 15:    7827.63      30.58     127.73       7.32    1839.11
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 16:    7828.75      30.58     127.71       7.61    1614.65
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 17:    7829.40      30.58     127.70       6.46    1946.83
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 18:    7827.12      30.57     127.74       5.95    1833.69
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 19:    7828.70      30.58     127.71       8.69    1658.00
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 20:    7828.63      30.58     127.71       8.41    1699.15
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 21:    7827.72      30.58     127.73       7.68    1870.87
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 22:    7829.75      30.58     127.68       7.13    1753.73
+ 9: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 23:    7825.13      30.57     127.77       6.77    1833.89
+ 9: ========================================================
+ 9: Total                                                                    :  187879.68     733.90     127.71       5.74    1946.83
+ 9: 
+ 6: IO qp on core 11 total time 187235.348 us (449364835 ticks), connect time 167687.825 us (402450781 ticks)
+ 6: IO qp on core 16 total time 197084.940 us (473003856 ticks), connect time 177528.974 us (426069537 ticks)
+ 6: IO qp on core 8 total time 200046.175 us (480110820 ticks), connect time 187442.949 us (449863077 ticks)
+ 6: IO qp on core 18 total time 217510.276 us (522024663 ticks), connect time 197677.400 us (474425760 ticks)
+ 6: IO qp on core 7 total time 227573.382 us (546176116 ticks), connect time 207724.947 us (498539872 ticks)
+ 6: IO qp on core 14 total time 230353.164 us (552847593 ticks), connect time 217470.158 us (521928378 ticks)
+ 6: IO qp on core 10 total time 240667.461 us (577601906 ticks), connect time 227661.370 us (546387287 ticks)
+ 6: ========================================================
+ 6:                                                                                                              Latency(us)
+ 6: Device Information                                                       :       IOPS      MiB/s    Average        min        max
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  0:    7815.20      30.53     127.93       9.35    1836.54
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  1:    7816.82      30.53     127.91       9.04    1622.59
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  2:    7817.03      30.54     127.90       7.36    1829.50
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  3:    7818.05      30.54     127.81       8.11    1733.91
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  4:    7819.32      30.54     127.84       6.64    1945.77
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  5:    7815.35      30.53     127.80       8.47    1835.59
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  6:    7820.50      30.55     127.83       6.08    1946.91
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  7:    7816.55      30.53     127.91       7.99    1699.34
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  8:    7819.63      30.55     127.86       7.71    1901.80
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  9:    7817.97      30.54     127.89       8.82    1834.58
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 10:    7818.50      30.54     127.88       8.16    1901.06
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 11:    7818.72      30.54     127.87       7.64    1751.90
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 12:    7817.30      30.54     127.90       8.49    1836.35
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 13:    7816.77      30.53     127.90       9.13    1834.65
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 14:    7817.28      30.54     127.90       6.94    1833.14
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 15:    7820.58      30.55     127.84       6.54    1908.61
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 16:    7820.12      30.55     127.85       6.79    1731.11
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 17:    7818.40      30.54     127.88       7.02    1840.12
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 18:    7817.05      30.54     127.90       9.42    1833.93
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 19:    7817.23      30.54     127.90       6.23    1801.53
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 20:    7818.42      30.54     127.86       8.49    1869.53
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 21:    7817.33      30.54     127.89       8.95    1617.15
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 22:    7818.08      30.54     127.87       7.36    1828.55
+ 6: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 23:    7817.52      30.54     127.87       8.06    1839.76
+ 6: ========================================================
+ 6: Total                                                                    :  187629.72     732.93     127.87       6.08    1946.91
+ 6: 
+11: IO qp on core 15 total time 187890.691 us (450937659 ticks), connect time 169092.094 us (405821025 ticks)
+11: IO qp on core 22 total time 196955.522 us (472693254 ticks), connect time 178877.216 us (429305319 ticks)
+11: IO qp on core 19 total time 207069.004 us (496965609 ticks), connect time 188986.601 us (453567843 ticks)
+11: IO qp on core 23 total time 217016.979 us (520840750 ticks), connect time 198754.397 us (477010552 ticks)
+11: IO qp on core 18 total time 226942.081 us (544660995 ticks), connect time 208670.448 us (500809074 ticks)
+11: IO qp on core 17 total time 237119.967 us (569087920 ticks), connect time 218612.464 us (524669914 ticks)
+11: IO qp on core 21 total time 247264.397 us (593434554 ticks), connect time 228776.307 us (549063138 ticks)
+11: ========================================================
+11:                                                                                                              Latency(us)
+11: Device Information                                                       :       IOPS      MiB/s    Average        min        max
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  0:    7782.30      30.40     128.42      12.75    1869.75
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  1:    7782.03      30.40     128.48      11.56    1870.22
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  2:    7784.20      30.41     128.44       7.72    1771.70
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  3:    7781.95      30.40     128.47       9.36    1872.75
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  4:    7784.97      30.41     128.41      11.41    1614.15
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  5:    7779.28      30.39     128.51       8.04    1749.49
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  6:    7783.33      30.40     128.37       9.90    1288.85
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  7:    7782.33      30.40     128.37       9.61    1909.28
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  8:    7783.08      30.40     128.36      13.13    1842.90
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  9:    7782.05      30.40     128.48       7.11    1835.91
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 10:    7782.95      30.40     128.46       9.47    1901.05
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 11:    7782.97      30.40     128.46      10.82    1946.26
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 12:    7783.15      30.40     128.46       7.07    1425.10
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 13:    7782.83      30.40     128.46       9.96    1900.67
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 14:    7783.33      30.40     128.46      10.55    1944.38
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 15:    7782.10      30.40     128.47       8.16    1840.33
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 16:    7783.00      30.40     128.46      10.65    1943.32
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 17:    7781.78      30.40     128.48      11.41    1857.54
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 18:    7783.00      30.40     128.46      11.16    1942.34
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 19:    7783.98      30.41     128.45      13.55    1577.82
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 20:    7783.67      30.40     128.45       8.87    1834.52
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 21:    7782.22      30.40     128.48      11.94    1856.62
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 22:    7783.02      30.40     128.45       9.48    1412.71
+11: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 23:    7782.50      30.40     128.47       9.99    1943.15
+11: ========================================================
+11: Total                                                                    :  186786.03     729.63     128.45       7.07    1946.26
+11: 
+13: IO qp on core 13 total time 187319.663 us (449567190 ticks), connect time 168207.106 us (403697055 ticks)
+13: IO qp on core 10 total time 197509.390 us (474022535 ticks), connect time 177377.415 us (425705795 ticks)
+13: IO qp on core 19 total time 207267.230 us (497441353 ticks), connect time 187108.172 us (449059612 ticks)
+13: IO qp on core 8 total time 217713.358 us (522512059 ticks), connect time 197523.560 us (474056545 ticks)
+13: IO qp on core 20 total time 218444.591 us (524267019 ticks), connect time 206642.582 us (495942198 ticks)
+13: IO qp on core 14 total time 237222.010 us (569332824 ticks), connect time 216794.062 us (520305750 ticks)
+13: IO qp on core 12 total time 238515.946 us (572438271 ticks), connect time 226715.228 us (544116546 ticks)
+13: ========================================================
+13:                                                                                                              Latency(us)
+13: Device Information                                                       :       IOPS      MiB/s    Average        min        max
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  0:    7774.48      30.37     128.57       9.87    1900.66
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  1:    7776.40      30.38     128.57      12.40    1599.66
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  2:    7775.52      30.37     128.59      11.30    1431.45
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  3:    7774.62      30.37     128.60       8.69    1834.99
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  4:    7773.52      30.37     128.55      15.27    1753.11
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  5:    7773.23      30.36     128.56      14.80    1707.48
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  6:    7777.02      30.38     128.52      13.05    1607.80
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  7:    7776.07      30.38     128.57      10.70    1484.36
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  8:    7776.32      30.38     128.57      11.44    1483.65
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  9:    7774.53      30.37     128.60       9.66    1776.18
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 10:    7774.68      30.37     128.60       9.54    1838.14
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 11:    7775.68      30.37     128.58       9.66    1483.64
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 12:    7775.83      30.37     128.58      12.88    1400.09
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 13:    7774.88      30.37     128.60       7.87    1835.93
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 14:    7775.23      30.37     128.59      10.97    1474.48
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 15:    7774.95      30.37     128.59      12.56    1423.16
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 16:    7776.95      30.38     128.56      12.36    1580.18
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 17:    7774.57      30.37     128.60       7.63    1836.12
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 18:    7774.72      30.37     128.60       8.91    1838.14
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 19:    7772.50      30.36     128.63      13.41    1750.32
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 20:    7776.75      30.38     128.57      12.72    1707.53
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 21:    7776.55      30.38     128.53      12.51    1604.31
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 22:    7776.85      30.38     128.55      12.66    1590.48
+13: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 23:    7772.45      30.36     128.63      12.36    1751.71
+13: ========================================================
+13: Total                                                                    :  186604.30     728.92     128.58       7.63    1900.66
+13: 
+ 7: IO qp on core 8 total time 196336.081 us (471206595 ticks), connect time 177183.668 us (425240802 ticks)
+ 7: IO qp on core 18 total time 206125.954 us (494702289 ticks), connect time 186785.479 us (448285149 ticks)
+ 7: IO qp on core 21 total time 216365.737 us (519277770 ticks), connect time 197020.855 us (472850052 ticks)
+ 7: IO qp on core 13 total time 217282.647 us (521478352 ticks), connect time 206994.857 us (496787656 ticks)
+ 7: IO qp on core 22 total time 236275.016 us (567060039 ticks), connect time 216723.671 us (520136811 ticks)
+ 7: IO qp on core 19 total time 236911.004 us (568586410 ticks), connect time 226433.488 us (543440371 ticks)
+ 7: IO qp on core 9 total time 256570.883 us (615770118 ticks), connect time 236841.878 us (568420506 ticks)
+ 7: ========================================================
+ 7:                                                                                                              Latency(us)
+ 7: Device Information                                                       :       IOPS      MiB/s    Average        min        max
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  0:    7771.62      30.36     128.65      12.81    2275.01
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  1:    7770.65      30.35     128.66      17.33    1835.04
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  2:    7771.73      30.36     128.65      17.57    1826.91
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  3:    7770.85      30.35     128.58      13.75    1834.39
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  4:    7771.20      30.36     128.60      12.54    1836.46
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  5:    7770.67      30.35     128.64      17.02    1777.73
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  6:    7771.62      30.36     128.64      13.11    1839.88
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  7:    7770.88      30.36     128.66      17.31    1834.02
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  8:    7770.68      30.35     128.67      18.78    1837.73
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  9:    7770.63      30.35     128.66      14.10    1641.64
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 10:    7771.53      30.36     128.65      10.51    1751.60
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 11:    7770.07      30.35     128.67      17.36    1772.50
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 12:    7770.90      30.36     128.66      17.62    1771.22
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 13:    7771.10      30.36     128.66      14.06    1750.17
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 14:    7770.73      30.35     128.67      16.95    1838.47
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 15:    7771.35      30.36     128.65      13.46    1571.41
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 16:    7772.00      30.36     128.64      12.44    2273.91
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 17:    7771.87      30.36     128.64      10.70    2609.86
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 18:    7771.22      30.36     128.66      13.85    1750.19
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 19:    7770.85      30.35     128.66      14.35    1698.62
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 20:    7771.42      30.36     128.65      13.93    1815.50
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 21:    7771.57      30.36     128.65      13.53    2611.61
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 22:    7771.28      30.36     128.63      14.54    1750.20
+ 7: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 23:    7770.92      30.36     128.66      12.96    1750.77
+ 7: ========================================================
+ 7: Total                                                                    :  186507.33     728.54     128.65      10.51    2611.61
+ 7: 
+ 1: IO qp on core 17 total time 186990.154 us (448776369 ticks), connect time 169231.355 us (406155252 ticks)
+ 1: IO qp on core 7 total time 196856.408 us (472455380 ticks), connect time 179025.545 us (429661307 ticks)
+ 1: IO qp on core 23 total time 206743.645 us (496184749 ticks), connect time 188831.375 us (453195301 ticks)
+ 1: IO qp on core 12 total time 205027.181 us (492065235 ticks), connect time 197984.922 us (475163814 ticks)
+ 1: IO qp on core 10 total time 215227.837 us (516546810 ticks), connect time 208184.921 us (499643811 ticks)
+ 1: IO qp on core 18 total time 224879.239 us (539710173 ticks), connect time 217288.312 us (521491950 ticks)
+ 1: IO qp on core 14 total time 234881.639 us (563715933 ticks), connect time 227217.816 us (545322759 ticks)
+ 1: ========================================================
+ 1:                                                                                                              Latency(us)
+ 1: Device Information                                                       :       IOPS      MiB/s    Average        min        max
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  0:    7771.27      30.36     128.64      17.62    2275.80
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  1:    7770.47      30.35     128.67      18.04    1574.13
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  2:    7770.78      30.35     128.66      21.56    1595.80
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  3:    7770.78      30.35     128.57      19.84    2276.97
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  4:    7771.62      30.36     128.63      18.11    2277.02
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  5:    7771.18      30.36     128.63      17.88    2275.11
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  6:    7771.63      30.36     128.61      18.53    1821.89
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  7:    7771.12      30.36     128.66      16.47    1837.62
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  8:    7771.57      30.36     128.65      16.66    2276.21
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  9:    7771.13      30.36     128.66      16.04    1838.28
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 10:    7771.43      30.36     128.65      16.54    1797.44
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 11:    7769.93      30.35     128.66      21.29    1864.01
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 12:    7771.20      30.36     128.66      15.43    2273.73
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 13:    7770.37      30.35     128.67      22.79    1642.29
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 14:    7771.08      30.36     128.66      17.06    2346.30
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 15:    7770.02      30.35     128.67      15.43    2898.77
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 16:    7770.52      30.35     128.67      16.97    2897.76
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 17:    7771.02      30.36     128.66      23.48    1835.00
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 18:    7771.22      30.36     128.66      21.67    1835.56
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 19:    7770.02      30.35     128.67      16.45    2898.06
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 20:    7770.57      30.35     128.67      17.85    1867.86
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 21:    7769.75      30.35     128.68      21.29    1850.37
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 22:    7771.52      30.36     128.64      14.29    1810.09
+ 1: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 23:    7770.58      30.35     128.66      16.50    2273.67
+ 1: ========================================================
+ 1: Total                                                                    :  186500.77     728.52     128.65      14.29    2898.77
+ 1: 
+10: IO qp on core 11 total time 188194.041 us (451665699 ticks), connect time 178986.987 us (429568770 ticks)
+10: IO qp on core 14 total time 198055.930 us (475334232 ticks), connect time 188776.069 us (453062565 ticks)
+10: IO qp on core 18 total time 207892.045 us (498940908 ticks), connect time 198515.751 us (476437803 ticks)
+10: IO qp on core 17 total time 218079.065 us (523389756 ticks), connect time 208451.978 us (500284746 ticks)
+10: IO qp on core 12 total time 228048.082 us (547315398 ticks), connect time 218367.279 us (524081469 ticks)
+10: IO qp on core 10 total time 237985.020 us (571164048 ticks), connect time 228142.910 us (547542984 ticks)
+10: IO qp on core 13 total time 248039.751 us (595295402 ticks), connect time 238010.923 us (571226216 ticks)
+10: ========================================================
+10:                                                                                                              Latency(us)
+10: Device Information                                                       :       IOPS      MiB/s    Average        min        max
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  0:    7771.13      30.36     128.64      20.79    2274.87
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  1:    7770.03      30.35     128.68      25.05    1854.16
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  2:    7771.87      30.36     128.65      17.21    1777.95
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  3:    7771.17      30.36     128.65      16.95    1834.52
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  4:    7771.20      30.36     128.64      16.39    1833.65
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  5:    7771.02      30.36     128.55      11.68    1835.65
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  6:    7770.62      30.35     128.63      15.12    1839.78
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  7:    7770.20      30.35     128.63      20.21    1586.31
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  8:    7770.58      30.35     128.67      17.56    2913.28
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  9:    7770.95      30.36     128.56      17.16    1824.31
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 10:    7771.45      30.36     128.65      15.03    1838.48
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 11:    7769.73      30.35     128.68      18.55    1750.22
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 12:    7771.20      30.36     128.66      21.18    1835.48
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 13:    7770.15      30.35     128.67      15.63    1749.62
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 14:    7771.35      30.36     128.66      17.48    2273.01
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 15:    7770.15      30.35     128.67      11.03    1751.10
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 16:    7771.32      30.36     128.66      14.85    1808.03
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 17:    7770.67      30.35     128.66      22.96    1835.51
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 18:    7771.40      30.36     128.65      15.61    1802.40
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 19:    7770.68      30.35     128.66      19.52    1836.18
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 20:    7770.30      30.35     128.67      14.74    1750.89
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 21:    7770.40      30.35     128.67      17.39    1566.38
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 22:    7770.55      30.35     128.67      15.84    1860.79
+10: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 23:    7770.95      30.36     128.66      16.44    1836.37
+10: ========================================================
+10: Total                                                                    :  186499.05     728.51     128.65      11.03    2913.28
+10: 
+ 5: IO qp on core 9 total time 195086.108 us (468206658 ticks), connect time 176693.901 us (424065363 ticks)
+ 5: IO qp on core 12 total time 205189.864 us (492455673 ticks), connect time 186615.582 us (447877398 ticks)
+ 5: IO qp on core 14 total time 215038.121 us (516091491 ticks), connect time 196455.163 us (471492390 ticks)
+ 5: IO qp on core 10 total time 224973.078 us (539935386 ticks), connect time 206178.753 us (494829006 ticks)
+ 5: IO qp on core 16 total time 235013.527 us (564032466 ticks), connect time 216216.045 us (518918508 ticks)
+ 5: IO qp on core 17 total time 245146.417 us (588351401 ticks), connect time 226218.487 us (542924369 ticks)
+ 5: IO qp on core 23 total time 255117.472 us (612281932 ticks), connect time 235672.289 us (565613494 ticks)
+ 5: ========================================================
+ 5:                                                                                                              Latency(us)
+ 5: Device Information                                                       :       IOPS      MiB/s    Average        min        max
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  0:    7772.43      30.36     128.59      12.88    1752.19
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  1:    7771.45      30.36     128.65      16.94    1865.92
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  2:    7771.35      30.36     128.65      19.19    2916.75
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  3:    7772.48      30.36     128.63      17.08    1753.96
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  4:    7772.13      30.36     128.47      16.97    1576.90
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  5:    7772.50      30.36     128.63      12.92    1839.29
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  6:    7771.83      30.36     128.64      16.62    2114.30
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  7:    7771.77      30.36     128.64      16.48    1868.63
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  8:    7773.30      30.36     128.62      12.47    1812.83
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  9:    7770.80      30.35     128.66      18.95    2889.61
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 10:    7772.73      30.36     128.63      19.00    1837.28
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 11:    7772.13      30.36     128.64      16.51    1837.49
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 12:    7771.00      30.36     128.66      15.18    2886.53
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 13:    7771.73      30.36     128.65      17.02    2114.29
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 14:    7771.08      30.36     128.66      17.12    2884.60
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 15:    7772.75      30.36     128.63      16.88    1837.94
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 16:    7771.88      30.36     128.65      16.79    1908.07
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 17:    7771.47      30.36     128.64      18.56    1907.28
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 18:    7771.30      30.36     128.66      17.00    2913.56
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 19:    7771.85      30.36     128.64      15.92    1568.62
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 20:    7772.60      30.36     128.63      15.35    2274.43
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 21:    7770.98      30.36     128.66      16.93    2912.54
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 22:    7772.53      30.36     128.63      12.81    1751.19
+ 5: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 23:    7770.87      30.35     128.66      20.93    2939.10
+ 5: ========================================================
+ 5: Total                                                                    :  186524.97     728.61     128.63      12.47    2939.10
+ 5: 
+12: IO qp on core 22 total time 184981.049 us (443954517 ticks), connect time 170757.608 us (409818258 ticks)
+12: IO qp on core 14 total time 194963.966 us (467913519 ticks), connect time 180494.814 us (433187553 ticks)
+12: IO qp on core 23 total time 205127.276 us (492305463 ticks), connect time 190673.396 us (457616151 ticks)
+12: IO qp on core 21 total time 215200.670 us (516481607 ticks), connect time 200693.728 us (481664948 ticks)
+12: IO qp on core 19 total time 212697.810 us (510474743 ticks), connect time 142534.941 us (342083858 ticks)
+12: IO qp on core 11 total time 222854.910 us (534851784 ticks), connect time 152721.219 us (366530925 ticks)
+12: IO qp on core 13 total time 232591.943 us (558220662 ticks), connect time 162442.936 us (389863047 ticks)
+12: ========================================================
+12:                                                                                                              Latency(us)
+12: Device Information                                                       :       IOPS      MiB/s    Average        min        max
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  0:    7797.18      30.46     128.18      10.14    2005.10
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  1:    7793.88      30.44     128.28      11.61    2275.05
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  2:    7796.60      30.46     128.24       7.85    2592.95
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  3:    7792.10      30.44     128.30      10.97    3241.81
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  4:    7793.83      30.44     128.20      10.54    2274.34
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  5:    7791.93      30.44     128.26      12.67    3273.05
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  6:    7793.23      30.44     128.28       8.90    1802.77
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  7:    7798.77      30.46     128.20       6.49    2495.30
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  8:    7799.62      30.47     128.19       6.50    2936.97
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  9:    7791.38      30.44     128.32      11.30    3272.82
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 10:    7795.27      30.45     128.26       6.84    2896.97
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 11:    7793.92      30.44     128.28       6.72    2512.09
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 12:    7796.98      30.46     128.22       7.31    2912.22
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 13:    7788.38      30.42     128.37       9.67    3280.83
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 14:    7792.92      30.44     128.30       8.00    2593.39
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 15:    7791.57      30.44     128.32      12.28    3264.49
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 16:    7801.40      30.47     128.16       6.20    2880.70
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 17:    7794.70      30.45     128.26       7.70    2592.08
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 18:    7796.45      30.45     128.14       7.20    2590.68
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 19:    7791.77      30.44     128.31       8.70    2573.16
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 20:    7792.38      30.44     128.31      11.82    2345.84
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 21:    7791.72      30.44     128.31       7.93    2918.80
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 22:    7796.07      30.45     128.25       6.87    2512.53
+12: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 23:    7797.40      30.46     128.22       7.19    2934.14
+12: ========================================================
+12: Total                                                                    :  187069.45     730.74     128.26       6.20    3280.83
+12: 
+ 4: IO qp on core 13 total time 185074.147 us (444177954 ticks), connect time 167937.276 us (403049463 ticks)
+ 4: IO qp on core 14 total time 189492.756 us (454782615 ticks), connect time 177522.130 us (426053112 ticks)
+ 4: IO qp on core 20 total time 204844.535 us (491626884 ticks), connect time 187517.586 us (450042207 ticks)
+ 4: IO qp on core 15 total time 209617.603 us (503082246 ticks), connect time 197442.513 us (473862030 ticks)
+ 4: IO qp on core 11 total time 219661.861 us (527188467 ticks), connect time 207500.047 us (498000114 ticks)
+ 4: IO qp on core 21 total time 234974.633 us (563939118 ticks), connect time 217233.575 us (521360580 ticks)
+ 4: IO qp on core 10 total time 239459.021 us (574701651 ticks), connect time 227111.689 us (545068053 ticks)
+ 4: ========================================================
+ 4:                                                                                                              Latency(us)
+ 4: Device Information                                                       :       IOPS      MiB/s    Average        min        max
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  0:    7809.10      30.50     128.02       8.25    1902.32
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  1:    7819.78      30.55     127.86       6.75    2501.30
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  2:    7814.28      30.52     127.95       7.90    3237.78
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  3:    7814.90      30.53     127.86       7.71    2898.14
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  4:    7810.18      30.51     128.00       9.91    1796.86
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  5:    7807.45      30.50     128.03      10.77    1806.13
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  6:    7809.93      30.51     128.02      10.08    1793.94
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  7:    7819.12      30.54     127.86       7.38    2915.05
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  8:    7824.55      30.56     127.78       6.58    2364.93
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  9:    7824.88      30.57     127.68       6.53    2493.46
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 10:    7815.30      30.53     127.93       6.24    2530.05
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 11:    7810.00      30.51     128.02       7.25    2895.24
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 12:    7812.63      30.52     127.96       7.89    3256.46
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 13:    7806.30      30.49     128.08       7.89    3257.08
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 14:    7808.20      30.50     128.02       8.58    1886.65
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 15:    7804.62      30.49     128.10       8.04    3208.32
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 16:    7822.97      30.56     127.81       6.55    2575.27
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 17:    7815.17      30.53     127.93       7.19    3283.08
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 18:    7806.47      30.49     128.08      10.04    1806.17
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 19:    7805.68      30.49     128.08      10.35    1815.63
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 20:    7816.42      30.53     127.91       6.36    2574.55
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 21:    7804.05      30.48     128.09      10.14    1811.23
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 22:    7819.12      30.54     127.86       6.38    3251.63
+ 0: IO qp on core 21 total time 195180.114 us (468432273 ticks), connect time 178162.281 us (427589475 ticks)
+ 0: IO qp on core 8 total time 205054.300 us (492130321 ticks), connect time 187322.263 us (449573431 ticks)
+ 0: IO qp on core 7 total time 215250.820 us (516601968 ticks), connect time 197223.720 us (473336928 ticks)
+ 0: IO qp on core 23 total time 225305.552 us (540733326 ticks), connect time 207277.141 us (497465139 ticks)
+ 0: IO qp on core 9 total time 235160.133 us (564384318 ticks), connect time 217056.944 us (520936665 ticks)
+ 0: IO qp on core 11 total time 236469.175 us (567526020 ticks), connect time 226760.517 us (544225242 ticks)
+ 0: IO qp on core 19 total time 246544.728 us (591707346 ticks), connect time 236627.415 us (567905796 ticks)
+ 0: ========================================================
+ 0:                                                                                                              Latency(us)
+ 0: Device Information                                                       :       IOPS      MiB/s    Average        min        max
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  0:    7812.00      30.52     127.98      10.19    1915.81
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  1:    7812.63      30.52     127.92       9.53    1912.76
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  2:    7830.63      30.59     127.68       6.29    2895.72
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  3:    7811.42      30.51     127.90       8.82    1911.43
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  4:    7821.65      30.55     127.77       5.98    2574.80
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  5:    7828.52      30.58     127.65       6.42    2884.32
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  6:    7814.97      30.53     127.93       7.79    3263.00
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  7:    7804.33      30.49     128.11      10.88    1813.40
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  8:    7814.18      30.52     127.95       6.68    2896.86
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  9:    7813.62      30.52     127.94       6.23    2573.62
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 10:    7809.63      30.51     128.02       7.76    3256.40
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 11:    7819.97      30.55     127.85       6.67    2933.31
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 12:    7821.52      30.55     127.83       6.37    2590.95
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 13:    7809.32      30.51     128.03       8.61    3266.00
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 14:    7812.67      30.52     127.86       8.18    1911.30
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 15:    7816.88      30.53     127.90       6.68    3249.87
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 16:    7808.00      30.50     128.05      10.03    1796.83
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 17:    7806.78      30.50     128.04      10.63    1805.12
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 18:    7811.92      30.52     127.99       9.04    1904.93
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 19:    7806.92      30.50     128.06       9.51    1886.43
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 20:    7808.30      30.50     128.05       9.21    1899.68
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 21:    7823.42      30.56     127.79       6.97    2932.34
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 22:    7805.32      30.49     128.08       9.26    1810.15
+ 0: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 23:    7806.77      30.50     128.07       8.53    1886.57
+ 0: ========================================================
+ 0: Total                                                                    :  187531.35     732.54     127.94       5.98    3266.00
+ 0: 
+ 4: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 23:    7820.52      30.55     127.82       7.59    2913.74
+ 4: ========================================================
+ 4: Total                                                                    :  187521.62     732.51     127.95       6.24    3283.08
+ 4: 
+ 2: IO qp on core 13 total time 194244.507 us (466186817 ticks), connect time 170365.095 us (408876227 ticks)
+ 2: IO qp on core 11 total time 204126.441 us (489903458 ticks), connect time 179935.311 us (431844746 ticks)
+ 2: IO qp on core 6 total time 215308.246 us (516739791 ticks), connect time 196325.286 us (471180687 ticks)
+ 2: IO qp on core 16 total time 224031.464 us (537675513 ticks), connect time 199212.570 us (478110168 ticks)
+ 2: IO qp on core 14 total time 234032.554 us (561678129 ticks), connect time 209105.721 us (501853731 ticks)
+ 2: IO qp on core 23 total time 244129.856 us (585911654 ticks), connect time 219018.255 us (525643811 ticks)
+ 2: IO qp on core 10 total time 254003.125 us (609607500 ticks), connect time 228854.694 us (549251265 ticks)
+ 2: ========================================================
+ 2:                                                                                                              Latency(us)
+ 2: Device Information                                                       :       IOPS      MiB/s    Average        min        max
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  0:    8058.52      31.48     124.01       5.24    2564.06
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  1:    8053.27      31.46     124.10       6.12    3283.23
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  2:    8092.35      31.61     123.55       5.05    2932.29
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  3:    8048.37      31.44     124.18       6.03    3268.96
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  4:    8082.70      31.57     123.64       5.21    2571.78
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  5:    8054.67      31.46     124.12       6.17    3282.59
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  6:    8058.35      31.48     124.05       5.98    2024.66
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  7:    8063.72      31.50     123.99       5.79    3291.37
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  8:    8043.60      31.42     124.28       5.77    3196.64
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core  9:    8071.30      31.53     123.84       5.58    2894.57
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 10:    8055.27      31.47     124.12       5.69    3196.10
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 11:    8075.75      31.55     123.80       5.32    2565.99
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 12:    8084.93      31.58     123.66       5.18    2933.41
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 13:    8058.00      31.48     124.07       5.78    3274.07
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 14:    8066.88      31.51     123.94       5.86    3254.62
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 15:    8087.37      31.59     123.63       5.26    2533.32
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 16:    8085.17      31.58     123.66       5.19    2904.50
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 17:    8077.73      31.55     123.77       5.45    2933.66
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 18:    8060.47      31.49     124.04       5.53    3196.41
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 19:    8059.43      31.48     124.05       5.99    2454.70
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 20:    8057.82      31.48     124.05       6.08    3254.11
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 21:    8069.25      31.52     123.89       5.55    2903.93
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 22:    8099.45      31.64     123.44       5.02    2659.73
+ 2: RDMA (addr:1.1.3.5 subnqn:nqn.2016-06.io.spdk:cnode1) NSID 1 from core 23:    8085.87      31.59     123.64       5.25    2659.59
+ 2: ========================================================
+ 2: Total                                                                    :  193650.22     756.45     123.90       5.02    3291.37
+ 2: 
+== Servers stopping... 
+srun -l -O --nodes 1 --ntasks 1 --nodelist=jazz05 --export=ALL ./stop_tgt.sh
+0: == TGT Memory usage ==
+0: Huge pages: 1700 MB, HWM: 620.309
+jazz05: Error while connecting to /var/tmp/spdk.sock
+jazz05: Is SPDK application running?
+jazz05: Error details: [Errno -2] Name or service not known
+pdsh@jazz05: jazz05: ssh exited with exit code 1
+jazz07: Error while connecting to /var/tmp/spdk.sock
+jazz07: Is SPDK application running?
+jazz07: Error details: [Errno -2] Name or service not known
+jazz17: Error while connecting to /var/tmp/spdk.sock
+jazz17: Is SPDK application running?
+jazz17: Error details: [Errno -2] Name or service not known
+pdsh@jazz05: jazz07: ssh exited with exit code 1
+pdsh@jazz05: jazz17: ssh exited with exit code 1
+jazz06: Error while connecting to /var/tmp/spdk.sock
+jazz06: Is SPDK application running?
+jazz06: Error details: [Errno -2] Name or service not known
+jazz20: Error while connecting to /var/tmp/spdk.sock
+jazz20: Is SPDK application running?
+jazz20: Error details: [Errno -2] Name or service not known
+pdsh@jazz05: jazz06: ssh exited with exit code 1
+jazz25: Error while connecting to /var/tmp/spdk.sock
+jazz25: Is SPDK application running?
+jazz25: Error details: [Errno -2] Name or service not known
+jazz19: Error while connecting to /var/tmp/spdk.sock
+jazz19: Is SPDK application running?
+jazz19: Error details: [Errno -2] Name or service not known
+jazz24: Error while connecting to /var/tmp/spdk.sock
+jazz24: Is SPDK application running?
+jazz24: Error details: [Errno -2] Name or service not known
+pdsh@jazz05: jazz20: ssh exited with exit code 1
+jazz22: Error while connecting to /var/tmp/spdk.sock
+jazz22: Is SPDK application running?
+jazz22: Error details: [Errno -2] Name or service not known
+pdsh@jazz05: jazz25: ssh exited with exit code 1
+pdsh@jazz05: jazz19: ssh exited with exit code 1
+pdsh@jazz05: jazz24: ssh exited with exit code 1
+pdsh@jazz05: jazz22: ssh exited with exit code 1
+jazz08: Error while connecting to /var/tmp/spdk.sock
+jazz08: Is SPDK application running?
+jazz08: Error details: [Errno -2] Name or service not known
+pdsh@jazz05: jazz08: ssh exited with exit code 1
+jazz21: Error while connecting to /var/tmp/spdk.sock
+jazz21: Is SPDK application running?
+jazz21: Error details: [Errno -2] Name or service not known
+jazz23: Error while connecting to /var/tmp/spdk.sock
+jazz23: Is SPDK application running?
+jazz23: Error details: [Errno -2] Name or service not known
+jazz16: Error while connecting to /var/tmp/spdk.sock
+jazz16: Is SPDK application running?
+jazz16: Error details: [Errno -2] Name or service not known
+pdsh@jazz05: jazz21: ssh exited with exit code 1
+pdsh@jazz05: jazz23: ssh exited with exit code 1
+jazz15: Error while connecting to /var/tmp/spdk.sock
+jazz15: Is SPDK application running?
+jazz15: Error details: [Errno -2] Name or service not known
+jazz18: Error while connecting to /var/tmp/spdk.sock
+jazz18: Is SPDK application running?
+jazz18: Error details: [Errno -2] Name or service not known
+pdsh@jazz05: jazz16: ssh exited with exit code 1
+pdsh@jazz05: jazz18: ssh exited with exit code 1
+pdsh@jazz05: jazz15: ssh exited with exit code 1

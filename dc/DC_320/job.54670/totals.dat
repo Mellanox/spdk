@@ -1,0 +1,20 @@
+job.54670/perf.0.log: Total                       :    5475.30 IOPS     684.41 MiB/s
+job.54670/perf.10.log: Total                       :    4508.00 IOPS     563.50 MiB/s
+job.54670/perf.11.log: Total                       :    4076.70 IOPS     509.59 MiB/s
+job.54670/perf.12.log: Total                       :    3787.60 IOPS     473.45 MiB/s
+job.54670/perf.13.log: Total                       :    4422.50 IOPS     552.81 MiB/s
+job.54670/perf.14.log: Total                       :    8680.90 IOPS    1085.11 MiB/s
+job.54670/perf.15.log: Total                       :    3882.70 IOPS     485.34 MiB/s
+job.54670/perf.16.log: Total                       :    5522.30 IOPS     690.29 MiB/s
+job.54670/perf.17.log: Total                       :    3987.70 IOPS     498.46 MiB/s
+job.54670/perf.18.log: Total                       :    3692.30 IOPS     461.54 MiB/s
+job.54670/perf.19.log: Total                       :    5527.50 IOPS     690.94 MiB/s
+job.54670/perf.1.log: Total                       :    5386.20 IOPS     673.27 MiB/s
+job.54670/perf.2.log: Total                       :    3884.40 IOPS     485.55 MiB/s
+job.54670/perf.3.log: Total                       :    5587.80 IOPS     698.48 MiB/s
+job.54670/perf.4.log: Total                       :    3740.60 IOPS     467.57 MiB/s
+job.54670/perf.5.log: Total                       :    3730.10 IOPS     466.26 MiB/s
+job.54670/perf.6.log: Total                       :    3871.90 IOPS     483.99 MiB/s
+job.54670/perf.7.log: Total                       :    5481.50 IOPS     685.19 MiB/s
+job.54670/perf.8.log: Total                       :    4431.20 IOPS     553.90 MiB/s
+job.54670/perf.9.log: Total                       :    5369.40 IOPS     671.17 MiB/s

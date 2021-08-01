@@ -1147,7 +1147,7 @@ request_transfer_in(struct spdk_nvmf_request *req)
 	assert(rdma_req != NULL);
 
 	if (spdk_rdma_qp_queue_send_wrs(rqpair->rdma_qp, &rdma_req->data.wr)) {
-		if (rqpair->in_pending_send_state == 0) {
+		if (rqpair->in_pending_send_state == 0) { /* This is workaround to avoid multiple inserting */
 			STAILQ_INSERT_TAIL(&rqpair->poller->qpairs_pending_send, rqpair, send_link);
 			rqpair->in_pending_send_state = 1;
 		}

@@ -304,6 +304,7 @@ struct trid_entry {
 	struct spdk_nvme_transport_id	trid;
 	uint16_t			nsid;
 	char				hostnqn[SPDK_NVMF_NQN_MAX_LEN + 1];
+	uint64_t connect_tsc;
 	TAILQ_ENTRY(trid_entry)		tailq;
 };
 
@@ -971,6 +972,9 @@ nvme_init_ns_worker_ctx(struct ns_worker_ctx *ns_ctx)
 
 	group = ns_ctx->u.nvme.group;
 	for (i = 0; i < ns_ctx->u.nvme.num_all_qpairs; i++) {
+		uint64_t io_total_tsc, io_connect_tsc, end_tsc;
+
+		io_total_tsc = spdk_get_ticks();
 		ns_ctx->u.nvme.qpair[i] = spdk_nvme_ctrlr_alloc_io_qpair(entry->u.nvme.ctrlr, &opts,
 					  sizeof(opts));
 		qpair = ns_ctx->u.nvme.qpair[i];
@@ -985,12 +989,23 @@ nvme_init_ns_worker_ctx(struct ns_worker_ctx *ns_ctx)
 			goto qpair_failed;
 		}
 
+		io_connect_tsc = spdk_get_ticks();
 		if (spdk_nvme_ctrlr_connect_io_qpair(entry->u.nvme.ctrlr, qpair)) {
 			printf("ERROR: unable to connect I/O qpair.\n");
 			spdk_nvme_poll_group_remove(group, qpair);
 			spdk_nvme_ctrlr_free_io_qpair(qpair);
 			goto qpair_failed;
 		}
+
+		end_tsc = spdk_get_ticks();
+		io_total_tsc = end_tsc - io_total_tsc;
+		io_connect_tsc = end_tsc - io_connect_tsc;
+		printf("IO qp on core %u total time %.3f us (%lu ticks), connect time %.3f us (%lu ticks)\n",
+		       spdk_env_get_current_core(),
+		       io_total_tsc * 1000000 / (double)g_tsc_rate,
+		       io_total_tsc,
+		       io_connect_tsc * 1000000 / (double)g_tsc_rate,
+		       io_connect_tsc);
 	}
 
 	return 0;
@@ -2597,6 +2612,7 @@ probe_cb(void *cb_ctx, const struct spdk_nvme_transport_id *trid,
 	opts->keep_alive_timeout_ms = g_keep_alive_timeout_in_ms;
 	memcpy(opts->hostnqn, trid_entry->hostnqn, sizeof(opts->hostnqn));
 
+	trid_entry->connect_tsc = spdk_get_ticks();
 	return true;
 }
 
@@ -2608,6 +2624,8 @@ attach_cb(void *cb_ctx, const struct spdk_nvme_transport_id *trid,
 	struct spdk_pci_addr	pci_addr;
 	struct spdk_pci_device	*pci_dev;
 	struct spdk_pci_id	pci_id;
+
+	trid_entry->connect_tsc = spdk_get_ticks() - trid_entry->connect_tsc;
 
 	if (trid->trtype != SPDK_NVME_TRANSPORT_PCIE) {
 		printf("Attached to NVMe over Fabrics controller at %s:%s: %s\n",
@@ -2629,6 +2647,10 @@ attach_cb(void *cb_ctx, const struct spdk_nvme_transport_id *trid,
 		       trid->traddr,
 		       pci_id.vendor_id, pci_id.device_id);
 	}
+
+	printf("Controller attach time is %.3f us (%lu ticks)\n",
+	       trid_entry->connect_tsc * 1000000 / (double)g_tsc_rate,
+	       trid_entry->connect_tsc);
 
 	register_ctrlr(ctrlr, trid_entry);
 }
