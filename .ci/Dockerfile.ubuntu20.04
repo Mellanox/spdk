@@ -4,6 +4,7 @@ ARG _GID=11429
 ARG _LOGIN=swx-jenkins
 ARG _HOME=/var/home/$_LOGIN
 ARG DEBIAN_FRONTEND=noninteractive
+ARG MOFED_VER=5.4-1.0.3.0
 ENV TZ=Etc/UTC
 USER root
 
@@ -33,7 +34,7 @@ RUN echo "deb [trusted=yes] http://swx-repos.mtr.labs.mlnx:8081/repository/libur
 
 RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | \
     sudo apt-key add - && \
-    wget https://linux.mellanox.com/public/repo/mlnx_ofed/5.3-1.0.0.1/ubuntu20.04/mellanox_mlnx_ofed.list -P /etc/apt/sources.list.d/ && \
+    wget https://linux.mellanox.com/public/repo/mlnx_ofed/${MOFED_VER}/ubuntu20.04/mellanox_mlnx_ofed.list -P /etc/apt/sources.list.d/ && \
     apt update && apt install -y mlnx-ofed-basic-user-only
 
 RUN echo "${_LOGIN} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
