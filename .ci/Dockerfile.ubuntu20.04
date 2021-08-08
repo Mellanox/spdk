@@ -11,6 +11,7 @@ USER root
 RUN apt-get update && \
     apt-get install -y \
       git \
+      vim \
       wget \
       python3 \
       python3-distutils \
@@ -27,7 +28,8 @@ RUN apt-get update && \
       libaio-dev \
       libncurses-dev \
       libcunit1-dev \
-      patchelf
+      patchelf \
+      python3-pyelftools
 
 RUN echo "deb [trusted=yes] http://swx-repos.mtr.labs.mlnx:8081/repository/liburing-focal-apt/ focal main" > /etc/apt/sources.list.d/liburing.list && \
     apt update && apt install -y liburing-dev

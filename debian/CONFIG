@@ -68,13 +68,16 @@ CONFIG_UBSAN=n
 CONFIG_TSAN=n
 
 # Build functional tests
-CONFIG_TESTS=y
+CONFIG_TESTS=n
 
 # Build unit tests
-CONFIG_UNIT_TESTS=y
+CONFIG_UNIT_TESTS=n
 
 # Build examples
 CONFIG_EXAMPLES=y
+
+# Build apps
+CONFIG_APPS=y
 
 # Build with Control-flow Enforcement Technology (CET)
 CONFIG_CET=n
@@ -86,6 +89,13 @@ CONFIG_ENV=
 # This directory should contain 'include' and 'lib' directories for your DPDK
 # installation.
 CONFIG_DPDK_DIR=
+# Automatically set via pkg-config when bare --with-dpdk is set
+CONFIG_DPDK_LIB_DIR=
+CONFIG_DPDK_INC_DIR=
+CONFIG_DPDK_PKG_CONFIG=n
+
+# This directory should contain 'include' and 'lib' directories for WPDK.
+CONFIG_WPDK_DIR=
 
 # Build SPDK FIO plugin. Requires CONFIG_FIO_SOURCE_DIR set to a valid
 # fio source code directory.
@@ -122,6 +132,7 @@ CONFIG_VIRTIO=y
 
 # Build custom vfio-user transport for NVMf target and NVMe initiator.
 CONFIG_VFIO_USER=n
+CONFIG_VFIO_USER_DIR=
 
 # Build with PMDK backends
 CONFIG_PMDK=n
@@ -167,4 +178,12 @@ CONFIG_FUSE=n
 CONFIG_RAID5=n
 
 # Build with IDXD support
+# In this mode, SPDK fully controls the DSA device.
 CONFIG_IDXD=n
+
+# Build with USDT support
+CONFIG_USDT=n
+
+# Build with IDXD kernel support.
+# In this mode, SPDK shares the DSA device with the kernel.
+CONFIG_IDXD_KERNEL=n

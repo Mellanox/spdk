@@ -1,6 +1,6 @@
-# Copyright (c) 2018-2021, Mellanox Technologies. All rights reserved.
+# Copyright © 2021 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 
-%define scm_version 21.01.1
+%define scm_version 21.07
 %define unmangled_version %{scm_version}
 %define scm_rev %{_rev}
 Epoch: 0
@@ -11,7 +11,7 @@ Name:		spdk
 Version:	%{scm_version}
 Release:	%{scm_rev}%{?dist}
 Summary:	Storage Performance Development Kit
-Packager: 	yuriis@mellanox.com
+Packager: 	andriih@nvidia.com
 
 Group: 		System Environment/Daemons
 License: 	BSD and LGPLv2 and GPLv2
@@ -126,7 +126,8 @@ export LDFLAGS
 	--prefix=%{pkg_prefix} \
 	--disable-coverage \
 	--disable-debug \
-	--disable-tests \
+    --disable-tests \
+    --disable-unit-tests \
     --without-isal \
 	--without-crypto \
 	--without-fio \
@@ -214,8 +215,11 @@ case "$1" in
 esac
 
 %changelog
-* %{_date} Yuriy Shestakov <yuriis@mellanox.com>
+* %{_date} Andrii Holovchenko <andriih@nvidia.com>
 - build from %{_branch} (sha1 %{_sha1})
+
+* Sun Aug 8 2021 Andrii Holovchenko <andriih@nvidia.com>
+- Ported to v21.07 release
 
 * Thu Apr 22 2021 Andrii Holovchenko <andriih@nvidia.com>
 - Ported to v21.01.1 release
