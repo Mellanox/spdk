@@ -3,6 +3,7 @@ ARG _UID=6213
 ARG _GID=11429
 ARG _LOGIN=swx-jenkins
 ARG _HOME=/var/home/$_LOGIN
+ARG MOFED_VER=5.4-1.0.3.0
 ENV LANG=en_US.utf-8
 USER root
 
@@ -35,9 +36,9 @@ RUN set -eux; \
     sudo rpm --import RPM-GPG-KEY-Mellanox; \
     if [ $(uname -m) == "aarch64" ]; then \
       ln -s /usr/bin/ninja-build /usr/bin/ninja; \
-      wget https://linux.mellanox.com/public/repo/mlnx_ofed/5.3-1.0.0.1/rhel7.6alternate/mellanox_mlnx_ofed.repo -P /etc/yum.repos.d/; \
+      wget https://linux.mellanox.com/public/repo/mlnx_ofed/${MOFED_VER}/rhel7.6alternate/mellanox_mlnx_ofed.repo -P /etc/yum.repos.d/; \
     elif [ $(uname -m) == "x86_64" ]; then \
-      wget https://linux.mellanox.com/public/repo/mlnx_ofed/5.3-1.0.0.1/rhel7.9/mellanox_mlnx_ofed.repo -P /etc/yum.repos.d/; \
+      wget https://linux.mellanox.com/public/repo/mlnx_ofed/${MOFED_VER}/rhel7.9/mellanox_mlnx_ofed.repo -P /etc/yum.repos.d/; \
     fi; \
     yum install mlnx-ofed-basic-user-only -y 
 
