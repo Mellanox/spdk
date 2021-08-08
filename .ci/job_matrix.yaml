@@ -10,9 +10,9 @@ credentials:
 failFast: false
 kubernetes:
   cloud: swx-k8s-spray
-  arch_table:
-    aarch64:
-      nodeSelector: 'kubernetes.io/hostname=swx-bw-04'
+#  arch_table:
+#    aarch64:
+#      nodeSelector: 'kubernetes.io/hostname=swx-bw-04'
 
 volumes:
   - {mountPath: /auto/mtrswgwork, hostPath: /auto/mtrswgwork}
@@ -36,6 +36,7 @@ steps:
       fi
 
   - name: Upload distro package
+    enable: true
     credentialsId: '311997c9-cc1c-4d5d-8ba2-6eb43ba0a06d'
     resource: actions/nexus.py
     containerSelector:

@@ -2,8 +2,8 @@
 # not executable file
 # contains environment variables for /etc/systemd/system/spdk_tgt.service
 
-# run on 4 cores out of 16 on Bluewhale server
-CPU_MASK=0x0f00
+# run on first 2 CPU cores
+CPU_MASK=[0-1]
 
 # extra args like -r 0.0.0.0 to start RPC listener on
 EXTRA_ARGS=""

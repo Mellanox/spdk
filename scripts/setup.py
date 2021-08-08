@@ -10,7 +10,7 @@ if not os.path.exists('spdk_rpc.py'):
     shutil.copy('rpc.py', 'spdk_rpc.py')
 setup(
     name='spdk-rpc',
-    version='21.01.1',
+    version='21.07',
     author='SPDK Mailing List',
     author_email='spdk@lists.01.org',
     description='SPDK RPC modules',

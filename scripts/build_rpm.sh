@@ -29,7 +29,7 @@ set -e
 if [ -z "$VER" ] ; then
     VER=$(get_ver)
     if [ -z "$VER" ] ; then
-        VER=21.01.1
+        VER=21.07
     fi
     export VER
 fi

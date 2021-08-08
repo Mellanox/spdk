@@ -5,14 +5,17 @@ ARG _LOGIN=swx-jenkins
 ARG _HOME=/var/home/$_LOGIN
 ARG MOFED_VER=5.4-1.0.3.0
 ENV LANG=en_US.utf-8
+ENV PATH=/opt/rh/devtoolset-8/root/usr/bin:$PATH
 USER root
 
 RUN yum install -y \
-    epel-release
+    epel-release \
+    centos-release-scl
 
 RUN yum install -y \
     sudo \
     git \
+    vim \
     wget \
     fakeroot \
     ncurses-devel \
@@ -29,18 +32,29 @@ RUN yum install -y \
     lcov \
     gcc-c++ \
     python36 \
-    meson
+    python3-pip \
+    devtoolset-8-gcc \
+    devtoolset-8-gcc-c++ \
+    cmake3
 
 RUN set -eux; \
     wget https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox; \
     sudo rpm --import RPM-GPG-KEY-Mellanox; \
     if [ $(uname -m) == "aarch64" ]; then \
-      ln -s /usr/bin/ninja-build /usr/bin/ninja; \
       wget https://linux.mellanox.com/public/repo/mlnx_ofed/${MOFED_VER}/rhel7.6alternate/mellanox_mlnx_ofed.repo -P /etc/yum.repos.d/; \
     elif [ $(uname -m) == "x86_64" ]; then \
       wget https://linux.mellanox.com/public/repo/mlnx_ofed/${MOFED_VER}/rhel7.9/mellanox_mlnx_ofed.repo -P /etc/yum.repos.d/; \
     fi; \
     yum install mlnx-ofed-basic-user-only -y 
+
+RUN pip3 install scikit-build
+RUN pip3 install --install-option="--prefix=/usr/" meson
+RUN pip3 install --install-option="--prefix=/usr/" pyelftools
+
+RUN mkdir -p /tmp/bin && \
+    ln -s /bin/cmake3 /tmp/bin/cmake && \
+    PATH="/tmp/bin:$PATH" pip3 install --install-option="--prefix=/usr/" ninja && \
+    rm -rf /tmp/bin
 
 RUN echo "${_LOGIN} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 RUN mkdir -p $_HOME
