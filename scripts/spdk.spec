@@ -7,6 +7,8 @@ Epoch: 0
 
 %define pkg_prefix /opt/mellanox/spdk
 
+%define _build_id_links alldebug
+
 Name:		spdk
 Version:	%{scm_version}
 Release:	%{scm_rev}%{?dist}
@@ -123,21 +125,21 @@ sed -i 's#CONFIG_PREFIX="/usr/local"#CONFIG_PREFIX="'%{pkg_prefix}'"#' CONFIG
 LDFLAGS="$LDFLAGS -Wl,-rpath,%{pkg_prefix}/lib"
 export LDFLAGS
 ./configure \
-	--prefix=%{pkg_prefix} \
-	--disable-coverage \
-	--disable-debug \
-    --disable-tests \
-    --disable-unit-tests \
-    --without-isal \
-	--without-crypto \
-	--without-fio \
-	--with-vhost \
-	--without-pmdk \
-	--without-rbd \
-	--with-rdma \
-	--without-vtune \
-	--with-shared
-	# --with-iscsi-initiator
+        --prefix=%{pkg_prefix} \
+        --disable-coverage \
+        --disable-debug \
+        --disable-tests \
+        --disable-unit-tests \
+        --without-isal \
+        --without-crypto \
+        --without-fio \
+        --with-vhost \
+        --without-pmdk \
+        --without-rbd \
+        --with-rdma \
+        --without-vtune \
+        --with-shared
+
 # SPDK make
 make %{?_smp_mflags}
 
