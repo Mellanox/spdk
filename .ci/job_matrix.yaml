@@ -10,9 +10,9 @@ credentials:
 failFast: false
 kubernetes:
   cloud: swx-k8s-spray
-#  arch_table:
-#    aarch64:
-#      nodeSelector: 'kubernetes.io/hostname=swx-bw-04'
+  arch_table:
+    aarch64:
+      nodeSelector: 'feature.node.kubernetes.io/cpu-vendor=ARM'
 
 volumes:
   - {mountPath: /auto/mtrswgwork, hostPath: /auto/mtrswgwork}
