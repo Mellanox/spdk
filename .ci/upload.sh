@@ -75,7 +75,7 @@ if [ -z "$VER" ] ; then
 fi
 
 name="spdk"
-repo_name="${name}"
+repo_name="${name}-${VER}"
 
 if command -v ofed_info >/dev/null 2>&1; then
     # 4.6-1.0.1.2 => 4.6
