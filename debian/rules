@@ -51,7 +51,8 @@ override_dh_auto_configure:
 		--without-vtune \
 		--with-iscsi-initiator \
 		--with-shared \
-		--with-uring
+		--with-uring \
+		--with-raid5
 
 override_dh_auto_clean:
 	test -e mk/config.mk && make distclean || true

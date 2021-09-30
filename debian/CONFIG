@@ -175,7 +175,7 @@ CONFIG_URING_PATH=
 CONFIG_FUSE=n
 
 # Build with RAID5 support
-CONFIG_RAID5=n
+CONFIG_RAID5=y
 
 # Build with IDXD support
 # In this mode, SPDK fully controls the DSA device.

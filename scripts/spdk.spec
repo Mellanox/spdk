@@ -138,7 +138,8 @@ export LDFLAGS
         --without-rbd \
         --with-rdma \
         --without-vtune \
-        --with-shared
+        --with-shared \
+        --with-raid5
 
 # SPDK make
 make %{?_smp_mflags}
@@ -219,6 +220,9 @@ esac
 %changelog
 * %{_date} Andrii Holovchenko <andriih@nvidia.com>
 - build from %{_branch} (sha1 %{_sha1})
+
+* Thu Sep 30 2021 Andrii Holovchenko <andriih@nvidia.com>
+- Add raid5 support
 
 * Sun Aug 8 2021 Andrii Holovchenko <andriih@nvidia.com>
 - Ported to v21.07 release
