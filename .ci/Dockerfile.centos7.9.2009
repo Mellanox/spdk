@@ -35,7 +35,8 @@ RUN yum install -y \
     python3-pip \
     devtoolset-8-gcc \
     devtoolset-8-gcc-c++ \
-    cmake3
+    cmake3 \
+    ca-certificates
 
 RUN set -eux; \
     wget https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox; \
