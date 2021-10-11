@@ -98,7 +98,6 @@ override_dh_auto_install:
 	#chrpath -r $(pkg_prefix)/lib debian/tmp$(pkg_prefix)/lib/lib*so.*
 	patchelf --set-rpath $(pkg_prefix)/lib --force-rpath debian/tmp$(pkg_prefix)/lib/lib*so.*
 	rm -rf debian/tmp$(pkg_prefix)/share/dpdk/examples
-	test -e script/spdk_rpc.py || cp -p scripts/rpc.py scripts/spdk_rpc.py
 	dh_auto_install -- prefix=$(pkg_prefix)
 	(cd scripts ; python3 setup.py install --install-layout=deb --root=../debian/tmp )
 

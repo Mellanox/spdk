@@ -193,7 +193,8 @@ for mod in rpc spdkcli ; do
     install -p -m 644 scripts/$mod/* %{buildroot}/%{_libdir}/python%{python_ver}/site-packages/$mod/
 done
 install -p -m 755 scripts/rpc.py %{install_bindir}/spdk_rpc.py
-sed -i -e 's!/usr/bin/env python3$!/usr/bin/python'%{python_ver}'!' %{install_bindir}/spdk_rpc.py
+install -p -m 755 scripts/rpc_http_proxy.py %{install_bindir}/spdk_rpc_http_proxy.py
+sed -i -e 's!/usr/bin/env python3$!/usr/bin/python'%{python_ver}'!' %{install_bindir}/{spdk_rpc.py,spdk_rpc_http_proxy.py}
 
 %files
 %{_sbindir}/*
@@ -220,6 +221,9 @@ esac
 %changelog
 * %{_date} Andrii Holovchenko <andriih@nvidia.com>
 - build from %{_branch} (sha1 %{_sha1})
+
+* Mon Oct 11 2021 Andrii Holovchenko <andriih@nvidia.com>
+- Add spdk_rpc_http_proxy.py
 
 * Thu Sep 30 2021 Andrii Holovchenko <andriih@nvidia.com>
 - Add raid5 support
