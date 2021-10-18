@@ -13,6 +13,10 @@ DPDK_OPTS = -Denable_docs=false
 DPDK_OPTS += -Dtests=false
 DPDK_CFLAGS =
 
+ifeq ($(shell uname -m),aarch64)
+DPDK_OPTS += --cross-file=config/arm/arm64_bluefield_linux_native_gcc
+endif
+
 DPDK_KMODS = false
 ifeq ($(OS),FreeBSD)
 DPDK_KMODS = true

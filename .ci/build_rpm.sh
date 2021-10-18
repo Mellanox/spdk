@@ -13,6 +13,13 @@ function generate_changelog()
     done
 }
 
+function apply_dpdk_patch()
+{
+    $BDIR_PATH/dpdk_patch.sh
+}
+
+BASEDIR=$(dirname "$0")
+BDIR_PATH=$(readlink -f $BASEDIR)
 args="$@"
 mkdir -p $HOME/rpmbuild/{SOURCES,RPMS,SRPMS,SPECS,BUILD,BUILDROOT}
 OUTDIR=$HOME/rpmbuild/SOURCES
@@ -36,8 +43,15 @@ sed -i "s#%{_date}#$_date#; s#%{_sha1}#$sha1#; s#%{_branch}#$branch# " $OUT_SPEC
 git archive \
     --format=tar --prefix=spdk-$VER/ -o $OUTDIR/spdk-$VER.tar HEAD
 generate_changelog
-tar -uf  $OUTDIR/spdk-$VER.tar spdk-$VER/debian/changelog spdk-$VER/scripts/debian/changelog
-rm -rf spdk-$VER/
+
+pushd spdk-$VER
+apply_dpdk_patch
+popd
+
+tar -uf  $OUTDIR/spdk-$VER.tar \
+	spdk-$VER/debian/changelog \
+	spdk-$VER/scripts/debian/changelog \
+	spdk-$VER/dpdk/config/arm/arm64_bluefield_linux_native_gcc
 
 git submodule init
 git submodule update
@@ -49,6 +63,8 @@ do
     --format=tar --prefix=spdk-$VER/$MOD/ -o $OUTDIR/spdk-$MOD-$VER.tar  HEAD
   )
 done
+
+apply_dpdk_patch
 
 for MOD in $(git submodule |awk '{print $2}')
 do

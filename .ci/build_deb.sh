@@ -40,6 +40,12 @@ function generate_changelog()
         debian/changelog.in > debian/changelog
 }
 
+function apply_dpdk_patch()
+{
+    $BASEDIR/dpdk_patch.sh
+}
+
+
 function unpack_dist()
 {
   if [ -e ./spdk-$VER ]; then
@@ -53,6 +59,7 @@ function unpack_dist()
     tar xf ../spdk-$MOD-$VER.tar.gz
   done
   generate_changelog
+  apply_dpdk_patch
   popd
 
   tar zcf ./spdk_$VER.orig.tar.gz spdk-$VER
