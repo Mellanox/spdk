@@ -49,12 +49,12 @@ RUN set -eux; \
     yum install mlnx-ofed-basic-user-only -y 
 
 RUN pip3 install scikit-build
-RUN pip3 install --install-option="--prefix=/usr/" meson
+RUN pip3 install --install-option="--prefix=/usr/" meson==0.59.2
 RUN pip3 install --install-option="--prefix=/usr/" pyelftools
 
 RUN mkdir -p /tmp/bin && \
     ln -s /bin/cmake3 /tmp/bin/cmake && \
-    PATH="/tmp/bin:$PATH" pip3 install --install-option="--prefix=/usr/" ninja && \
+    PATH="/tmp/bin:$PATH" pip3 install --install-option="--prefix=/usr/" ninja==1.10.2.1 && \
     rm -rf /tmp/bin
 
 RUN echo "${_LOGIN} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
