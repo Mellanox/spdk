@@ -7,6 +7,7 @@ DEFAULTS_DIR=/etc/default
 SPDK_CONF_DIR=/etc/spdk
 pkg_prefix=/opt/mellanox/spdk
 install_datadir=/usr/share/spdk
+ARCH := $(shell uname -m)
 
 # see FEATURE AREAS in dpkg-buildflags(1)
 #export DEB_BUILD_MAINT_OPTIONS = hardening=+all
@@ -31,10 +32,12 @@ export DEB_LDFLAGS_MAINT_APPEND = -Wl,-rpath,$(pkg_prefix)/lib
 #	dh_auto_configure -- #	-DCMAKE_LIBRARY_PATH=$(DEB_HOST_MULTIARCH)
 
 override_dh_auto_configure:
-	# for some reason ./configure -- --options are ignored
+	# for some reasoni ./configure -- --options are ignored
 	# so that let's use preconfigure debian/CONFIG on Ubuntu
 	cp -p debian/CONFIG CONFIG
 	sed -i 's#CONFIG_PREFIX="/usr.*"#CONFIG_PREFIX="'$(pkg_prefix)'"#' CONFIG
+	# Use armv8-a on aarch64
+	test $(ARCH) != aarch64 || sed -i 's#CONFIG_ARCH=.*#CONFIG_ARCH=armv8-a#' CONFIG
 	LDFLAGS="$$LDFLAGS -Wl,-rpath,$(pkg_prefix)/lib" ./configure \
         --prefix=$(pkg_prefix) \
 		--disable-coverage \

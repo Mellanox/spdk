@@ -122,10 +122,18 @@ applications (sha1 %{_sha1}).
 %build
 sed -i -e 's!/usr/bin/python$!/usr/bin/python'%{python_ver}'!' dpdk/config/arm/armv8_machine.py
 sed -i 's#CONFIG_PREFIX="/usr/local"#CONFIG_PREFIX="'%{pkg_prefix}'"#' CONFIG
+
+%ifarch aarch64
+sed -i 's#CONFIG_ARCH=.*#CONFIG_ARCH=armv8-a#' CONFIG
+%endif
+
 LDFLAGS="$LDFLAGS -Wl,-rpath,%{pkg_prefix}/lib"
 export LDFLAGS
 ./configure \
         --prefix=%{pkg_prefix} \
+%ifarch aarch64
+        --target-arch=armv8-a \
+%endif
         --disable-coverage \
         --disable-debug \
         --disable-tests \
@@ -221,6 +229,9 @@ esac
 %changelog
 * %{_date} Andrii Holovchenko <andriih@nvidia.com>
 - build from %{_branch} (sha1 %{_sha1})
+
+* Tue Oct 26 2021 Andrii Holovchenko <andriih@nvidia.com>
+- Use armv8-a CPU for aarch64
 
 * Mon Oct 11 2021 Andrii Holovchenko <andriih@nvidia.com>
 - Add spdk_rpc_http_proxy.py
