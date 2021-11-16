@@ -1,6 +1,6 @@
 # Copyright © 2021 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 
-%define scm_version 21.07
+%define scm_version 21.10
 %define unmangled_version %{scm_version}
 %define scm_rev %{_rev}
 Epoch: 0

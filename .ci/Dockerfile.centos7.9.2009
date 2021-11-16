@@ -8,6 +8,8 @@ ENV LANG=en_US.utf-8
 ENV PATH=/opt/rh/devtoolset-8/root/usr/bin:$PATH
 USER root
 
+RUN yum install -y ca-certificates
+
 RUN yum install -y \
     epel-release \
     centos-release-scl
@@ -35,8 +37,7 @@ RUN yum install -y \
     python3-pip \
     devtoolset-8-gcc \
     devtoolset-8-gcc-c++ \
-    cmake3 \
-    ca-certificates
+    cmake3
 
 RUN set -eux; \
     wget https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox; \
