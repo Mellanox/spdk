@@ -7,6 +7,8 @@ ARG MOFED_VER=5.4-1.0.3.0
 ENV LANG=en_US.utf-8
 USER root
 
+RUN yum install -y ca-certificates
+
 RUN yum install -y \
     epel-release
 
@@ -30,8 +32,7 @@ RUN yum install --enablerepo=PowerTools -y \
     gcc-c++ \
     python36 \
     meson \
-    python3-pip \
-    ca-certificates
+    python3-pip
 
 RUN set -eux; \
     wget https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox; \
