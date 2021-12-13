@@ -2,4 +2,4 @@ usr/bin/spdk_rpc.py usr/bin
 usr/bin/spdkcli.py usr/bin
 usr/bin/spdk_rpc_http_proxy.py usr/bin
 usr/lib/python* usr/lib/
-
+etc/bash_completion.d/* etc/bash_completion.d/
