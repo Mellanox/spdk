@@ -203,6 +203,9 @@ done
 install -p -m 755 scripts/rpc.py %{install_bindir}/spdk_rpc.py
 install -p -m 755 scripts/rpc_http_proxy.py %{install_bindir}/spdk_rpc_http_proxy.py
 sed -i -e 's!/usr/bin/env python3$!/usr/bin/python'%{python_ver}'!' %{install_bindir}/{spdk_rpc.py,spdk_rpc_http_proxy.py}
+mkdir -p %{buildroot}%{_sysconfdir}/bash_completion.d
+install -p -m 644 scripts/bash-completion/spdk %{buildroot}%{_sysconfdir}/bash_completion.d
+sed -i -e 's/ rpc.py/ spdk_rpc.py/' %{buildroot}%{_sysconfdir}/bash_completion.d/spdk
 
 %files
 %{_sbindir}/*
@@ -212,6 +215,7 @@ sed -i -e 's!/usr/bin/env python3$!/usr/bin/python'%{python_ver}'!' %{install_bi
 %{_datadir}/*
 %config(noreplace) %{_sysconfdir}/default/*
 %config(noreplace) %{_sysconfdir}/spdk/*
+%{_sysconfdir}/bash_completion.d/*
 %doc README.md LICENSE
 # %files -n dev
 %{pkg_prefix}/*

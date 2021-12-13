@@ -67,6 +67,7 @@ override_dh_auto_install:
 	mkdir -p debian/tmp/etc/default
 	mkdir -p debian/tmp/usr/lib/systemd/system
 	mkdir -p debian/tmp/etc/spdk
+	mkdir -p debian/tmp/etc/bash_completion.d
 	mkdir -p debian/tmp$(pkg_prefix)
 	mkdir -p debian/tmp$(install_datadir)/scripts
 	mkdir -p debian/tmp$(install_datadir)/include/spdk
@@ -94,6 +95,8 @@ override_dh_auto_install:
 	install -p -m 755 scripts/setup.sh debian/tmp$(install_datadir)/scripts
 	install -m 644 scripts/common.sh debian/tmp$(install_datadir)/scripts
 	install -m 644 include/spdk/pci_ids.h debian/tmp$(install_datadir)/include/spdk
+	install -p -m 644 scripts/bash-completion/spdk debian/tmp/etc/bash_completion.d
+	sed -i -e 's/ rpc.py/ spdk_rpc.py/' debian/tmp/etc/bash_completion.d/spdk
 
 	cp -pvr dpdk/build/lib debian/tmp$(pkg_prefix)
 	cp -pvr dpdk/build/include debian/tmp$(pkg_prefix)
