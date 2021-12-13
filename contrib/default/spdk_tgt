@@ -12,16 +12,17 @@ EXTRA_ARGS=""
 # 2048 by default.
 HUGEMEM="2048"
 
+# Whitespace separated list of PCI devices (NVMe, I/OAT, VMD, Virtio).
 # Each device must be specified as a full PCI address.
-# E.g. PCI_WHITELIST="0000:01:00.0 0000:02:00.0"
-# To blacklist all PCI devices use a non-valid address.
-# E.g. PCI_WHITELIST="none"
-# If PCI_WHITELIST and PCI_BLACKLIST are empty or unset, all PCI devices
+# E.g. PCI_ALLOWED="0000:01:00.0 0000:02:00.0"
+# To block all PCI devices use a non-valid address.
+# E.g. PCI_BLOCKED="none"
+# If PCI_ALLOWED and PCI_BLOCKED are empty or unset, all PCI devices
 # will be bound.
-# Each device in PCI_BLACKLIST will be ignored (driver won't be changed).
-# PCI_BLACKLIST has precedence over PCI_WHITELIST.
-PCI_WHITELIST="none"
-PCI_BLACKLIST=""
+# Each device in PCI_BLOCKED will be ignored (driver won't be changed).
+# PCI_BLOCKED has precedence over PCI_ALLOWED.
+PCI_ALLOWED="none"
+PCI_BLOCKED=""
 
 # Disable automatic vfio-pci/uio_pci_generic selection and forcefully
 # bind devices to the given driver.
