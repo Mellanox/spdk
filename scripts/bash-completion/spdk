@@ -55,7 +55,7 @@ _get_supported_methods() {
 	((${#methods[@]} > 0)) || return 0
 
 	# Kill the json flavor
-	methods=("${methods[@]//+(\"|,| )/}")
+	methods=("${methods[@]//[\",]}")
 	unset -v "methods[0]" "methods[-1]" # []
 
 	for method in "${methods[@]}"; do
@@ -125,7 +125,7 @@ _spdk_opt_to_complete() {
 		--main-core | -p) # FIXME: Is this meant to be an actual core id or thread id? Assume the latter
 			local cpus
 			if [[ -e /sys/devices/system/cpu ]]; then
-				cpus=(/sys/devices/system/cpu/cpu+([0-9]))
+				cpus=(/sys/devices/system/cpu/cpu[0-9]*)
 				cpus=("${cpus[@]##*cpu}")
 			fi
 			COMPREPLY=($(compgen -W '${cpus[*]}' -- "$cur"))
@@ -263,7 +263,7 @@ _spdk_apps() {
 	) # TODO: Add more?
 
 	complete -o default -F _spdk_app "${apps[@]}"
-	complete -o default -F _rpc rpc.py
+	complete -o default -F _rpc spdk_rpc.py
 }
 
 _spdk_apps
