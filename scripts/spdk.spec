@@ -97,7 +97,7 @@ Requires:	sg3_utils
 # Requires:	avahi
 Requires:   libhugetlbfs-utils
 %if "%{use_python}" == "python3.6"
-Requires: %{name}%{?_isa} = %{package_version} python36 
+Requires: %{name}%{?_isa} = %{package_version} python36 python3-configshell
 %else
 Requires: %{name}%{?_isa} = %{package_version} python3 python3-configshell python3-pexpect
 # Additional dependencies for SPDK CLI 
@@ -202,7 +202,8 @@ for mod in rpc spdkcli ; do
 done
 install -p -m 755 scripts/rpc.py %{install_bindir}/spdk_rpc.py
 install -p -m 755 scripts/rpc_http_proxy.py %{install_bindir}/spdk_rpc_http_proxy.py
-sed -i -e 's!/usr/bin/env python3$!/usr/bin/python'%{python_ver}'!' %{install_bindir}/{spdk_rpc.py,spdk_rpc_http_proxy.py}
+install -p -m 755 scripts/spdkcli.py %{install_bindir}/spdkcli
+sed -i -e 's!/usr/bin/env python3$!/usr/bin/python'%{python_ver}'!' %{install_bindir}/{spdk_rpc.py,spdk_rpc_http_proxy.py,spdkcli}
 mkdir -p %{buildroot}%{_sysconfdir}/bash_completion.d
 install -p -m 644 scripts/bash-completion/spdk %{buildroot}%{_sysconfdir}/bash_completion.d
 sed -i -e 's/ rpc.py/ spdk_rpc.py/' %{buildroot}%{_sysconfdir}/bash_completion.d/spdk

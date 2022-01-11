@@ -106,6 +106,7 @@ override_dh_auto_install:
 	rm -rf debian/tmp$(pkg_prefix)/share/dpdk/examples
 	dh_auto_install -- prefix=$(pkg_prefix)
 	(cd scripts ; python3 setup.py install --install-layout=deb --root=../debian/tmp )
+	mv debian/tmp/usr/bin/spdkcli.py debian/tmp/usr/bin/spdkcli
 
 # Prevent dh_installdeb of treating files in /etc as configuration files
 # you need this if need configuration files been always rewritten
