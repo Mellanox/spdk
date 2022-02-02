@@ -37,7 +37,7 @@
             description: "Jenkinsfile to load on trigger"
         - string:
             name: "REPO_URL"
-            default: "http://swx-repos.mtr.labs.mlnx:8081"
+            default: "http://swx-repos.mtr.labs.mlnx"
             description: "Repository manager URL"
         - string:
             name: "GPG_KEY_PATH"
@@ -61,7 +61,7 @@
     jjb_email: 'andiih@nvidia.com'
     jjb_proj: 'spdk'
     git_branch:
-      - v21.10.mlnx:
+      - v22.01.nvda:
           conf_file: '.ci/job_matrix.yaml'
     jjb_git: 'git@github.com:Mellanox/spdk.git'
     jjb_owner: 'andriih@nvidia.com'

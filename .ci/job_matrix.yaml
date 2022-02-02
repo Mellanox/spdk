@@ -18,12 +18,12 @@ volumes:
   - {mountPath: /auto/mtrswgwork, hostPath: /auto/mtrswgwork}
 
 runs_on_dockers:
-  - {file: '.ci/Dockerfile.ubuntu20.04', name: 'ubuntu2004ofed54', arch: 'x86_64', tag: '5.4-1.0.3.0'}
-  - {file: '.ci/Dockerfile.ubuntu20.04', name: 'ubuntu2004ofed54', arch: 'aarch64', tag: '5.4-1.0.3.0'}
-  - {file: '.ci/Dockerfile.centos7.9.2009', name: 'centos79ofed54', arch: 'x86_64', tag: '5.4-1.0.3.0'}
-  - {file: '.ci/Dockerfile.centos7.9.2009', name: 'centos79ofed54', arch: 'aarch64', tag: '5.4-1.0.3.0'}
-  - {file: '.ci/Dockerfile.centos8.2.2004', name: 'centos82ofed54', arch: 'x86_64', tag: '5.4-1.0.3.0'}
-  - {file: '.ci/Dockerfile.centos8.2.2004', name: 'centos82ofed54', arch: 'aarch64', tag: '5.4-1.0.3.0'}
+  - {file: '.ci/Dockerfile.ubuntu20.04', name: 'ubuntu2004ofed55', arch: 'x86_64', tag: '5.4-1.0.3.0'}
+  - {file: '.ci/Dockerfile.ubuntu20.04', name: 'ubuntu2004ofed55', arch: 'aarch64', tag: '5.4-1.0.3.0'}
+  - {file: '.ci/Dockerfile.centos7.9.2009', name: 'centos79ofed55', arch: 'x86_64', tag: '5.4-1.0.3.0'}
+  - {file: '.ci/Dockerfile.centos7.9.2009', name: 'centos79ofed55', arch: 'aarch64', tag: '5.4-1.0.3.0'}
+  - {file: '.ci/Dockerfile.centos8.2.2004', name: 'centos82ofed55', arch: 'x86_64', tag: '5.4-1.0.3.0'}
+  - {file: '.ci/Dockerfile.centos8.2.2004', name: 'centos82ofed55', arch: 'aarch64', tag: '5.4-1.0.3.0'}
 
 steps:
 
@@ -40,8 +40,8 @@ steps:
     credentialsId: '311997c9-cc1c-4d5d-8ba2-6eb43ba0a06d'
     resource: actions/nexus.py
     containerSelector:
-      - "{name: 'centos82ofed54', variant:1}"
-      - "{name: 'ubuntu2004ofed54', variant:1}"
-      - "{name: 'centos79ofed54', variant:1}"
+      - "{name: 'centos82ofed55', variant:1}"
+      - "{name: 'ubuntu2004ofed55', variant:1}"
+      - "{name: 'centos79ofed55', variant:1}"
     run: |
       .ci/upload.sh

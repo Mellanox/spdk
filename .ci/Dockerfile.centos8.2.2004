@@ -3,9 +3,11 @@ ARG _UID=6213
 ARG _GID=11429
 ARG _LOGIN=swx-jenkins
 ARG _HOME=/var/home/$_LOGIN
-ARG MOFED_VER=5.4-1.0.3.0
+ARG MOFED_VER=5.5-1.0.3.2
 ENV LANG=en_US.utf-8
 USER root
+
+RUN sed -i 's/mirrorlist/#mirrorlist/;s!#baseurl=http://mirror.centos.org!baseurl=http://vault.centos.org!' /etc/yum.repos.d/*
 
 RUN yum install -y ca-certificates
 
@@ -32,7 +34,8 @@ RUN yum install --enablerepo=PowerTools -y \
     gcc-c++ \
     python36 \
     meson \
-    python3-pip
+    python3-pip \
+    python3-configshell
 
 RUN set -eux; \
     wget https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox; \

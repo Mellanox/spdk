@@ -11,7 +11,7 @@ for fname in ['rpc.py', 'rpc_http_proxy.py']:
         shutil.copy('{}'.format(fname), 'spdk_{}'.format(fname))
 setup(
     name='spdk-rpc',
-    version='21.10',
+    version='22.01',
     author='SPDK Mailing List',
     author_email='spdk@lists.01.org',
     description='SPDK RPC modules',
@@ -33,7 +33,6 @@ setup(
         (
             'share/spdk',
             [
-                'config_converter.py',
                 'dpdk_mem_info.py',
                 'histogram.py'
             ]
