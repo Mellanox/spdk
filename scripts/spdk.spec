@@ -1,6 +1,6 @@
 # Copyright © 2021 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 
-%define scm_version 21.10
+%define scm_version 22.01
 %define unmangled_version %{scm_version}
 %define scm_rev %{_rev}
 Epoch: 0
@@ -76,7 +76,7 @@ BuildRequires:	make gcc gcc-c++
 BuildRequires:	CUnit-devel, libaio-devel, openssl-devel, libuuid-devel 
 BuildRequires:	libiscsi-devel
 
-%if 0%{rhel} == 8
+%if 0%{rhel} >= 8
 BuildRequires:  git-core
 %else
 BuildRequires:  git
@@ -97,12 +97,18 @@ Requires:	sg3_utils
 # Requires:	avahi
 Requires:   libhugetlbfs-utils
 %if "%{use_python}" == "python3.6"
-Requires: %{name}%{?_isa} = %{package_version} python36 python3-configshell
+Requires: %{name}%{?_isa} = %{package_version} python36
 %else
-Requires: %{name}%{?_isa} = %{package_version} python3 python3-configshell python3-pexpect
+Requires: %{name}%{?_isa} = %{package_version} python3 python3-pexpect
 # Additional dependencies for SPDK CLI 
 BuildRequires:	python3-pep8 python3-configshell
 %endif
+
+%if 0%{rhel} > 7
+Requires: python3-configshell
+BuildRequires: python3-configshell
+%endif
+
 
 %description
 The Storage Performance Development Kit (SPDK) provides a set of tools and
@@ -234,6 +240,9 @@ esac
 %changelog
 * %{_date} Andrii Holovchenko <andriih@nvidia.com>
 - build from %{_branch} (sha1 %{_sha1})
+
+* Wed Feb 2 2022 Andrii Holovchenko <andriih@nvidia.com>
+- Ported to v22.01 release
 
 * Tue Oct 26 2021 Andrii Holovchenko <andriih@nvidia.com>
 - Use armv8-a CPU for aarch64

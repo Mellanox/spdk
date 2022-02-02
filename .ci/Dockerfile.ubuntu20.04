@@ -4,7 +4,7 @@ ARG _GID=11429
 ARG _LOGIN=swx-jenkins
 ARG _HOME=/var/home/$_LOGIN
 ARG DEBIAN_FRONTEND=noninteractive
-ARG MOFED_VER=5.4-1.0.3.0
+ARG MOFED_VER=5.5-1.0.3.2
 ENV TZ=Etc/UTC
 USER root
 
