@@ -41,7 +41,7 @@ RUN set -eux; \
     wget https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox; \
     sudo rpm --import RPM-GPG-KEY-Mellanox; \
     wget https://linux.mellanox.com/public/repo/mlnx_ofed/${MOFED_VER}/rhel8.2/mellanox_mlnx_ofed.repo -P /etc/yum.repos.d/; \
-    yum install mlnx-ofed-basic-user-only -y 
+    yum install -y mlnx-ofed-basic-user-only 
 
 RUN pip3 install --install-option="--prefix=/usr/" pyelftools
 
