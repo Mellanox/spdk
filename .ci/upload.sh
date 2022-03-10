@@ -98,8 +98,6 @@ if [[ -f /etc/debian_version ]]; then
     : ${GPG_KEY_PATH:? GPG_KEY_PATH is not found!}
     gpg_key_name=$(echo ${GPG_KEY_PATH##*/} | cut -d . -f 1)
 
-    apt update && apt install python3-requests -y
-
     # Create APT repository
     ${bd}/actions/nexus.py apt --name ${repo_name} \
         --url ${REPO_URL} --user ${REPO_USER} \

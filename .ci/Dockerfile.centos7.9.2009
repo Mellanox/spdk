@@ -47,7 +47,7 @@ RUN set -eux; \
     elif [ $(uname -m) == "x86_64" ]; then \
       wget https://linux.mellanox.com/public/repo/mlnx_ofed/${MOFED_VER}/rhel7.9/mellanox_mlnx_ofed.repo -P /etc/yum.repos.d/; \
     fi; \
-    yum install mlnx-ofed-basic-user-only -y 
+    yum install -y mlnx-ofed-basic-user-only
 
 RUN pip3 install scikit-build
 RUN pip3 install --install-option="--prefix=/usr/" meson==0.59.2

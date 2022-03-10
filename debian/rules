@@ -9,6 +9,10 @@ pkg_prefix=/opt/mellanox/spdk
 install_datadir=/usr/share/spdk
 ARCH := $(shell uname -m)
 
+ifeq ($(shell dpkg-vendor --query vendor), Ubuntu)
+XLIO := --with-xlio
+endif
+
 # see FEATURE AREAS in dpkg-buildflags(1)
 #export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 
@@ -55,7 +59,8 @@ override_dh_auto_configure:
 		--with-iscsi-initiator \
 		--with-shared \
 		--with-uring \
-		--with-raid5
+		--with-raid5 \
+		$(XLIO)
 
 override_dh_auto_clean:
 	test -e mk/config.mk && make distclean || true
