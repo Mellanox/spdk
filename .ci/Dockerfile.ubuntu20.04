@@ -4,7 +4,7 @@ ARG _GID=11429
 ARG _LOGIN=swx-jenkins
 ARG _HOME=/var/home/$_LOGIN
 ARG DEBIAN_FRONTEND=noninteractive
-ARG MOFED_VER=5.5-1.0.3.2
+ARG MOFED_VER=5.6-0.4.4.0
 ENV TZ=Etc/UTC
 USER root
 
@@ -37,7 +37,7 @@ RUN echo "deb [trusted=yes] http://swx-repos.mtr.labs.mlnx:8081/repository/libur
 
 RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | \
     sudo apt-key add - && \
-    wget https://linux.mellanox.com/public/repo/mlnx_ofed/${MOFED_VER}/ubuntu20.04/mellanox_mlnx_ofed.list -P /etc/apt/sources.list.d/ && \
+    echo "deb [trusted=yes] http://webrepo.mtr.labs.mlnx/mswg/release/MLNX_OFED/MLNX_OFED_LINUX-${MOFED_VER}/MLNX_OFED_LINUX-${MOFED_VER}-ubuntu20.04-$(dpkg-architecture -qDEB_HOST_GNU_CPU)/DEBS/ ./" > /etc/apt/sources.list.d/ofed.list && \
     apt update && apt install -y mlnx-ofed-basic-user-only \
     && apt-get download libxlio-dev && dpkg --force-all -i libxlio-dev*
 
