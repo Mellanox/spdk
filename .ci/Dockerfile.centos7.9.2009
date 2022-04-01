@@ -3,7 +3,7 @@ ARG _UID=6213
 ARG _GID=11429
 ARG _LOGIN=swx-jenkins
 ARG _HOME=/var/home/$_LOGIN
-ARG MOFED_VER=5.5-1.0.3.2
+ARG MOFED_VER=5.6-0.4.4.0
 ENV LANG=en_US.utf-8
 ENV PATH=/opt/rh/devtoolset-8/root/usr/bin:$PATH
 USER root
@@ -40,13 +40,16 @@ RUN yum install -y \
     cmake3
 
 RUN set -eux; \
-    wget https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox; \
-    sudo rpm --import RPM-GPG-KEY-Mellanox; \
     if [ $(uname -m) == "aarch64" ]; then \
-      wget https://linux.mellanox.com/public/repo/mlnx_ofed/${MOFED_VER}/rhel7.6alternate/mellanox_mlnx_ofed.repo -P /etc/yum.repos.d/; \
+      rhel_dist="rhel7.6alternate"; \
     elif [ $(uname -m) == "x86_64" ]; then \
-      wget https://linux.mellanox.com/public/repo/mlnx_ofed/${MOFED_VER}/rhel7.9/mellanox_mlnx_ofed.repo -P /etc/yum.repos.d/; \
+      rhel_dist="rhel7.9"; \
     fi; \
+    echo -e "[mlnx_ofed]\n\
+name=Mellanox Technologies \$basearch mlnx_ofed\n\
+baseurl=http://webrepo.mtr.labs.mlnx/mswg/release/MLNX_OFED/MLNX_OFED_LINUX-${MOFED_VER}/MLNX_OFED_LINUX-${MOFED_VER}-${rhel_dist}-\$basearch/RPMS/\n\
+enabled=1\n\
+gpgcheck=0" > /etc/yum.repos.d/mellanox_mlnx_ofed.repo; \
     yum install -y mlnx-ofed-basic-user-only
 
 RUN pip3 install scikit-build
