@@ -9,9 +9,16 @@ pkg_prefix=/opt/mellanox/spdk
 install_datadir=/usr/share/spdk
 ARCH := $(shell uname -m)
 
-ifeq ($(shell dpkg-vendor --query vendor), Ubuntu)
+
+
+ifeq ($(shell apt -qq list libxlio-dev 2> /dev/null | cut -d/ -f1), libxlio-dev)
 XLIO := --with-xlio
+$(info XLIO BUILD OPTION is [$(XLIO)])
+else
+$(info XLIO NOT INSTALLED)
 endif
+
+
 
 # see FEATURE AREAS in dpkg-buildflags(1)
 #export DEB_BUILD_MAINT_OPTIONS = hardening=+all
