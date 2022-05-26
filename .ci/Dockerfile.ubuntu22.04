@@ -1,0 +1,52 @@
+FROM ubuntu:22.04
+ARG _UID=6213
+ARG _GID=11429
+ARG _LOGIN=swx-jenkins
+ARG _HOME=/var/home/$_LOGIN
+ARG DEBIAN_FRONTEND=noninteractive
+ARG MOFED_VER=5.6-2.0.2.0
+ENV TZ=Etc/UTC
+USER root
+
+RUN apt-get update && \
+    apt-get install -y \
+      git \
+      vim \
+      wget \
+      python3 \
+      python3-distutils \
+      dpkg-dev \
+      dpkg-sig \
+      sudo \
+      debhelper \
+      autotools-dev \
+      dh-python \
+      libiscsi-dev \
+      meson \
+      uuid-dev \
+      libssl-dev \
+      libaio-dev \
+      libncurses-dev \
+      libcunit1-dev \
+      patchelf \
+      python3-pyelftools \
+      python3-requests \
+      liburing-dev
+
+RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | \
+    sudo apt-key add - && \
+    echo "deb [trusted=yes] http://webrepo.mtr.labs.mlnx/mswg/release/MLNX_OFED/MLNX_OFED_LINUX-${MOFED_VER}/MLNX_OFED_LINUX-${MOFED_VER}-ubuntu22.04-$(dpkg-architecture -qDEB_HOST_GNU_CPU)/DEBS/ ./" > /etc/apt/sources.list.d/ofed.list && \
+    apt update && apt install -y mlnx-ofed-basic-user-only
+
+RUN apt -qq list libxlio-dev 2> /dev/null | grep libxlio-dev > /dev/null 2>&1 && apt install -y libxlio-dev || echo "libxlio-dev NOT INSTALLED FROM MOFED REPO"
+
+RUN echo "${_LOGIN} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+RUN mkdir -p $_HOME
+RUN groupadd -f -g "$_GID" "$_LOGIN"
+RUN useradd -u "$_UID" -g "$_GID" -s /bin/bash -m -d ${_HOME} "$_LOGIN"
+RUN chown $_LOGIN $_HOME
+
+SHELL ["/bin/bash"]
+
+USER "${_LOGIN}"
+ENTRYPOINT [ "/bin/bash", "--login", "--rcfile", "/etc/bashrc", "-c" ]
