@@ -18,16 +18,21 @@ volumes:
   - {mountPath: /auto/mtrswgwork, hostPath: /auto/mtrswgwork}
 
 runs_on_dockers:
-  - {file: '.ci/Dockerfile.ubuntu20.04', name: 'ubuntu2004ofed56', arch: 'x86_64', tag: '5.6-0.4.4.0'}
-  - {file: '.ci/Dockerfile.ubuntu20.04', name: 'ubuntu2004ofed56', arch: 'aarch64', tag: '5.6-0.4.4.0'}
+  - {file: '.ci/Dockerfile.ubuntu20.04', name: 'ubuntu2004ofed56', arch: 'x86_64', tag: '5.6-2.0.9.0'}
+  - {file: '.ci/Dockerfile.ubuntu20.04', name: 'ubuntu2004ofed56', arch: 'aarch64', tag: '5.6-2.0.9.0'}
   - {file: '.ci/Dockerfile.ubuntu22.04', name: 'ubuntu2204ofed56', arch: 'x86_64', tag: '5.6-2.0.2.0'}
   - {file: '.ci/Dockerfile.ubuntu22.04', name: 'ubuntu2204ofed56', arch: 'aarch64', tag: '5.6-2.0.2.0'}
-  - {file: '.ci/Dockerfile.centos7.9.2009', name: 'centos79ofed56', arch: 'x86_64', tag: '5.6-0.4.4.0'}
-  - {file: '.ci/Dockerfile.centos7.9.2009', name: 'centos79ofed56', arch: 'aarch64', tag: '5.6-0.4.4.0'}
-  - {file: '.ci/Dockerfile.centos8.2.2004', name: 'centos82ofed56', arch: 'x86_64', tag: '5.6-0.4.4.0'}
-  - {file: '.ci/Dockerfile.centos8.2.2004', name: 'centos82ofed56', arch: 'aarch64', tag: '5.6-0.4.4.0'}
+  - {file: '.ci/Dockerfile.centos7.9.2009', name: 'centos79ofed56', arch: 'x86_64', tag: '5.6-2.0.9.0'}
+  - {file: '.ci/Dockerfile.centos7.9.2009', name: 'centos79ofed56', arch: 'aarch64', tag: '5.6-2.0.9.0'}
+  - {file: '.ci/Dockerfile.centos8.2.2004', name: 'centos82ofed56', arch: 'x86_64', tag: '5.6-2.0.9.0'}
+  - {file: '.ci/Dockerfile.centos8.2.2004', name: 'centos82ofed56', arch: 'aarch64', tag: '5.6-2.0.9.0'}
 
 steps:
+  - name: Set correct rights
+    run: |
+      uid=$(id -u)
+      gid=$(id -g)
+      sudo chown -R $uid:$gid $WORKSPACE
 
   - name: Build distro package
     run: |

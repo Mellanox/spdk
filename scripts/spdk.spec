@@ -1,6 +1,4 @@
-# Copyright © 2021 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
-
-%define scm_version 22.01
+%define scm_version 22.05
 %define unmangled_version %{scm_version}
 %define scm_rev %{_rev}
 Epoch: 0
@@ -202,10 +200,8 @@ install -p -m 644 contrib/default/vhost %{buildroot}%{_sysconfdir}/default/vhost
 install -p -m 644 contrib/vhost.conf.example %{buildroot}%{_sysconfdir}/spdk/
 
 # Install SPDK rpc services
-for mod in rpc spdkcli ; do
-    mkdir -p %{buildroot}/%{_libdir}/python%{python_ver}/site-packages/$mod/
-    install -p -m 644 scripts/$mod/* %{buildroot}/%{_libdir}/python%{python_ver}/site-packages/$mod/
-done
+mkdir -p %{buildroot}/%{_libdir}/python%{python_ver}/site-packages
+cp -a python/spdk %{buildroot}/%{_libdir}/python%{python_ver}/site-packages
 install -p -m 755 scripts/rpc.py %{install_bindir}/spdk_rpc.py
 install -p -m 755 scripts/rpc_http_proxy.py %{install_bindir}/spdk_rpc_http_proxy.py
 install -p -m 755 scripts/spdkcli.py %{install_bindir}/spdkcli
@@ -240,6 +236,9 @@ esac
 %changelog
 * %{_date} Andrii Holovchenko <andriih@nvidia.com>
 - build from %{_branch} (sha1 %{_sha1})
+
+* Mon Jun 6 2022 Andrii Holovchenko <andriih@nvidia.com>
+- Ported to v22.05 release
 
 * Wed Feb 2 2022 Andrii Holovchenko <andriih@nvidia.com>
 - Ported to v22.01 release
