@@ -9,15 +9,17 @@ long_description = 'Storage Performance Development Kit'
 for fname in ['rpc.py', 'rpc_http_proxy.py']:
     if not os.path.exists('spdk_{}'.format(fname)):
         shutil.copy('{}'.format(fname), 'spdk_{}'.format(fname))
+if not os.path.exists('spdk'):
+    shutil.copytree('../python/spdk', 'spdk')
 setup(
     name='spdk-rpc',
-    version='22.01',
+    version='22.05',
     author='SPDK Mailing List',
     author_email='spdk@lists.01.org',
     description='SPDK RPC modules',
     long_description=long_description,
     url='https://spdk.io/',
-    packages=['rpc', 'spdkcli'],
+    packages=['spdk.rpc', 'spdk.spdkcli'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
