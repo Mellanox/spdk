@@ -53,3 +53,9 @@ steps:
       - "{name: 'centos82ofed56', variant:1}"
     run: |
       .ci/upload.sh
+
+pipeline_stop:
+  run: |
+    if [[ "$pipeline_status" == "SUCCESS" ]]; then
+      .ci/git_tag.sh
+    fi
