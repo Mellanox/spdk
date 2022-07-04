@@ -13,6 +13,8 @@ kubernetes:
   arch_table:
     aarch64:
       nodeSelector: 'feature.node.kubernetes.io/cpu-vendor=ARM'
+    x86_64:
+      nodeSelector: 'feature.node.kubernetes.io/cpu-vendor=AuthenticAMD'
 
 volumes:
   - {mountPath: /auto/mtrswgwork, hostPath: /auto/mtrswgwork}
