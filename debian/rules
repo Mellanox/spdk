@@ -106,6 +106,7 @@ override_dh_auto_install:
 	install -m 644 contrib/vhost.conf.example debian/tmp$(SPDK_CONF_DIR)/
 	install -p -m 755 scripts/setup.sh debian/tmp$(install_datadir)/scripts
 	install -m 644 scripts/common.sh debian/tmp$(install_datadir)/scripts
+	install -p -m 755 scripts/spdk-gpt.py debian/tmp$(install_datadir)/scripts
 	install -m 644 include/spdk/pci_ids.h debian/tmp$(install_datadir)/include/spdk
 	install -p -m 644 scripts/bash-completion/spdk debian/tmp/etc/bash_completion.d
 	sed -i -e 's/ rpc.py/ spdk_rpc.py/' debian/tmp/etc/bash_completion.d/spdk
