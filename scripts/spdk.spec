@@ -187,6 +187,7 @@ mkdir -p %{install_datadir}/include/spdk
 install -p -m 644 include/spdk/pci_ids.h %{install_datadir}/include/spdk
 install -p -m 644 scripts/common.sh %{install_datadir}/scripts
 install -p -m 755 scripts/setup.sh %{install_datadir}/scripts
+install -p -m 755 scripts/spdk-gpt.py %{install_datadir}/scripts
 mkdir -p ${RPM_BUILD_ROOT}%{pkg_prefix}
 cp -pr dpdk/build/lib ${RPM_BUILD_ROOT}%{pkg_prefix}
 cp -pr dpdk/build/include ${RPM_BUILD_ROOT}%{pkg_prefix}
