@@ -10,6 +10,7 @@ credentials:
 failFast: false
 kubernetes:
   cloud: swx-k8s-spray
+  namespace: snap-ci
   arch_table:
     aarch64:
       nodeSelector: 'feature.node.kubernetes.io/cpu-vendor=ARM'
