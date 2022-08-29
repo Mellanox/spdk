@@ -13,6 +13,7 @@ RUN apt-get update && \
       git \
       vim \
       wget \
+      curl \
       python3 \
       python3-distutils \
       dpkg-dev \
