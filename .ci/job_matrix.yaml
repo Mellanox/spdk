@@ -6,6 +6,7 @@ registry_auth: swx-storage
 
 credentials:
   - {credentialsId: '311997c9-cc1c-4d5d-8ba2-6eb43ba0a06d', usernameVariable: 'REPO_USER', passwordVariable: 'REPO_PASS'}
+  - {credentialsId: '3a89fb85-f7aa-40f2-bd7a-32be80588d95', usernameVariable: 'REPO_USER', passwordVariable: 'REPO_PASS'}
 
 failFast: false
 kubernetes:
@@ -45,7 +46,7 @@ steps:
         .ci/build_deb.sh
       fi
 
-  - name: Upload distro package
+  - name: Upload distro package NEXUS
     enable: true
     credentialsId: '311997c9-cc1c-4d5d-8ba2-6eb43ba0a06d'
     resource: actions/nexus.py
@@ -55,7 +56,19 @@ steps:
       - "{name: 'centos79ofed57', variant:1}"
       - "{name: 'centos82ofed57', variant:1}"
     run: |
-      .ci/upload.sh
+      .ci/upload.sh nexus
+
+  - name: Upload distro package URM
+    enable: true
+    credentialsId: '3a89fb85-f7aa-40f2-bd7a-32be80588d95'
+    resource: actions/nexus.py
+    containerSelector:
+      - "{name: 'ubuntu2004ofed57', variant:1}"
+      - "{name: 'ubuntu2204ofed57', variant:1}"
+      - "{name: 'centos79ofed57', variant:1}"
+      - "{name: 'centos82ofed57', variant:1}"
+    run: |
+      .ci/upload.sh urm
 
 pipeline_stop:
   run: |
