@@ -17,7 +17,11 @@ upload_deb_urm() {
         MD5=$(md5sum $deb_pkg | awk '{print $1}')
         SHA1=$(shasum -a 1 $deb_pkg | awk '{ print $1 }')
         SHA256=$(shasum -a 256 $deb_pkg | awk '{ print $1 }')
-        upload_url_urm="${REPO_URL}/${name}/${codename}/${STAGE}/${VER}/${deb_pkg};deb.distribution=${codename};deb.component=${repo_name};deb.architecture=${arch}"
+        if [[ $deb_pkg =~ "_all.deb" ]]; then
+            upload_url_urm="${REPO_URL}/${name}/${codename}/${STAGE}/${VER}/${deb_pkg};deb.distribution=${codename};deb.component=${repo_name};deb.architecture=all"
+        else
+            upload_url_urm="${REPO_URL}/${name}/${codename}/${STAGE}/${VER}/${deb_pkg};deb.distribution=${codename};deb.component=${repo_name};deb.architecture=${arch}"
+        fi
         echo "INFO: Uploading package ${deb_pkg} to ${upload_url_urm}"
         curl --fail -u "${REPO_USER}:${REPO_PASS}" -X PUT \
             -H "X-Checksum-MD5:${MD5}" \
