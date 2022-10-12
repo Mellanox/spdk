@@ -31,14 +31,9 @@ if [ $Hugetlb -gt 0 ]; then
 	required_size=$((${min_hugemem%?} * 1024 * 1024))
     fi
 
-    Hugepagesize=$(grep Hugepagesize /proc/meminfo | awk '{ print $2 }')
-    HugePages_Free=$(grep HugePages_Free /proc/meminfo | awk '{ print $2 }')
-
-    huge_free_size=$((Hugepagesize * HugePages_Free))
-
-    if [ $huge_free_size -ge $required_size ]; then
+    if [ $Hugetlb -ge $required_size ]; then
         exit 0
     fi
 fi
 
-exec /usr/bin/hugeadm --pool-pages-min DEFAULT:+${min_hugemem}
+exec /usr/bin/hugeadm --pool-pages-min DEFAULT:${min_hugemem}
