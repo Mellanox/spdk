@@ -3,7 +3,7 @@ ARG _UID=6213
 ARG _GID=11429
 ARG _LOGIN=swx-jenkins
 ARG _HOME=/var/home/$_LOGIN
-ARG MOFED_VER=5.7-0.1.9.0
+ARG MOFED_VER=5.8-0.4.6.0
 ENV LANG=en_US.utf-8
 ENV PATH=/opt/rh/devtoolset-8/root/usr/bin:$PATH
 USER root
