@@ -6,6 +6,7 @@ After=network.target network-online.target openibd.service
 [Service]
 EnvironmentFile=/etc/default/spdk_tgt
 ExecStartPre=/usr/share/spdk/scripts/setup.sh cleanup
+ExecStartPre=/usr/sbin/setup_hugepages.sh
 ExecStartPre=/usr/share/spdk/scripts/setup.sh config
 ExecStart=/usr/sbin/spdk_tgt -m $CPU_MASK $EXTRA_ARGS
 ExecStopPost=/usr/share/spdk/scripts/setup.sh reset
