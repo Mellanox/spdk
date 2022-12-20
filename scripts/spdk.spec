@@ -4,19 +4,18 @@
 Epoch: 0
 
 %define pkg_prefix /opt/mellanox/spdk
-
 %define _build_id_links alldebug
 
-Name:		spdk
-Version:	%{scm_version}
-Release:	%{scm_rev}%{?dist}
-Summary:	Storage Performance Development Kit
-Packager: 	andriih@nvidia.com
+Name:           spdk
+Version:        %{scm_version}
+Release:        %{scm_rev}%{?dist}
+Summary:        Storage Performance Development Kit
+Packager:       andriih@nvidia.com
 
-Group: 		System Environment/Daemons
-License: 	BSD and LGPLv2 and GPLv2
-URL: 		http://www.spdk.io
-Source0:	spdk-%{version}.tar.gz
+Group:          System Environment/Daemons
+License:        BSD and LGPLv2 and GPLv2
+URL:            http://www.spdk.io
+Source0:        spdk-%{version}.tar.gz
 
 %define package_version %{epoch}:%{version}-%{release}
 %define install_datadir %{buildroot}/%{_datadir}/%{name}
@@ -26,7 +25,7 @@ Source0:	spdk-%{version}.tar.gz
 
 # It is somewhat hard to get SPDK RPC working with python 2.7
 # Distros that don't support python3 will use python2
-%if 0%{rhel} >= 7
+%if 0%{?rhel} >= 7
 # So, let's switch to Python36 from IUS repo - https://github.com/iusrepo/python36
 %define use_python python3.6
 %define python_ver 3.6
@@ -36,14 +35,6 @@ Source0:	spdk-%{version}.tar.gz
 %define python_ver 3.7
 %ifarch x86_64
 BuildRequires:  clang-analyzer
-%endif
-# Additional dependencies for building docs
-# not present @ CentOS-7.4 w/o EPEL:
-# - mscgen 
-# - astyle-devel
-%ifarch x86_64
-# Additional dependencies for building pmem based backends
-# BuildRequires:	libpmemblk-devel
 %endif
 %endif
 
@@ -59,11 +50,7 @@ ExclusiveArch: x86_64 aarch64
 %endif
 
 # DPDK dependencies
-#BuildRequires: kernel-devel
 BuildRequires: kernel-headers
-# not present @ CentOS-7.4 w/o EPEL:
-# - BuildRequires: libpcap-devel, python-sphinx, inkscape
-# - BuildRequires: texlive-collection-latexextra
 BuildRequires: doxygen
 BuildRequires: graphviz
 BuildRequires: numactl-devel
@@ -74,10 +61,15 @@ BuildRequires:	make gcc gcc-c++
 BuildRequires:	CUnit-devel, libaio-devel, openssl-devel, libuuid-devel 
 BuildRequires:	libiscsi-devel
 
-%if 0%{rhel} >= 8
+%if 0%{?rhel} >= 8
+# Starting from rhel 8 package name git-core
 BuildRequires:  git-core
 %else
 BuildRequires:  git
+%endif
+
+# lcov is only available in rhel 7
+%if 0%{?rhel} == 7
 BuildRequires:  lcov
 %endif
 
@@ -92,7 +84,6 @@ Requires: python36
 Requires:	libibverbs
 Requires:	librdmacm 
 Requires:	sg3_utils
-# Requires:	avahi
 Requires:   libhugetlbfs-utils
 %if "%{use_python}" == "python3.6"
 Requires: %{name}%{?_isa} = %{package_version} python36
@@ -102,11 +93,10 @@ Requires: %{name}%{?_isa} = %{package_version} python3 python3-pexpect
 BuildRequires:	python3-pep8 python3-configshell
 %endif
 
-%if 0%{rhel} > 7
+%if 0%{?rhel} > 7 || %{defined openEuler}
 Requires: python3-configshell
 BuildRequires: python3-configshell
 %endif
-
 
 %description
 The Storage Performance Development Kit (SPDK) provides a set of tools and
@@ -117,11 +107,6 @@ applications (sha1 %{_sha1}).
 
 %prep
 %setup -q
-#tar zxf %{SOURCE1}
-#tar zxf %{SOURCE2}
-#tar zxf %{SOURCE3}
-#tar zxf %{SOURCE4}
-# test -e ./dpdk/config/common_linuxapp
 
 %build
 sed -i -e 's!/usr/bin/python$!/usr/bin/python'%{python_ver}'!' dpdk/config/arm/armv8_machine.py
@@ -155,8 +140,6 @@ export LDFLAGS
 
 # SPDK make
 make %{?_smp_mflags}
-
-# make docs?
 
 %install
 mkdir -p %{install_bindir}

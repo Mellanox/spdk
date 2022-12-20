@@ -30,6 +30,7 @@ runs_on_dockers:
   - {file: '.ci/Dockerfile.centos7.9.2009', name: 'centos79ofed59', arch: 'aarch64', tag: '5.9-0.1.9.0'}
   - {file: '.ci/Dockerfile.centos8.2.2004', name: 'centos82ofed59', arch: 'x86_64', tag: '5.9-0.1.9.0'}
   - {file: '.ci/Dockerfile.centos8.2.2004', name: 'centos82ofed59', arch: 'aarch64', tag: '5.9-0.1.9.0'}
+  - {file: '.ci/Dockerfile.openeuler.20.03', name: 'openeuler2003ofed59', arch: 'aarch64', tag: '5.9-0.1.9.0'}
 
 steps:
   - name: Set correct rights
@@ -40,10 +41,13 @@ steps:
 
   - name: Build distro package
     run: |
-      if [ -e /etc/redhat-release ]; then
+      if [[ -e /etc/redhat-release || -e /etc/openEuler-release ]]; then
         .ci/build_rpm.sh
       elif [ -e /etc/debian_version ]; then
         .ci/build_deb.sh
+      else
+        echo "[ERROR]: Unsupported OS!"
+        exit 1
       fi
 
   - name: Upload distro package NEXUS
@@ -55,6 +59,7 @@ steps:
       - "{name: 'ubuntu2204ofed59', variant:1}"
       - "{name: 'centos79ofed59', variant:1}"
       - "{name: 'centos82ofed59', variant:1}"
+      - "{name: 'openeuler2003ofed59', variant:1}"
     run: |
       .ci/upload.sh nexus
 
@@ -67,6 +72,7 @@ steps:
       - "{name: 'ubuntu2204ofed59', variant:1}"
       - "{name: 'centos79ofed59', variant:1}"
       - "{name: 'centos82ofed59', variant:1}"
+      - "{name: 'openeuler2003ofed59', variant:1}"
     run: |
       .ci/upload.sh urm
 

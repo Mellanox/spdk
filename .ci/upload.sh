@@ -1,5 +1,26 @@
 #!/bin/bash -eEx
 
+get_releasever() {
+
+  # rhel RPM macro should be available in centos >= 7
+  local releasever=$(rpm --eval "%{?rhel}")
+
+  if [ -z $releasever ]; then
+      # OpenEulerOS
+      if [ -f /etc/os-release ]; then
+          source /etc/os-release
+          if [ $ID == "openEuler" ]; then
+            # 20.03
+              if [ $VERSION_ID == "20.03" ]; then
+                  releasever="openEuler-20.03"
+              fi
+          fi
+      fi
+  fi
+
+  echo $releasever
+}
+
 upload_deb_urm() {
     # Import gpg key
     gpg --import ${GPG_KEY_PATH}
@@ -61,9 +82,13 @@ upload_deb_nexus() {
 
 upload_rpm_nexus() {
 
-    shopt -s nullglob
+    releasever=$(get_releasever)
+    if [ -z $releasever ]; then
+        echo "[ERROR]: Unsupported distro. Skip uploading.."
+        exit 1
+    fi
 
-    releasever=$(rpm --eval "%{rhel}")
+    shopt -s nullglob
 
     rpms_location=(${HOME}/rpmbuild/RPMS/${arch}/${name}-*${VER}-${REV}*.rpm)
     for rpm_location in ${rpms_location[@]}; do
@@ -98,7 +123,12 @@ upload_rpm_nexus() {
 
 upload_rpm_urm() {
 
-    releasever=$(rpm --eval "%{rhel}")
+    releasever=$(get_releasever)
+    if [ -z $releasever ]; then
+        echo "[ERROR]: Unsupported distro. Skip uploading.."
+        exit 1 
+    fi
+
     shopt -s nullglob
 
     rpms_location=(${HOME}/rpmbuild/RPMS/${arch}/${name}-*${VER}-${REV}*.rpm)
@@ -190,7 +220,7 @@ if [[ -f /etc/debian_version ]]; then
         exit 1
     fi
 
-elif [[ -f /etc/redhat-release ]]; then
+elif [[ -f /etc/redhat-release || -f /etc/openEuler-release ]]; then
 
     arch=$(uname -m)
     
