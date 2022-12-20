@@ -3,7 +3,7 @@
 # The script to (re)build SPDK DEB (Ubuntu) packags
 # from the checked out source tree (spdk subdir)
 
-branch=$(git name-rev --name-only HEAD | awk -F/ '{print $NF}')
+branch=$(git name-rev --name-only --refs *nvda* HEAD | awk -F/ '{print $NF}')
 sha1=$(git rev-parse HEAD |cut -c -8)
 BASEDIR=$(dirname "$0")
 ODIR=$(readlink -f $BASEDIR/../)

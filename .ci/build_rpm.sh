@@ -25,7 +25,7 @@ mkdir -p $HOME/rpmbuild/{SOURCES,RPMS,SRPMS,SPECS,BUILD,BUILDROOT}
 OUTDIR=$HOME/rpmbuild/SOURCES
 set -e
 
-branch=$(git name-rev --name-only HEAD | awk -F/ '{print $NF}')
+branch=$(git name-rev --name-only --refs *nvda* HEAD | awk -F/ '{print $NF}')
 sha1=$(git rev-parse HEAD |cut -c -8)
 _date=$(date +'%a %b %d %Y')
 
