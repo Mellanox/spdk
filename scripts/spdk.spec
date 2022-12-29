@@ -76,10 +76,6 @@ BuildRequires:  lcov
 # Additional dependencies for NVMe over Fabrics
 BuildRequires:	libibverbs-devel, librdmacm-devel
 
-# Build python36 from IUS repo and install on CentOS/7
-# -- https://github.com/iusrepo/python36/blob/master/python36.spec
-Requires: python36
-
 # SPDK runtime dependencies
 Requires:	libibverbs
 Requires:	librdmacm 
