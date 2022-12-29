@@ -172,7 +172,7 @@ user=${USER:-root}
 : ${REPO_USER:?REPO_USER is not found!}
 : ${REPO_PASS:?REPO_PASS is not found!}
 
-branch=$(git name-rev --name-only HEAD | awk -F/ '{print $NF}')
+branch=$(git name-rev --name-only --refs *nvda* HEAD | awk -F/ '{print $NF}')
 
 if [ -z "$VER" ] ; then
     export VER=$(echo $branch | grep -o '[0-9]\+\(\.[0-9]\+\)*')
