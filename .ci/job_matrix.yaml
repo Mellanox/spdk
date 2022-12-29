@@ -78,6 +78,6 @@ steps:
 
 pipeline_stop:
   run: |
-    if [[ "$pipeline_status" == "SUCCESS" ]]; then
+    if [[ ! -n "$ghprbPullId" && "$pipeline_status" == "SUCCESS" ]]; then
       .ci/git_tag.sh
     fi
