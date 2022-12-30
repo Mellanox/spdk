@@ -1,4 +1,4 @@
-FROM openeuler/openeuler:20.03
+FROM openeuler/openeuler:20.03-lts-sp3
 ARG _UID=6213
 ARG _GID=11429
 ARG _LOGIN=swx-jenkins
@@ -6,6 +6,16 @@ ARG _HOME=/var/home/$_LOGIN
 ARG MOFED_VER=5.9-0.1.9.0
 ENV LANG=en_US.utf-8
 USER root
+
+# Default openeuleros repos are unstable and very slow, so replace
+# them with internal webrepo
+RUN set -eux; \
+    sed -i 's/enabled=1/enabled=0/' /etc/yum.repos.d/openEuler.repo && \
+    echo -e "[1_base]\n\
+name=1_base\n\
+baseurl=http://webrepo.mtl.labs.mlnx/openEuler/20.03.3/\$basearch/\n\
+enabled=1\n\
+gpgcheck=0" > /etc/yum.repos.d/1_base.repo
 
 RUN yum install -y ca-certificates
 
