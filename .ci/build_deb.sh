@@ -1,4 +1,4 @@
-#!/bin/bash -ex
+#!/bin/bash -xe
 # :vim: set expandtab tabstop=4 shiftwidth=4 softtabstop=4
 # The script to (re)build SPDK DEB (Ubuntu) packags
 # from the checked out source tree (spdk subdir)

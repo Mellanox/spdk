@@ -85,8 +85,6 @@ Requires:   libhugetlbfs-utils
 Requires: %{name}%{?_isa} = %{package_version} python36
 %else
 Requires: %{name}%{?_isa} = %{package_version} python3 python3-pexpect
-# Additional dependencies for SPDK CLI 
-BuildRequires:	python3-pep8 python3-configshell
 %endif
 
 %if 0%{?rhel} > 7 || %{defined openEuler}
