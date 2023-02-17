@@ -79,6 +79,7 @@ struct nvme_tcp_qpair {
 
 	uint16_t				num_entries;
 	uint16_t				async_complete;
+	bool                    		tcp_offload;
 
 	struct {
 		uint16_t host_hdgst_enable: 1;
@@ -503,8 +504,11 @@ pdu_data_crc32_compute(struct nvme_tcp_pdu *pdu)
 	uint32_t crc32c = 0;
 	struct nvme_tcp_poll_group *tgroup = nvme_tcp_poll_group(tqpair->qpair.poll_group);
 
-	/* Data Digest */
-	if (pdu->data_len > 0 && g_nvme_tcp_ddgst[pdu->hdr.common.pdu_type] &&
+	/**
+	 * Data Digest. Avoid calculating digest here and in other places if the tcp offload
+	 * is enabled and digest is calculated by XLIO.
+	 */
+	if (!tqpair->tcp_offload && pdu->data_len > 0 && g_nvme_tcp_ddgst[pdu->hdr.common.pdu_type] &&
 	    tqpair->flags.host_ddgst_enable) {
 		/* Only support this limited case for the first step */
 		/* @todo: add support for crc32 accelerator in zcopy flow */
@@ -744,7 +748,7 @@ nvme_tcp_qpair_prepare_pdu(struct nvme_tcp_qpair *tqpair,
 	}
 
 	/* Data Digest */
-	if (pdu->data_len > 0 && g_nvme_tcp_ddgst[pdu->hdr.common.pdu_type] &&
+	if (!tqpair->tcp_offload && pdu->data_len > 0 && g_nvme_tcp_ddgst[pdu->hdr.common.pdu_type] &&
 	    tqpair->flags.host_ddgst_enable) {
 		crc32c = nvme_tcp_pdu_calc_data_digest_with_iov(pdu, pdu->data_iov, pdu->data_iovcnt);
 		MAKE_DIGEST_WORD(pdu->data_digest, crc32c);
@@ -759,6 +763,7 @@ nvme_tcp_qpair_prepare_pdu(struct nvme_tcp_qpair *tqpair,
 	pdu->qpair = tqpair;
 	pdu->sock_req.cb_fn = _pdu_write_done;
 	pdu->sock_req.cb_arg = pdu;
+	pdu->sock_req.pdu_len = pdu->hdr.common.plen;
 	TAILQ_INSERT_TAIL(&tqpair->send_queue, pdu, tailq);
 }
 
@@ -894,7 +899,7 @@ nvme_tcp_qpair_capsule_cmd_send(struct nvme_tcp_qpair *tqpair,
 	capsule_cmd->common.pdo = pdo;
 	plen += tcp_req->req->payload_size;
 	if (tqpair->flags.host_ddgst_enable) {
-		if (tcp_req->req->payload.opts && tcp_req->req->payload.opts->memory_domain) {
+		if (!tqpair->tcp_offload && tcp_req->req->payload.opts && tcp_req->req->payload.opts->memory_domain) {
 			SPDK_ERRLOG("data digest is not supported with memory key payload\n");
 			nvme_tcp_req_put(tqpair, tcp_req);
 			return -EINVAL;
@@ -1720,7 +1725,7 @@ nvme_tcp_send_h2c_data(struct nvme_tcp_req *tcp_req)
 	h2c_data->common.pdo = pdo;
 	plen += h2c_data->datal;
 	if (tqpair->flags.host_ddgst_enable) {
-		if (tcp_req->req->payload.opts && tcp_req->req->payload.opts->memory_domain) {
+		if (!tqpair->tcp_offload && tcp_req->req->payload.opts && tcp_req->req->payload.opts->memory_domain) {
 			SPDK_ERRLOG("data digest is not supported with memory key payload\n");
 			nvme_tcp_req_put(tqpair, tcp_req);
 			/* @todo: how to notify failure? */
@@ -2368,6 +2373,7 @@ nvme_tcp_qpair_connect_sock(struct spdk_nvme_ctrlr *ctrlr, struct spdk_nvme_qpai
 static int
 nvme_tcp_ctrlr_connect_qpair_poll(struct spdk_nvme_ctrlr *ctrlr, struct spdk_nvme_qpair *qpair)
 {
+	struct spdk_sock_caps sock_caps = {};
 	struct nvme_tcp_qpair *tqpair;
 	int rc;
 
@@ -2407,6 +2413,50 @@ nvme_tcp_ctrlr_connect_qpair_poll(struct spdk_nvme_ctrlr *ctrlr, struct spdk_nvm
 		if (rc == 0) {
 			tqpair->state = NVME_TCP_QPAIR_STATE_RUNNING;
 			nvme_qpair_set_state(qpair, NVME_QPAIR_CONNECTED);
+
+			SPDK_NOTICELOG("Checking for TCP offload caps on qpair %p qid %u.\n",
+				       qpair, qpair->id);
+
+			if (nvme_qpair_is_admin_queue(qpair)) {
+				SPDK_NOTICELOG("TCP offload disabled for admin qpair %p.\n",
+						qpair);
+				break;
+			}
+
+			rc = spdk_sock_get_caps(tqpair->sock, &sock_caps);
+			if (rc != 0) {
+				SPDK_ERRLOG("Failed to get socket capabilities, error %d. "
+					    "Disabling TCP offload for qpair %p\n", rc, qpair);
+				break;
+			}
+			if (!sock_caps.tcp_offload) {
+				SPDK_NOTICELOG("TCP offload for qpair %p is disabled in socket "
+						"capabilities.\n", qpair);
+				break;
+			}
+
+			/**
+			 * Try to enable tcp offload on the underlying socket.
+			 *
+			 * In case spdk_sock_enable_tcp_offload() failed, underlaying
+			 * socket tcp_offload flag will be turned off by the xlio layer.
+			 * TCP_ULP layer will not be active in xlio and no offload will
+			 * be enabled. It seems we don't have to do anything more here.
+			 */
+			rc = spdk_sock_enable_tcp_offload(tqpair->sock,
+							  (bool)tqpair->flags.host_hdgst_enable,
+							  (bool)tqpair->flags.host_ddgst_enable);
+			if (rc != 0) {
+				SPDK_ERRLOG("Failed to enable tcp offload on qpair %p, error %d\n",
+					    qpair, rc);
+				if (rc == ENOTSUP)
+					rc = 0;
+				tqpair->tcp_offload = false;
+			} else {
+				tqpair->tcp_offload = true;
+				SPDK_NOTICELOG("Successfully enabled TCP offload for qpair %p qid %d\n",
+						qpair, (int)qpair->id);
+			}
 		} else if (rc != -EAGAIN) {
 			SPDK_ERRLOG("Failed to poll NVMe-oF Fabric CONNECT command\n");
 		}
@@ -2464,7 +2514,15 @@ nvme_tcp_ctrlr_connect_qpair(struct spdk_nvme_ctrlr *ctrlr, struct spdk_nvme_qpa
 
 		tqpair->pd = sock_caps.ibv_pd;
 		if (tqpair->pd) {
-			tqpair->memory_domain = spdk_rdma_get_tcp_memory_domain(tqpair->pd);
+			char *tcp_mem_domain = getenv("SPDK_NVDA_TCP_USE_TCP_MEM_DOMAIN");
+			if (tcp_mem_domain) {
+				SPDK_NOTICELOG("Using TCP memory domain\n");
+				tqpair->memory_domain = spdk_rdma_get_tcp_memory_domain(tqpair->pd);
+			} else {
+				SPDK_NOTICELOG("Using RDMA memory domain\n");
+				tqpair->memory_domain = spdk_rdma_get_memory_domain(tqpair->pd);
+			}
+
 			if (!tqpair->memory_domain) {
 				SPDK_ERRLOG("Failed to get memory domain\n");
 				return -ENOTSUP;
@@ -2616,6 +2674,10 @@ nvme_tcp_ctrlr_construct(const struct spdk_nvme_transport_id *trid,
 	if (rc == 0 && sock_caps.zcopy_recv) {
 		tctrlr->ctrlr.flags |= SPDK_NVME_CTRLR_ZCOPY_SUPPORTED;
 		SPDK_NOTICELOG("Controller supports zero copy API\n");
+	}
+	if (rc == 0 && sock_caps.tcp_offload) {
+		tctrlr->ctrlr.flags |= SPDK_NVME_CTRLR_TCP_OFFLOAD_SUPPORTED;
+		SPDK_NOTICELOG("Controller supports TCP offload API\n");
 	}
 
 	if (nvme_ctrlr_add_process(&tctrlr->ctrlr, 0) != 0) {
@@ -2909,8 +2971,10 @@ nvme_tcp_ctrlr_get_memory_domains(const struct spdk_nvme_ctrlr *ctrlr,
 				  struct spdk_memory_domain **domains, int array_size)
 {
 	struct nvme_tcp_qpair *tqpair = nvme_tcp_qpair(ctrlr->adminq);
+	char *disable_mem_domain = getenv("SPDK_NVDA_TCP_DISABLE_MEM_DOMAIN");
 
-	if (!tqpair->memory_domain) {
+	if (!tqpair->memory_domain || disable_mem_domain) {
+		SPDK_NOTICELOG("Memory domain support disabled\n");
 		return 0;
 	} else if (domains && array_size > 0) {
 		domains[0] = tqpair->memory_domain->domain;

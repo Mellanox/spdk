@@ -3201,7 +3201,8 @@ Format: 'user:u1 secret:s1 muser:mu1 msecret:ms1,user:u2 secret:s2 muser:mu2 mse
                                        enable_ktls=args.enable_ktls,
                                        psk_key=args.psk_key,
                                        psk_identity=args.psk_identity,
-                                       enable_zerocopy_recv=args.enable_zerocopy_recv)
+                                       enable_zerocopy_recv=args.enable_zerocopy_recv,
+                                       enable_tcp_offload=args.enable_tcp_offload)
 
     p = subparsers.add_parser('sock_impl_set_options', help="""Set options of socket layer implementation""")
     p.add_argument('-i', '--impl', help='Socket implementation name, e.g. posix', required=True)
@@ -3236,10 +3237,14 @@ Format: 'user:u1 secret:s1 muser:mu1 msecret:ms1,user:u2 secret:s2 muser:mu2 mse
                    action='store_true', dest='enable_zerocopy_recv')
     p.add_argument('--disable-zerocopy-recv', help='Disable zerocopy on receive',
                    action='store_false', dest='enable_zerocopy_recv')
+    p.add_argument('--enable-tcp-offload', help='Enable tcp offload on send/receive',
+                   action='store_true', dest='enable_tcp_offload')
+    p.add_argument('--disable-tcp-offload', help='Disable tcp offload on send/receive',
+                   action='store_false', dest='enable_tcp_offload')
     p.set_defaults(func=sock_impl_set_options, enable_recv_pipe=None, enable_quickack=None,
                    enable_placement_id=None, enable_zerocopy_send_server=None, enable_zerocopy_send_client=None,
                    zerocopy_threshold=None, tls_version=None, enable_ktls=None, psk_key=None, psk_identity=None,
-                   enable_zerocopy_recv=None)
+                   enable_zerocopy_recv=None, enable_tcp_offload=None)
 
     def sock_set_default_impl(args):
         print_json(rpc.sock.sock_set_default_impl(args.client,

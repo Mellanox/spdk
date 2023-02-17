@@ -2248,6 +2248,8 @@ nvmf_tcp_sock_process(struct spdk_nvmf_tcp_qpair *tqpair)
 				return NVME_TCP_PDU_FATAL;
 			}
 			pdu->rw_offset += rc;
+			SPDK_DEBUGLOG(nvmf_tcp, "Received payload chunk %d, total payload received %d\n",
+				      (int)rc, (int)pdu->rw_offset);
 
 			if (pdu->rw_offset < data_len) {
 				return NVME_TCP_PDU_IN_PROGRESS;

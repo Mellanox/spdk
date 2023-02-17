@@ -5256,7 +5256,7 @@ spdk_nvme_ctrlr_alloc_qid(struct spdk_nvme_ctrlr *ctrlr)
 	nvme_robust_mutex_lock(&ctrlr->ctrlr_lock);
 	qid = spdk_bit_array_find_first_set(ctrlr->free_io_qids, 1);
 	if (qid > ctrlr->opts.num_io_queues) {
-		NVME_CTRLR_ERRLOG(ctrlr, "No free I/O queue IDs\n");
+		NVME_CTRLR_ERRLOG(ctrlr, "No free I/O queue IDs. Queue ID: %u, num IO queues allowed: %u\n", qid, ctrlr->opts.num_io_queues);
 		nvme_robust_mutex_unlock(&ctrlr->ctrlr_lock);
 		return -1;
 	}

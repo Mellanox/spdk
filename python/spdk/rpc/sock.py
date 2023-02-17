@@ -30,7 +30,8 @@ def sock_impl_set_options(client,
                           enable_ktls=None,
                           psk_key=None,
                           psk_identity=None,
-                          enable_zerocopy_recv=None):
+                          enable_zerocopy_recv=None,
+                          enable_tcp_offload=None):
     """Set parameters for the socket layer implementation.
 
     Args:
@@ -48,6 +49,7 @@ def sock_impl_set_options(client,
         psk_key: set psk_key (optional)
         psk_identity: set psk_identity (optional)
         enable_zerocopy_recv: enable or disable zerocopy on receive (optional)
+        enable_tcp_offload: enable or disable send/receive tcp offload (optional)
     """
     params = {}
 
@@ -78,6 +80,8 @@ def sock_impl_set_options(client,
         params['psk_identity'] = psk_identity
     if enable_zerocopy_recv is not None:
         params['enable_zerocopy_recv'] = enable_zerocopy_recv
+    if enable_tcp_offload is not None:
+        params['enable_tcp_offload'] = enable_tcp_offload
 
     return client.call('sock_impl_set_options', params)
 

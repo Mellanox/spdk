@@ -24,7 +24,7 @@ extern "C" {
 #define MIN_SOCK_PIPE_SIZE 1024
 #define MIN_SO_RCVBUF_SIZE (2 * 1024 * 1024)
 #define MIN_SO_SNDBUF_SIZE (2 * 1024 * 1024)
-#define IOV_BATCH_SIZE 64
+#define IOV_BATCH_SIZE 1024
 
 struct spdk_sock {
 	struct spdk_net_impl		*net_impl;
@@ -107,6 +107,8 @@ struct spdk_net_impl {
 
 	ssize_t (*recv_zcopy)(struct spdk_sock *sock, size_t len, struct spdk_sock_buf **sock_buf);
 	int (*free_bufs)(struct spdk_sock *sock, struct spdk_sock_buf *sock_buf);
+	int (*enable_tcp_offload)(struct spdk_sock *sock, bool header_digest,
+				  bool data_digest);
 };
 
 void spdk_net_impl_register(struct spdk_net_impl *impl, int priority);

@@ -64,6 +64,7 @@ struct spdk_sock_request {
 
 	bool				has_memory_domain_data;
 	uint32_t			*mkeys;
+	uint32_t			pdu_len;
 	int				iovcnt;
 	/* struct iovec			iov[]; */
 };
@@ -161,6 +162,10 @@ struct spdk_sock_impl_opts {
 	 * Enable or disable use of zero copy flow on receive. Used by vma socket module.
 	 */
 	bool enable_zerocopy_recv;
+	/**
+	 * Enable tcp offload feature based on xlio.
+	 */
+	bool enable_tcp_offload;
 };
 
 /**
@@ -170,6 +175,7 @@ struct spdk_sock_caps {
 	bool zcopy_send;
 	void *ibv_pd;
 	bool zcopy_recv;
+	bool tcp_offload;
 };
 
 /**
@@ -343,6 +349,19 @@ int spdk_sock_close(struct spdk_sock **sock);
  * \return number of bytes sent on success, -1 (with errno set) on failure
  */
 int spdk_sock_flush(struct spdk_sock *sock);
+
+/**
+ * Enable tcp offload feature on the passed socket.
+ *
+ * \param sock Socket to enable tcp offload.
+ * \param header_digest Weather to enable header digest offload.
+ * \param data_digest Weather to enable data digest offload.
+ *
+ * \return 0 on success, -1 on failure.
+ */
+int spdk_sock_enable_tcp_offload(struct spdk_sock *sock,
+				 bool header_digest,
+				 bool data_digest);
 
 /**
  * Receive a message from the given socket.

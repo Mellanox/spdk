@@ -100,6 +100,7 @@ struct spdk_xlio_sock {
 	bool			pending_recv;
 	bool			zcopy;
 	bool			recv_zcopy;
+	bool			tcp_offload;
 	int			so_priority;
 
 	char			xlio_packets_buf[XLIO_PACKETS_BUF_SIZE];
@@ -130,6 +131,7 @@ static struct spdk_sock_impl_opts g_spdk_xlio_sock_impl_opts = {
 	.enable_zerocopy_send_server = true,
 	.enable_zerocopy_send_client = true,
 	.enable_zerocopy_recv = true,
+	.enable_tcp_offload = true,
 	.zerocopy_threshold = 4096
 };
 
@@ -817,8 +819,14 @@ retry:
 		sock->so_priority = opts->priority;
 	}
 
-	SPDK_NOTICELOG("Created xlio sock: send zcopy %d, recv zcopy %d, pd %p, context %p, dev %s, handle %u\n",
-		       sock->zcopy, sock->recv_zcopy,
+	/**
+	 * Using impl opts tcp_offload flag because actual tcp_offload will be
+	 * initialized only after connect.
+	 */
+	SPDK_NOTICELOG("Created xlio sock (%p): send zcopy %d, recv zcopy %d, "
+		       "tcp_offload %d, pd %p, context %p, dev %s, handle %u\n",
+		       sock, sock->zcopy, sock->recv_zcopy,
+		       g_spdk_xlio_sock_impl_opts.enable_tcp_offload,
 		       sock->pd,
 		       sock->pd ? sock->pd->context : NULL,
 		       sock->pd ? sock->pd->context->device->name : "unknown",
@@ -1369,13 +1377,17 @@ xlio_sock_prep_reqs(struct spdk_sock *_sock, struct iovec *iovs, struct msghdr *
 
 					cmsg->cmsg_len = CMSG_LEN(sizeof(struct xlio_pd_key) * IOV_BATCH_SIZE);
 					cmsg->cmsg_level = SOL_SOCKET;
-					cmsg->cmsg_type = SCM_XLIO_PD;
+					cmsg->cmsg_type = vsock->tcp_offload ? SCM_XLIO_NVME_PD : SCM_XLIO_PD;
 
 					mkeys = (struct xlio_pd_key *)CMSG_DATA(cmsg);
 				}
 
 				mkeys[iovcnt].mkey = req->mkeys[i];
-				mkeys[iovcnt].flags = 0;
+				if (vsock->tcp_offload && i == 0) {
+					mkeys[iovcnt].message_length = req->pdu_len;
+				} else {
+					mkeys[iovcnt].message_length = 0;
+				}
 			}
 
 			iovs[iovcnt].iov_base = SPDK_SOCK_REQUEST_IOV(req, i)->iov_base + offset;
@@ -1400,7 +1412,8 @@ xlio_sock_prep_reqs(struct spdk_sock *_sock, struct iovec *iovs, struct msghdr *
 		req = TAILQ_NEXT(req, internal.link);
 	}
 
-	if (mkeys && has_data) {
+	/* Disable zcopy on/off opitimization in the case of TCP offload */
+	if (mkeys && (has_data || vsock->tcp_offload)) {
 		msg->msg_controllen = CMSG_SPACE(sizeof(struct xlio_pd_key) * iovcnt);
 		cmsg->cmsg_len = CMSG_LEN(sizeof(struct xlio_pd_key) * iovcnt);
 	} else {
@@ -1465,11 +1478,12 @@ _sock_flush_ext(struct spdk_sock *sock)
 
 	rc = g_xlio_ops.sendmsg(vsock->fd, &msg, flags);
 	if (rc <= 0) {
-		if (errno == EAGAIN || errno == EWOULDBLOCK || (errno == ENOBUFS && vsock->zcopy)) {
+		if (rc == 0 || errno == EAGAIN || errno == EWOULDBLOCK ||
+		    (errno == ENOBUFS && vsock->zcopy)) {
 			return 0;
 		}
 
-		SPDK_ERRLOG("sendmsg error %zd\n", rc);
+		SPDK_ERRLOG("sendmsg error %zd, errno %d\n", rc, errno);
 		return rc;
 	}
 
@@ -1871,6 +1885,7 @@ xlio_sock_impl_get_opts(struct spdk_sock_impl_opts *opts, size_t *len)
 	GET_FIELD(enable_zerocopy_send_server);
 	GET_FIELD(enable_zerocopy_send_client);
 	GET_FIELD(enable_zerocopy_recv);
+	GET_FIELD(enable_tcp_offload);
 	GET_FIELD(zerocopy_threshold);
 
 #undef GET_FIELD
@@ -1905,6 +1920,7 @@ xlio_sock_impl_set_opts(const struct spdk_sock_impl_opts *opts, size_t len)
 	SET_FIELD(enable_zerocopy_send_server);
 	SET_FIELD(enable_zerocopy_send_client);
 	SET_FIELD(enable_zerocopy_recv);
+	SET_FIELD(enable_tcp_offload);
 	SET_FIELD(zerocopy_threshold);
 
 #undef SET_FIELD
@@ -1921,6 +1937,12 @@ xlio_sock_get_caps(struct spdk_sock *sock, struct spdk_sock_caps *caps)
 	caps->zcopy_send = vsock->zcopy;
 	caps->ibv_pd = vsock->pd;
 	caps->zcopy_recv = vsock->recv_zcopy;
+
+	/**
+	 * Since the TCP offload is actually enabled after the handshake
+	 * on connect (too late), we get the info from the impl_opts.
+	 */
+	caps->tcp_offload = g_spdk_xlio_sock_impl_opts.enable_tcp_offload;
 
 	return 0;
 }
@@ -2032,6 +2054,52 @@ xlio_sock_group_impl_get_optimal(struct spdk_sock *_sock, struct spdk_sock_group
 	return NULL;
 }
 
+static int
+xlio_sock_enable_tcp_offload(struct spdk_sock *_sock, bool header_digest,
+			     bool data_digest)
+{
+	int rc;
+	struct spdk_xlio_sock *sock = __xlio_sock(_sock);
+
+	/* Checking if we have compatible xlio version. */
+#if defined(NVDA_NVME) && defined(NVME_TX) && defined(NVME_RX)
+	uint32_t configure = 0;
+
+	/**
+	 * Header digest offloads are not supported by HW. Let XLIO know that we calculate
+	 * it ourself and it needs to be taken into account when allocating space.
+	 */
+	if (header_digest)
+		configure |= (XLIO_NVME_HDGST_ENABLE/* | XLIO_NVME_HDGST_OFFLOAD*/);
+	if (data_digest)
+		configure |= (XLIO_NVME_DDGST_ENABLE | XLIO_NVME_DDGST_OFFLOAD);
+
+	rc = g_xlio_ops.setsockopt(sock->fd, IPPROTO_TCP, TCP_ULP, "nvme", 4);
+	if (rc != 0) {
+		SPDK_WARNLOG("Failed to enable NVMe socket API. Error = %d. "
+			     "Wrong libxlio.so is used? TCP offload is disabled.\n", rc);
+		sock->tcp_offload = false;
+		return rc;
+	}
+	rc = g_xlio_ops.setsockopt(sock->fd, NVDA_NVME, NVME_TX, &configure, sizeof(configure));
+	if (rc != 0) {
+		SPDK_WARNLOG("Failed to enable TX TCP offload for NVMe socket. Error = %d. "
+			     "Wrong libxlio.so is used? TCP offload is disabled.\n", rc);
+		sock->tcp_offload = false;
+		return rc;
+	}
+	sock->tcp_offload = true;
+
+	SPDK_DEBUGLOG(xlio, "Successfully enabled TCP offload on socket %p (hdgst=%d, ddgst=%d)\n",
+		      _sock, !!(configure & XLIO_NVME_HDGST_ENABLE), !!(configure & XLIO_NVME_DDGST_ENABLE));
+#else
+#warning The NVDA_NVME is not defined! Wrong libxlio version? Make sure you are using at least libxlio-3.0.0!
+	sock->tcp_offload = false;
+	rc = ENOTSUP;
+#endif
+	return rc;
+}
+
 static struct spdk_net_impl g_xlio_net_impl = {
 	.name		= "xlio",
 	.getaddr	= xlio_sock_getaddr,
@@ -2060,7 +2128,8 @@ static struct spdk_net_impl g_xlio_net_impl = {
 	.set_opts	= xlio_sock_impl_set_opts,
 	.get_caps	= xlio_sock_get_caps,
 	.recv_zcopy	= xlio_sock_recv_zcopy,
-	.free_bufs	= xlio_sock_free_bufs
+	.free_bufs	= xlio_sock_free_bufs,
+	.enable_tcp_offload	= xlio_sock_enable_tcp_offload
 };
 
 static void __attribute__((constructor))

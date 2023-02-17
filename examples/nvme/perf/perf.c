@@ -371,6 +371,57 @@ perf_set_sock_opts(const char *impl_name, const char *field, uint32_t val, const
 }
 
 static void
+perf_set_sock_tcp_offload(const char *impl_name, bool enable)
+{
+	struct spdk_sock_impl_opts sock_opts = {};
+	size_t opts_size = sizeof(sock_opts);
+	int rc;
+
+	rc = spdk_sock_impl_get_opts(impl_name, &sock_opts, &opts_size);
+	if (rc != 0) {
+		if (errno == EINVAL) {
+			fprintf(stderr, "Unknown sock impl %s\n", impl_name);
+		} else {
+			fprintf(stderr, "Failed to get opts for sock impl %s: error %d (%s)\n", impl_name, errno,
+				strerror(errno));
+		}
+		return;
+	}
+
+	if (opts_size != sizeof(sock_opts)) {
+		fprintf(stderr, "Warning: sock_opts size mismatch. Expected %zu, received %zu\n",
+			sizeof(sock_opts), opts_size);
+		opts_size = sizeof(sock_opts);
+	}
+
+	sock_opts.enable_tcp_offload = enable;
+
+	if (spdk_sock_impl_set_opts(impl_name, &sock_opts, opts_size)) {
+		fprintf(stderr, "Failed to %s zcopy send for sock impl %s: error %d (%s)\n",
+			enable ? "enable" : "disable", impl_name, errno, strerror(errno));
+	}
+
+	/**
+	 * Check if the accepted the command to turn tcp offload on/of.
+	 * Only xlio sockets support it.
+	 */
+	rc = spdk_sock_impl_get_opts(impl_name, &sock_opts, &opts_size);
+	if (rc != 0) {
+		if (errno == EINVAL) {
+			fprintf(stderr, "Unknown sock impl %s\n", impl_name);
+		} else {
+			fprintf(stderr, "Failed to get opts for sock impl %s: error %d (%s)\n", impl_name, errno,
+				strerror(errno));
+		}
+	} else {
+		if (sock_opts.enable_tcp_offload != enable) {
+			fprintf(stderr, "Failed to set tcp offload = %d for sock impl %s\n",
+				(int)enable, impl_name);
+		}
+	}
+}
+
+static void
 nvme_perf_reset_sgl(void *ref, uint32_t sgl_offset)
 {
 	struct iovec *iov;
@@ -2470,6 +2521,10 @@ static const struct option g_perf_cmdline_opts[] = {
 	{"disable-zcopy-recv",			required_argument,	NULL, PERF_DISABLE_ZCOPY_RECV},
 #define PERF_ENABLE_ZCOPY_RECV	270
 	{"enable-zcopy-recv",			required_argument,	NULL, PERF_ENABLE_ZCOPY_RECV},
+#define PERF_ENABLE_TCP_OFFLOAD	271
+	{"enable-tcp-offload",			required_argument,	NULL, PERF_ENABLE_TCP_OFFLOAD},
+#define PERF_DISABLE_TCP_OFFLOAD	272
+	{"disable-tcp-offload",			required_argument,	NULL, PERF_DISABLE_TCP_OFFLOAD},
 	/* Should be the last element */
 	{0, 0, 0, 0}
 };
@@ -2706,6 +2761,12 @@ parse_args(int argc, char **argv, struct spdk_env_opts *env_opts)
 			break;
 		case PERF_ENABLE_ZCOPY_RECV:
 			perf_set_sock_opts(optarg, "enable_zerocopy_recv", 1, NULL);
+			break;
+		case PERF_DISABLE_TCP_OFFLOAD:
+			perf_set_sock_tcp_offload(optarg, false);
+			break;
+		case PERF_ENABLE_TCP_OFFLOAD:
+			perf_set_sock_tcp_offload(optarg, true);
 			break;
 		case PERF_ENABLE_NVME_ZCOPY:
 			g_zcopy = true;

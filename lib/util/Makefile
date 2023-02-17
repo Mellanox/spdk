@@ -21,4 +21,10 @@ endif
 
 SPDK_MAP_FILE = $(abspath $(CURDIR)/spdk_util.map)
 
+ifeq ($(CONFIG_ISAL), y)
+ISAL_DIR=$(SPDK_ROOT_DIR)/isa-l
+LDFLAGS += -L$(ISAL_DIR)/.libs -lisal
+CFLAGS += -I$(ISAL_DIR)/..
+endif
+
 include $(SPDK_ROOT_DIR)/mk/spdk.lib.mk

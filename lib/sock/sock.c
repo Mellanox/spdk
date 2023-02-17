@@ -556,6 +556,23 @@ spdk_sock_flush(struct spdk_sock *sock)
 }
 
 int
+spdk_sock_enable_tcp_offload(struct spdk_sock *sock,
+			     bool header_digest, bool data_digest)
+{
+	if (sock == NULL || sock->flags.closed) {
+		errno = EBADF;
+		return -1;
+	}
+
+	if (sock->net_impl->enable_tcp_offload == NULL) {
+		errno = ENOTSUP;
+		return -1;
+	}
+	return sock->net_impl->enable_tcp_offload(sock, header_digest,
+						  data_digest);
+}
+
+int
 spdk_sock_set_recvlowat(struct spdk_sock *sock, int nbytes)
 {
 	return sock->net_impl->set_recvlowat(sock, nbytes);
@@ -901,6 +918,7 @@ spdk_sock_write_config_json(struct spdk_json_write_ctx *w)
 				spdk_json_write_named_string(w, "psk_identity", opts.psk_identity);
 			}
 			spdk_json_write_named_bool(w, "enable_zerocopy_recv", opts.enable_zerocopy_recv);
+			spdk_json_write_named_bool(w, "enable_tcp_offload", opts.enable_tcp_offload);
 			spdk_json_write_object_end(w);
 			spdk_json_write_object_end(w);
 		} else {

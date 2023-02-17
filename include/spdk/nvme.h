@@ -571,7 +571,8 @@ enum spdk_nvme_ctrlr_flags {
 	SPDK_NVME_CTRLR_SGL_REQUIRES_DWORD_ALIGNMENT	= 1 << 4, /**< Dword alignment is required for SGL */
 	SPDK_NVME_CTRLR_ZONE_APPEND_SUPPORTED		= 1 << 5, /**< Zone Append is supported (within Zoned Namespaces) */
 	SPDK_NVME_CTRLR_DIRECTIVES_SUPPORTED		= 1 << 6, /**< The Directives is supported */
-	SPDK_NVME_CTRLR_ZCOPY_SUPPORTED		= 1 << 7, /**< Zero copy API is supported */
+	SPDK_NVME_CTRLR_ZCOPY_SUPPORTED			= 1 << 7, /**< Zero copy API is supported */
+	SPDK_NVME_CTRLR_TCP_OFFLOAD_SUPPORTED		= 1 << 8, /**< TCP offload API is supported */
 };
 
 /**
