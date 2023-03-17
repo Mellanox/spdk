@@ -1,5 +1,4 @@
 usr/bin/iostat.py usr/bin
-usr/bin/iscsi_top usr/bin
 usr/bin/spdk_lspci usr/bin
 usr/bin/spdk_trace usr/bin
 usr/bin/spdk_trace_record usr/bin
@@ -10,6 +9,7 @@ etc/default/* etc/default
 usr/lib/systemd/system/* usr/lib/systemd/system
 opt/mellanox/spdk/lib/*.so* opt/mellanox/spdk/lib
 opt/mellanox/spdk/lib/dpdk/* opt/mellanox/spdk/lib/dpdk
+opt/mellanox/spdk/lib/pkgconfig/* opt/mellanox/spdk/lib/pkgconfig
 usr/share/spdk/*.py usr/share/spdk
 usr/share/spdk/scripts/* usr/share/spdk/scripts
 usr/share/spdk/include/spdk/* usr/share/spdk/include/spdk

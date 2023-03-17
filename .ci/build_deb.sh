@@ -54,8 +54,9 @@ function unpack_dist()
 
   tar xf spdk-$VER.tar.gz
 
+  SPDK_MODS=$(git submodule |awk '{print $2}')
   pushd spdk-$VER
-  for MOD in dpdk ocf intel-ipsec-mb isa-l ; do
+  for MOD in $SPDK_MODS ; do
     tar xf ../spdk-$MOD-$VER.tar.gz
   done
   generate_changelog

@@ -1,4 +1,4 @@
-%define scm_version 22.05
+%define scm_version 23.01
 %define unmangled_version %{scm_version}
 %define scm_rev %{_rev}
 Epoch: 0
@@ -116,21 +116,18 @@ export LDFLAGS
         --prefix=%{pkg_prefix} \
 %ifarch aarch64
         --target-arch=armv8-a \
+        --with-crypto \
 %endif
-        --disable-coverage \
-        --disable-debug \
         --disable-tests \
         --disable-unit-tests \
-        --without-isal \
-        --without-crypto \
         --without-fio \
         --with-vhost \
         --without-pmdk \
         --without-rbd \
-        --with-rdma \
+        --with-rdma=mlx5_dv \
         --without-vtune \
         --with-shared \
-        --with-raid5
+        --with-raid5f
 
 # SPDK make
 make %{?_smp_mflags}
@@ -141,7 +138,6 @@ mkdir -p %{install_sbindir}
 install -p -m 755 build/bin/spdk_tgt %{install_sbindir}
 install -p -m 755 build/bin/vhost %{install_sbindir}
 install -p -m 755 build/bin/iscsi_tgt %{install_sbindir}
-install -p -m 755 build/bin/iscsi_top %{install_bindir}
 install -p -m 755 build/bin/spdk_trace %{install_bindir}
 install -p -m 755 build/bin/spdk_lspci %{install_bindir}
 install -p -m 755 build/bin/spdk_trace_record %{install_bindir}
@@ -171,6 +167,10 @@ cp -pr dpdk/build/include ${RPM_BUILD_ROOT}%{pkg_prefix}
 rm -rf ${RPM_BUILD_ROOT}%{pkg_prefix}/share/dpdk/examples
 cp -pr include/spdk ${RPM_BUILD_ROOT}%{pkg_prefix}/include/
 cp -pr build/lib/*.*    ${RPM_BUILD_ROOT}%{pkg_prefix}/lib/
+%ifarch aarch64
+cp -p isa-l/.libs/libisal.a ${RPM_BUILD_ROOT}%{pkg_prefix}/lib/
+cp -p isa-l-crypto/.libs/libisal_crypto.a ${RPM_BUILD_ROOT}%{pkg_prefix}/lib/
+%endif
 install -p -m 644 contrib/spdk_tgt.service ${systemd_dir}
 install -p -m 644 contrib/vhost.service ${systemd_dir}
 install -p -m 644 contrib/default/spdk_tgt %{buildroot}%{_sysconfdir}/default/spdk_tgt
@@ -202,18 +202,29 @@ sed -i -e 's/ rpc.py/ spdk_rpc.py/' %{buildroot}%{_sysconfdir}/bash_completion.d
 %{pkg_prefix}/*
 
 %post
+systemctl_reload() {
+    if command -v systemctl > /dev/null; then
+        if [ -d /run/systemd/system ]; then
+            systemctl daemon-reload
+        fi
+    fi
+}
+
 case "$1" in
 1) # install
-	systemctl daemon-reload
-	;;
+        systemctl_reload
+        ;;
 2) # upgrade
-	systemctl daemon-reload
-	;;
+        systemctl_reload
+        ;;
 esac
 
 %changelog
 * %{_date} Andrii Holovchenko <andriih@nvidia.com>
 - build from %{_branch} (sha1 %{_sha1})
+
+* Fri Mar 17 2023 Andrii Holovchenko <andriih@nvidia.com>
+- Ported to v23.01 release
 
 * Mon Jun 6 2022 Andrii Holovchenko <andriih@nvidia.com>
 - Ported to v22.05 release

@@ -11,12 +11,12 @@ ARCH := $(shell uname -m)
 
 
 
-ifeq ($(shell apt -qq list libxlio-dev 2> /dev/null | cut -d/ -f1), libxlio-dev)
-XLIO := --with-xlio
-$(info XLIO BUILD OPTION is [$(XLIO)])
-else
-$(info XLIO NOT INSTALLED)
-endif
+#ifeq ($(shell apt -qq list libxlio-dev 2> /dev/null | cut -d/ -f1), libxlio-dev)
+#XLIO := --with-xlio
+#$(info XLIO BUILD OPTION is [$(XLIO)])
+#else
+#$(info XLIO NOT INSTALLED)
+#endif
 
 
 
@@ -51,23 +51,21 @@ override_dh_auto_configure:
 	test $(ARCH) != aarch64 || sed -i 's#CONFIG_ARCH=.*#CONFIG_ARCH=armv8-a#' CONFIG
 	LDFLAGS="$$LDFLAGS -Wl,-rpath,$(pkg_prefix)/lib" ./configure \
         --prefix=$(pkg_prefix) \
-		--disable-coverage \
-		--disable-debug \
 		--disable-tests \
 		--disable-unit-tests \
-		--without-isal \
-		--without-crypto \
+		--with-crypto \
 		--without-fio \
 		--with-vhost \
 		--without-pmdk \
 		--without-rbd \
-		--with-rdma \
+		--with-rdma=mlx5_dv \
 		--without-vtune \
 		--with-iscsi-initiator \
 		--with-shared \
 		--with-uring \
-		--with-raid5 \
-		$(XLIO)
+		--with-raid5f \
+		--with-xlio
+		# $(XLIO)
 
 override_dh_auto_clean:
 	test -e mk/config.mk && make distclean || true
@@ -86,7 +84,6 @@ override_dh_auto_install:
 	install -p -m 755 build/bin/spdk_tgt debian/tmp/usr/sbin
 	install -p -m 755 build/bin/vhost debian/tmp/usr/sbin
 	install -p -m 755 build/bin/iscsi_tgt debian/tmp/usr/sbin
-	install -p -m 755 build/bin/iscsi_top debian/tmp/usr/bin
 	install -p -m 755 build/bin/spdk_trace debian/tmp/usr/bin
 	install -p -m 755 build/bin/spdk_lspci debian/tmp/usr/bin
 	install -p -m 755 build/bin/spdk_trace_record debian/tmp/usr/bin
@@ -110,9 +107,10 @@ override_dh_auto_install:
 	install -m 644 include/spdk/pci_ids.h debian/tmp$(install_datadir)/include/spdk
 	install -p -m 644 scripts/bash-completion/spdk debian/tmp/etc/bash_completion.d
 	sed -i -e 's/ rpc.py/ spdk_rpc.py/' debian/tmp/etc/bash_completion.d/spdk
-
 	cp -pvr dpdk/build/lib debian/tmp$(pkg_prefix)
 	cp -pvr dpdk/build/include debian/tmp$(pkg_prefix)
+	install -p -m 644 isa-l/.libs/libisal.a debian/tmp$(pkg_prefix)/lib
+	install -p -m 644 isa-l-crypto/.libs/libisal_crypto.a debian/tmp$(pkg_prefix)/lib
 	#make -C dpdk install prefix=../debian/tmp$(pkg_prefix)
 	#chrpath -r $(pkg_prefix)/lib debian/tmp$(pkg_prefix)/lib/lib*so.*
 	patchelf --set-rpath $(pkg_prefix)/lib --force-rpath debian/tmp$(pkg_prefix)/lib/lib*so.*

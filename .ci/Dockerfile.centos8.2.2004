@@ -3,7 +3,7 @@ ARG _UID=6213
 ARG _GID=11429
 ARG _LOGIN=swx-jenkins
 ARG _HOME=/var/home/$_LOGIN
-ARG MOFED_VER=5.9-0.1.9.0
+ARG MOFED_VER
 ENV LANG=en_US.utf-8
 USER root
 
@@ -35,7 +35,8 @@ RUN yum install --enablerepo=PowerTools -y \
     python36 \
     meson \
     python3-pip \
-    python3-configshell
+    python3-configshell \
+    pkgconfig autoconf automake libtool
 
 RUN set -eux; \
     echo -e "[mlnx_ofed]\n\

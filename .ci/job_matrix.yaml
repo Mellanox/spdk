@@ -21,16 +21,19 @@ kubernetes:
 volumes:
   - {mountPath: /auto/mtrswgwork, hostPath: /auto/mtrswgwork}
 
+env:
+  MOFED_VER: 5.9-1.1.1.0
+
 runs_on_dockers:
-  - {file: '.ci/Dockerfile.ubuntu20.04', name: 'ubuntu2004ofed59', arch: 'x86_64', tag: '5.9-0.1.9.0'}
-  - {file: '.ci/Dockerfile.ubuntu20.04', name: 'ubuntu2004ofed59', arch: 'aarch64', tag: '5.9-0.1.9.0'}
-  - {file: '.ci/Dockerfile.ubuntu22.04', name: 'ubuntu2204ofed59', arch: 'x86_64', tag: '5.9-0.1.9.0'}
-  - {file: '.ci/Dockerfile.ubuntu22.04', name: 'ubuntu2204ofed59', arch: 'aarch64', tag: '5.9-0.1.9.0'}
-  - {file: '.ci/Dockerfile.centos7.9.2009', name: 'centos79ofed59', arch: 'x86_64', tag: '5.9-0.1.9.0'}
-  - {file: '.ci/Dockerfile.centos7.9.2009', name: 'centos79ofed59', arch: 'aarch64', tag: '5.9-0.1.9.0'}
-  - {file: '.ci/Dockerfile.centos8.2.2004', name: 'centos82ofed59', arch: 'x86_64', tag: '5.9-0.1.9.0'}
-  - {file: '.ci/Dockerfile.centos8.2.2004', name: 'centos82ofed59', arch: 'aarch64', tag: '5.9-0.1.9.0'}
-  - {file: '.ci/Dockerfile.openeuler.20.03', name: 'openeuler2003ofed59', arch: 'aarch64', tag: '5.9-0.1.9.0'}
+  - {file: '.ci/Dockerfile.ubuntu20.04', name: 'ubuntu20_04', arch: 'x86_64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
+  - {file: '.ci/Dockerfile.ubuntu20.04', name: 'ubuntu20_04', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
+  - {file: '.ci/Dockerfile.ubuntu22.04', name: 'ubuntu22_04', arch: 'x86_64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
+  - {file: '.ci/Dockerfile.ubuntu22.04', name: 'ubuntu22_04', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
+  - {file: '.ci/Dockerfile.centos7.9.2009', name: 'centos7_9', arch: 'x86_64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
+  - {file: '.ci/Dockerfile.centos7.9.2009', name: 'centos7_9', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
+  - {file: '.ci/Dockerfile.centos8.2.2004', name: 'centos8_2', arch: 'x86_64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
+  - {file: '.ci/Dockerfile.centos8.2.2004', name: 'centos8_2', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
+  - {file: '.ci/Dockerfile.openeuler.20.03', name: 'openeuler20_03', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
 
 steps:
   - name: Set correct rights
@@ -38,6 +41,7 @@ steps:
       uid=$(id -u)
       gid=$(id -g)
       sudo chown -R $uid:$gid $WORKSPACE
+      git config --global --add safe.directory "*"
 
   - name: Build distro package
     run: |
@@ -55,11 +59,11 @@ steps:
     credentialsId: '311997c9-cc1c-4d5d-8ba2-6eb43ba0a06d'
     resource: actions/nexus.py
     containerSelector:
-      - "{name: 'ubuntu2004ofed59', variant:1}"
-      - "{name: 'ubuntu2204ofed59', variant:1}"
-      - "{name: 'centos79ofed59', variant:1}"
-      - "{name: 'centos82ofed59', variant:1}"
-      - "{name: 'openeuler2003ofed59', variant:1}"
+      - "{name: 'ubuntu20_04', variant:1}"
+      - "{name: 'ubuntu22_04', variant:1}"
+      - "{name: 'centos7_9', variant:1}"
+      - "{name: 'centos8_2', variant:1}"
+      - "{name: 'openeuler20_03', variant:1}"
     run: |
       .ci/upload.sh nexus
 
@@ -68,11 +72,11 @@ steps:
     credentialsId: '3a89fb85-f7aa-40f2-bd7a-32be80588d95'
     resource: actions/nexus.py
     containerSelector:
-      - "{name: 'ubuntu2004ofed59', variant:1}"
-      - "{name: 'ubuntu2204ofed59', variant:1}"
-      - "{name: 'centos79ofed59', variant:1}"
-      - "{name: 'centos82ofed59', variant:1}"
-      - "{name: 'openeuler2003ofed59', variant:1}"
+      - "{name: 'ubuntu20_04', variant:1}"
+      - "{name: 'ubuntu22_04', variant:1}"
+      - "{name: 'centos7_9', variant:1}"
+      - "{name: 'centos8_2', variant:1}"
+      - "{name: 'openeuler20_03', variant:1}"
     run: |
       .ci/upload.sh urm
 

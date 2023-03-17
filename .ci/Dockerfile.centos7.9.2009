@@ -3,7 +3,7 @@ ARG _UID=6213
 ARG _GID=11429
 ARG _LOGIN=swx-jenkins
 ARG _HOME=/var/home/$_LOGIN
-ARG MOFED_VER=5.9-0.1.9.0
+ARG MOFED_VER
 ENV LANG=en_US.utf-8
 ENV PATH=/opt/rh/devtoolset-8/root/usr/bin:$PATH
 USER root
@@ -37,7 +37,19 @@ RUN yum install -y \
     python3-pip \
     devtoolset-8-gcc \
     devtoolset-8-gcc-c++ \
-    cmake3
+    cmake3 \
+    pkgconfig autoconf automake libtool
+
+# INSTALL OPENSSL 1.1.1 (needed by SPDK >= 23.01)
+RUN set -eux; \
+    if [ $(uname -m) == "aarch64" ]; then \
+      echo -e "[swx-devops]\n\
+name=SWX-DEVOPS\n\
+baseurl=http://nbu-nfs.mellanox.com/auto/mtrswgwork/swx_devops/RPMS/7/aarch64/\n\
+enabled=1\n\
+gpgcheck=0" > /etc/yum.repos.d/swx_devops.repo; \
+    fi; \
+    yum install openssl11 openssl11-libs openssl11-devel -y
 
 RUN set -eux; \
     if [ $(uname -m) == "aarch64" ]; then \
