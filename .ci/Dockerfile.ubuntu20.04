@@ -4,7 +4,7 @@ ARG _GID=11429
 ARG _LOGIN=swx-jenkins
 ARG _HOME=/var/home/$_LOGIN
 ARG DEBIAN_FRONTEND=noninteractive
-ARG MOFED_VER=5.9-0.1.9.0
+ARG MOFED_VER
 ENV TZ=Etc/UTC
 USER root
 
@@ -32,7 +32,8 @@ RUN apt-get update && \
       patchelf \
       python3-pyelftools \
       python3-requests \
-      linux-headers-generic
+      linux-headers-generic \
+      pkg-config nasm
 
 RUN echo "deb [trusted=yes] http://swx-repos.mtr.labs.mlnx:8081/repository/liburing-focal-apt/ focal main" > /etc/apt/sources.list.d/liburing.list && \
     apt update && apt install -y liburing-dev

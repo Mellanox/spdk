@@ -2,7 +2,7 @@ Source: spdk
 Section: net
 Priority: optional
 Maintainer: Yurii Shestakov <yuriis@mellanox.com>
-Build-Depends: debhelper (>= 10), autotools-dev, dh-python
+Build-Depends: debhelper (>= 10), autotools-dev, dh-python, nasm, pkg-config, autoconf, automake, libtool, libxlio-dev, liburing-dev
 Standards-Version: 4.1.2
 Homepage: https://spdk.io/
 X-Python3-Version: >= 3.6
