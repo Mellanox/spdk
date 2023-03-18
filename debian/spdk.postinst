@@ -4,7 +4,7 @@ case "$1" in
             if [ -d /run/systemd/system ]; then
                 systemctl daemon-reload
             fi
-        if
+        fi
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)
