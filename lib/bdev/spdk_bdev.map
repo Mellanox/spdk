@@ -183,6 +183,12 @@
 	spdk_bdev_zone_appendv_with_md;
 	spdk_bdev_io_get_append_location;
 
+	# Public functions in bdev_reservations.h
+	spdk_bdev_reservation_register;
+	spdk_bdev_reservation_acquire;
+	spdk_bdev_reservation_release;
+	spdk_bdev_reservation_report;
+
 	# Everything else
 	local: *;
 };

@@ -23,6 +23,7 @@
 #include "spdk/tree.h"
 #include "spdk/util.h"
 #include "spdk/uuid.h"
+#include "spdk/bdev_reservations.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -889,6 +890,59 @@ struct spdk_bdev_io {
 			/* The data buffer */
 			void *buf;
 		} zone_mgmt;
+		struct {
+			/* Flag to check current reservation key */
+			bool ignore_key;
+
+			/* Specifies the reservation acquire action */
+			enum spdk_bdev_reservation_acquire_action action;
+
+			/* Reservation type for the namespace */
+			enum spdk_bdev_reservation_type type;
+
+			/** current reservation key */
+			uint64_t                crkey;
+			/** preempt reservation key */
+
+			uint64_t                prkey;
+			/* Reservation acquire data */
+		} reservation_acquire;
+		struct {
+			/* Flag to check current reservation key */
+			bool ignore_key;
+
+			/* Specifies the registration action */
+			enum spdk_bdev_reservation_register_action action;
+
+			/* Change the Persist Through Power Loss state */
+			enum spdk_bdev_reservation_register_cptpl cptpl;
+
+			/** current reservation key */
+			uint64_t                crkey;
+
+			/** new reservation key */
+			uint64_t                nrkey;
+		} reservation_register;
+		struct {
+			/* Flag to check current reservation key */
+			bool ignore_key;
+
+			/* Specifies the reservation release action */
+			enum spdk_bdev_reservation_release_action action;
+
+			/* Reservation type for the namespace */
+			enum spdk_bdev_reservation_type type;
+
+			/* Current reservation key */
+			uint64_t crkey;
+		} reservation_release;
+		struct {
+			/* Length bytes for reservation status data structure */
+			uint32_t len;
+
+			/* Virtual address pointer for reservation status data */
+			struct spdk_bdev_reservation_status_data *status_data;
+		} reservation_report;
 	} u;
 
 	/** It may be used by modules to put the bdev_io into its own list. */
