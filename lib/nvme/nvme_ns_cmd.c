@@ -1448,5 +1448,11 @@ spdk_nvme_ns_cmd_reservation_report(struct spdk_nvme_ns *ns,
 
 	cmd->cdw10 = num_dwords;
 
+	if (spdk_nvme_ctrlr_get_data(ns->ctrlr)->ctratt.host_id_exhid_supported) {
+		/* Extended Data Strcutre bit should be set to true if 128
+		 * bit format is supported */
+		cmd->cdw11_bits.resv_report.eds = true;
+	}
+
 	return nvme_qpair_submit_request(qpair, req);
 }
