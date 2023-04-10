@@ -533,7 +533,7 @@ def bdev_nvme_set_options(client, action_on_timeout=None, timeout_us=None, timeo
                           transport_ack_timeout=None, ctrlr_loss_timeout_sec=None, reconnect_delay_sec=None,
                           fast_io_fail_timeout_sec=None, disable_auto_failback=None, generate_uuids=None,
                           transport_tos=None, nvme_error_stat=None, rdma_srq_size=None, io_path_stat=None,
-                          poll_group_requests=None):
+                          poll_group_requests=None, nested_mode=None):
     """Set options for the bdev nvme. This is startup command.
 
     Args:
@@ -579,6 +579,7 @@ def bdev_nvme_set_options(client, action_on_timeout=None, timeout_us=None, timeo
         rdma_srq_size: Set the size of a shared rdma receive queue. Default: 0 (disabled) (optional)
         io_path_stat: Enable collection I/O path stat of each io path. (optional)
         poll_group_requests: The number of requests allocated for each poll group. Default: 0 (optional)
+        nested_mode: Enable nested multipath mode. (optional)
 
     """
     params = {}
@@ -662,6 +663,9 @@ def bdev_nvme_set_options(client, action_on_timeout=None, timeout_us=None, timeo
     if poll_group_requests is not None:
         params['poll_group_requests'] = poll_group_requests
 
+    if nested_mode is not None:
+        params['nested_mode'] = nested_mode
+
     return client.call('bdev_nvme_set_options', params)
 
 
@@ -685,7 +689,7 @@ def bdev_nvme_attach_controller(client, name, trtype, traddr, adrfam=None, trsvc
                                 hostsvcid=None, prchk_reftag=None, prchk_guard=None,
                                 hdgst=None, ddgst=None, fabrics_timeout=None, multipath=None, num_io_queues=None,
                                 ctrlr_loss_timeout_sec=None, reconnect_delay_sec=None,
-                                fast_io_fail_timeout_sec=None, psk=None):
+                                fast_io_fail_timeout_sec=None, psk=None, lazy_conn=None):
     """Construct block device for each NVMe namespace in the attached controller.
 
     Args:
@@ -782,6 +786,9 @@ def bdev_nvme_attach_controller(client, name, trtype, traddr, adrfam=None, trsvc
 
     if psk:
         params['psk'] = psk
+
+    if lazy_conn:
+        params['lazy_conn'] = lazy_conn
 
     return client.call('bdev_nvme_attach_controller', params)
 

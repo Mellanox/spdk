@@ -838,6 +838,14 @@ spdk_nvme_qpair_set_dnr(struct spdk_nvme_qpair *qpair, uint8_t dnr)
 	qpair->dnr = dnr;
 }
 
+bool
+spdk_nvme_qpair_is_enabled(struct spdk_nvme_qpair *qpair)
+{
+	return qpair->transport_failure_reason == SPDK_NVME_QPAIR_FAILURE_NONE &&
+	       nvme_qpair_get_state(qpair) > NVME_QPAIR_CONNECTING &&
+	       nvme_qpair_get_state(qpair) < NVME_QPAIR_DESTROYING;
+}
+
 int
 nvme_qpair_init(struct spdk_nvme_qpair *qpair, uint16_t id,
 		struct spdk_nvme_ctrlr *ctrlr,

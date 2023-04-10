@@ -2067,6 +2067,34 @@ void spdk_bdev_for_each_channel_continue(struct spdk_bdev_channel_iter *i, int s
 void spdk_bdev_for_each_channel(struct spdk_bdev *bdev, spdk_bdev_for_each_channel_msg fn,
 				void *ctx, spdk_bdev_for_each_channel_done cpl);
 
+/**
+ * Called when the bdev is ready to process I/O.
+ *
+ * \param cb_arg Callback argument.
+ * \param status 0 on success, or negated errno on failure.
+ * For negated errno, the following values are possible:
+ *   * -ETIMEDOUT: The timeout period elapsed.
+ *   * -EAGAIN: If timeout is set to 0 and the bdev is not ready.
+ */
+typedef void (*spdk_bdev_wait_for_ready_cb)(void *cb_arg, int status);
+
+/**
+ * Return the calback when the bdev is ready to accept I/O submission.
+ * If the timeout_in_msec is positive, the timeout is enabled.
+ * If the timeout_in_msec is zero, the function returns immediately.
+ *
+ * \param bdev Block device descriptor.
+ * \param timeout_in_msec Timeout value in milliseconds.
+ *   * positive: actual timeout value.
+ *   * zero: return immediately.
+ *   * negative: timeout is disabled.
+ * \param cb_fn Callback function.
+ * \param cb_arg Callback argument.
+ * \return 0 if wait started successfully, or suitable errno otherwise.
+ */
+int spdk_bdev_wait_for_ready(struct spdk_bdev_desc *desc, int64_t timeout_in_msec,
+			     spdk_bdev_wait_for_ready_cb cb_fn, void *cb_arg);
+
 #ifdef __cplusplus
 }
 #endif

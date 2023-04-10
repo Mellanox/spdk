@@ -266,7 +266,7 @@ accel_mlx5_compare_iovs(struct iovec *v1, struct iovec *v2, uint32_t iovcnt)
 static inline int
 accel_mlx5_task_alloc_mkeys(struct accel_mlx5_task *task)
 {
-	/* Each request consists of UMR and RDMA_READ/WRITE or 2 operations.
+	/* Each request consists of UMR and RDMA, or 2 operations.
 	 * qp slot is the total number of operations available in qp */
 	uint32_t num_ops = (task->num_reqs - task->num_completed_reqs) * 2;
 	uint32_t qp_slot = task->dev->max_reqs - task->dev->reqs_submitted;
@@ -438,16 +438,16 @@ accel_mlx5_configure_crypto_umr(struct accel_mlx5_task *mlx5_task, struct accel_
 		SPDK_ERRLOG("unsupported block size %u\n", task->block_size);
 		return -EINVAL;
 	}
-	cattr.xts_iv = htobe64(iv);
+	cattr.xts_iv = iv;
 	cattr.keytag = 0;
 	cattr.tweak_offset = task->crypto_key->param.tweak_offset;
 
 	umr_attr.dv_mkey = dv_mkey;
 	umr_attr.umr_len = req_len;
-	if (mlx5_task->inplace) {
-		umr_attr.klm_count = klm->src_klm_count;
-		umr_attr.klm = klm->src_klm;
-	} else {
+	umr_attr.klm_count = klm->src_klm_count;
+	umr_attr.klm = klm->src_klm;
+
+	if (!mlx5_task->inplace) {
 		rc = accel_mlx5_fill_block_sge(dev, klm->dst_klm, &mlx5_task->dst, task->dst_domain,
 					       task->dst_domain_ctx, dst_lkey, req_len, &remaining);
 		if (spdk_unlikely(rc <= 0)) {
@@ -462,13 +462,6 @@ accel_mlx5_configure_crypto_umr(struct accel_mlx5_task *mlx5_task, struct accel_
 			abort();
 		}
 		klm->dst_klm_count = rc;
-		if (mlx5_task->base.op_code == ACCEL_OPC_ENCRYPT) {
-			umr_attr.klm_count = klm->src_klm_count;
-			umr_attr.klm = klm->src_klm;
-		} else {
-			umr_attr.klm_count = klm->dst_klm_count;
-			umr_attr.klm = klm->dst_klm;
-		}
 	}
 	rc = spdk_mlx5_umr_configure_crypto(dev->dma_qp, &umr_attr, &cattr, wrid, fence);
 
@@ -547,29 +540,18 @@ accel_mlx5_crypto_task_process(struct accel_mlx5_task *mlx5_task)
 	}
 
 	for (i = 0; i < num_ops - 1; i++) {
-		if (task->op_code == ACCEL_OPC_ENCRYPT) {
-			/* For WRITE IO UMR is always on src_klm.
-			 * UMR is used as a destination for RDMA_READ - from UMR to local ARM memory
-			 * XTS is applied on DPS */
-			if (mlx5_task->inplace) {
-				rc = spdk_mlx5_dma_qp_rdma_read(dev->dma_qp, ch->klms[i].src_klm,
-								ch->klms[i].src_klm_count,
-								0, mlx5_task->mkeys[i]->mkey->mkey, 0,
-								first_rdma_fence);
-			} else {
-				rc = spdk_mlx5_dma_qp_rdma_read(dev->dma_qp, ch->klms[i].dst_klm,
-								ch->klms[i].dst_klm_count,
-								0, mlx5_task->mkeys[i]->mkey->mkey, 0,
-								first_rdma_fence);
-			}
+		/* UMR is used as a destination for RDMA_READ - from UMR to klms
+		 * XTS is applied on DPS */
+		if (mlx5_task->inplace) {
+			rc = spdk_mlx5_dma_qp_rdma_read(dev->dma_qp, ch->klms[i].src_klm,
+							ch->klms[i].src_klm_count,
+							0, mlx5_task->mkeys[i]->mkey->mkey, 0,
+							first_rdma_fence);
 		} else {
-			/* For READ IO UMR is dst_klm (non-inplace) or on src_klm (inplace).
-			 * UMR is used as a destination for RDMA_WRITE - from local ARM memory to UMR
-			 * XTS is applied on DPR */
-			rc = spdk_mlx5_dma_qp_rdma_write(dev->dma_qp, ch->klms[i].src_klm,
-									ch->klms[i].src_klm_count,
-									      0, mlx5_task->mkeys[i]->mkey->mkey,
-									      0, first_rdma_fence);
+			rc = spdk_mlx5_dma_qp_rdma_read(dev->dma_qp, ch->klms[i].dst_klm,
+							ch->klms[i].dst_klm_count,
+							0, mlx5_task->mkeys[i]->mkey->mkey, 0,
+							first_rdma_fence);
 		}
 		if (spdk_unlikely(rc)) {
 			SPDK_ERRLOG("RDMA READ/WRITE failed with %d\n", rc);
@@ -582,24 +564,16 @@ accel_mlx5_crypto_task_process(struct accel_mlx5_task *mlx5_task)
 		dev->reqs_submitted++;
 	}
 
-	if (task->op_code == ACCEL_OPC_ENCRYPT) {
-		if (mlx5_task->inplace) {
-			rc = spdk_mlx5_dma_qp_rdma_read(dev->dma_qp, ch->klms[i].src_klm, ch->klms[i].src_klm_count,
-							0, mlx5_task->mkeys[i]->mkey->mkey,
-							(uint64_t) &mlx5_task->write_wrid,
-							first_rdma_fence | MLX5_WQE_CTRL_CQ_UPDATE);
-		} else {
-			rc = spdk_mlx5_dma_qp_rdma_read(dev->dma_qp, ch->klms[i].dst_klm, ch->klms[i].dst_klm_count,
-							0, mlx5_task->mkeys[i]->mkey->mkey,
-							(uint64_t) &mlx5_task->write_wrid,
-							first_rdma_fence | MLX5_WQE_CTRL_CQ_UPDATE);
-		}
+	if (mlx5_task->inplace) {
+		rc = spdk_mlx5_dma_qp_rdma_read(dev->dma_qp, ch->klms[i].src_klm, ch->klms[i].src_klm_count,
+						0, mlx5_task->mkeys[i]->mkey->mkey,
+						(uint64_t) &mlx5_task->write_wrid,
+						first_rdma_fence | MLX5_WQE_CTRL_CQ_UPDATE);
 	} else {
-		rc = spdk_mlx5_dma_qp_rdma_write(dev->dma_qp, ch->klms[i].src_klm,
-								ch->klms[i].src_klm_count,
-								      0, mlx5_task->mkeys[i]->mkey->mkey,
-						 		(uint64_t) &mlx5_task->write_wrid,
-						 		first_rdma_fence | MLX5_WQE_CTRL_CQ_UPDATE);
+		rc = spdk_mlx5_dma_qp_rdma_read(dev->dma_qp, ch->klms[i].dst_klm, ch->klms[i].dst_klm_count,
+						0, mlx5_task->mkeys[i]->mkey->mkey,
+						(uint64_t) &mlx5_task->write_wrid,
+						first_rdma_fence | MLX5_WQE_CTRL_CQ_UPDATE);
 	}
 
 	if (spdk_unlikely(rc)) {
@@ -797,7 +771,7 @@ accel_mlx5_submit_tasks(struct spdk_io_channel *_ch, struct spdk_accel_task *tas
 						    task->crypto_key->priv);
 		break;
 	case ACCEL_OPC_DECRYPT:
-		mlx5_task->enc_order = MLX5_ENCRYPTION_ORDER_ENCRYPTED_RAW_WIRE;
+		mlx5_task->enc_order = MLX5_ENCRYPTION_ORDER_ENCRYPTED_RAW_MEMORY;
 		mlx5_task->crypto_op = true;
 		crypto_key_ok = (task->crypto_key && task->crypto_key->module_if == &g_accel_mlx5.module &&
 						    task->crypto_key->priv);
@@ -1227,6 +1201,7 @@ accel_mlx5_init(void)
 	struct ibv_context **rdma_devs, *dev;
 	struct spdk_memory_domain_ctx ctx;
 	struct ibv_pd *pd;
+	struct spdk_mlx5_aes_xts_caps crypto_caps;
 	int num_devs = 0, rc = 0, i;
 
 	if (!g_accel_mlx5.enabled) {
@@ -1249,6 +1224,19 @@ accel_mlx5_init(void)
 	for (i = 0; i < num_devs; i++) {
 		crypto_dev_ctx = &g_accel_mlx5.crypto_ctxs[i];
 		dev = rdma_devs[i];
+		memset(&crypto_caps, 0, sizeof(crypto_caps));
+		rc = spdk_mlx5_query_aes_xts_caps(dev, &crypto_caps);
+		if (rc) {
+			SPDK_ERRLOG("Failed to get aes_xts caps, dev %s\n", dev->device->name);
+			goto cleanup;
+		}
+		SPDK_NOTICELOG("Crypto dev %s, aes_xts: single block %d, mb_be %d, mb_le %d, inc_64 %d\n",
+			       dev->device->name,
+			       crypto_caps.single_block_le_tweak,
+			       crypto_caps.multi_block_be_tweak,
+			       crypto_caps.multi_block_le_tweak,
+			       crypto_caps.tweak_inc_64);
+
 		pd = spdk_rdma_utils_get_pd(dev);
 		if (!pd) {
 			SPDK_ERRLOG("Failed to get PD for context %p, dev %s\n", dev, dev->device->name);
@@ -1276,17 +1264,8 @@ accel_mlx5_init(void)
 
 		/* Explicitly disabled by default */
 		crypto_dev_ctx->crypto_multi_block = false;
-		if (g_accel_mlx5.attr.use_crypto_mb) {
-			struct mlx5dv_context dv_dev_attr = {
-				.comp_mask = MLX5DV_CONTEXT_MASK_CRYPTO_OFFLOAD
-			};
-			rc = mlx5dv_query_device(dev, &dv_dev_attr);
-			if (!rc) {
-				if (dv_dev_attr.crypto_caps.crypto_engines & MLX5DV_CRYPTO_ENGINES_CAP_AES_XTS_MULTI_BLOCK) {
-					SPDK_NOTICELOG("dev %s supports crypto multi block\n", dev->device->name);
-					crypto_dev_ctx->crypto_multi_block = true;
-				}
-			}
+		if (g_accel_mlx5.attr.use_crypto_mb && crypto_caps.multi_block_be_tweak) {
+			crypto_dev_ctx->crypto_multi_block = true;
 		}
 
 		g_accel_mlx5.num_crypto_ctxs++;

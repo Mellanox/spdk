@@ -144,6 +144,10 @@ struct spdk_mlx5_qp {
 	struct mlx5_qp_completion *completions;
 	uint32_t nonsignaled_outstanding;
 	bool tx_need_ring_db;
+	bool aes_xts_inc_64;
+	/* If set, HW expects tweak in big endian
+	 * Otherwise, in little endian */
+	bool aes_xts_tweak_be;
 	struct mlx5_wqe_ctrl_seg *ctrl;
 	uint16_t max_sge;
 	uint16_t tx_available;
@@ -181,8 +185,10 @@ struct spdk_mlx5_indirect_mkey {
 };
 
 enum {
-    MLX5_ENCRYPTION_ORDER_ENCRYPTED_MEMORY_SIGNATURE  = 0x1,
-    MLX5_ENCRYPTION_ORDER_ENCRYPTED_RAW_WIRE          = 0x2,
+	MLX5_ENCRYPTION_ORDER_ENCRYPTED_WIRE_SIGNATURE    = 0x0,
+	MLX5_ENCRYPTION_ORDER_ENCRYPTED_MEMORY_SIGNATURE  = 0x1,
+	MLX5_ENCRYPTION_ORDER_ENCRYPTED_RAW_WIRE          = 0x2,
+	MLX5_ENCRYPTION_ORDER_ENCRYPTED_RAW_MEMORY        = 0x3,
 };
 
 struct spdk_mlx5_umr_crypto_attr {
@@ -292,6 +298,40 @@ struct spdk_mlx5_relaxed_ordering_caps {
 	bool relaxed_ordering_read_umr;
 };
 
+struct spdk_mlx5_aes_xts_caps {
+	/* crypto supported or not */
+	bool crypto;
+	bool single_block_le_tweak;
+	bool multi_block_be_tweak;
+	bool multi_block_le_tweak;
+	bool tweak_inc_64;
+};
+
+int spdk_mlx5_query_aes_xts_caps(struct ibv_context *context, struct spdk_mlx5_aes_xts_caps *caps);
+
+/**
+* spdk_mlx5_query_relaxed_ordering_caps() - Query for Relaxed-Ordering
+	*				       capabilities.
+* @context: ibv_context to query.
+* @caps: relaxed-ordering capabilities (output)
+*
+* Relaxed Ordering is a feature that improves performance by disabling the
+	* strict order imposed on PCIe writes/reads. Applications that can handle
+* this lack of strict ordering can benefit from it and improve performance.
+*
+* The function queries for the below capabilities:
+* - relaxed_ordering_write_pci_enabled: relaxed_ordering_write is supported by
+*     the device and also enabled in PCI.
+* - relaxed_ordering_write: relaxed_ordering_write is supported by the device
+*     and can be set in Mkey Context when creating Mkey.
+* - relaxed_ordering_read: relaxed_ordering_read can be set in Mkey Context
+	*     when creating Mkey.
+* - relaxed_ordering_write_umr: relaxed_ordering_write can be modified by UMR.
+* - relaxed_ordering_read_umr: relaxed_ordering_read can be modified by UMR.
+*
+* Return:
+* 0 or -errno on error
+*/
 int spdk_mlx5_query_relaxed_ordering_caps(struct ibv_context *context,
 		struct spdk_mlx5_relaxed_ordering_caps *caps);
 

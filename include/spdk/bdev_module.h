@@ -362,6 +362,12 @@ struct spdk_bdev_fn_table {
 
 	/** Check if bdev can handle spdk_accel_sequence to handle I/O of specific type. */
 	bool (*accel_sequence_supported)(void *ctx, enum spdk_bdev_io_type type);
+
+	/**
+	 * Check if the bdev is ready to process I/O.
+	 */
+	int (*wait_for_ready)(void *ctx, int64_t timeout_in_msec,
+			      spdk_bdev_wait_for_ready_cb, void *cb_arg);
 };
 
 /** bdev I/O completion status */

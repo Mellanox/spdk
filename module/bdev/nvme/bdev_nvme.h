@@ -37,6 +37,17 @@ typedef void (*spdk_bdev_create_nvme_fn)(void *ctx, size_t bdev_count, int rc);
 typedef void (*spdk_bdev_nvme_start_discovery_fn)(void *ctx, int status);
 typedef void (*spdk_bdev_nvme_stop_discovery_fn)(void *ctx);
 
+struct bdev_nvme_lazy_opts {
+	uint32_t nsid;
+	uint32_t blocklen;
+	uint64_t blockcnt;
+};
+
+struct bdev_nvme_lazy_ctrlr_opts {
+	struct bdev_nvme_lazy_opts *bdevs;
+	uint32_t bdev_count;
+};
+
 struct nvme_ctrlr_opts {
 	uint32_t prchk_flags;
 	int32_t ctrlr_loss_timeout_sec;
@@ -96,10 +107,25 @@ struct nvme_path_id {
 	bool					is_failed;
 };
 
+struct nvme_qpair {
+	struct nvme_ctrlr		*ctrlr;
+	struct spdk_nvme_qpair		*qpair;
+	struct nvme_poll_group		*group;
+	struct nvme_ctrlr_channel	*ctrlr_ch;
+	uint32_t			core_id;
+
+	/* The following is used to update io_path cache of nvme_bdev_channels. */
+	TAILQ_HEAD(, nvme_io_path)	io_path_list;
+
+	TAILQ_ENTRY(nvme_qpair)		tailq;
+};
+
 typedef void (*bdev_nvme_reset_cb)(void *cb_arg, bool success);
 typedef void (*nvme_ctrlr_disconnected_cb)(struct nvme_ctrlr *nvme_ctrlr);
 
 struct nvme_ctrlr {
+	struct nvme_qpair			qpair;
+
 	/**
 	 * points to pinned, physically contiguous memory region;
 	 * contains 4KB IDENTIFY structure for controller which is
@@ -116,6 +142,7 @@ struct nvme_ctrlr {
 	uint32_t				ana_log_page_updating : 1;
 	uint32_t				io_path_cache_clearing : 1;
 	uint32_t				dont_retry : 1;
+	uint32_t 				connecting : 1;
 
 	struct nvme_ctrlr_opts			opts;
 
@@ -154,14 +181,27 @@ struct nvme_ctrlr {
 
 struct nvme_bdev_ctrlr {
 	char				*name;
+	struct spdk_spinlock		connect_lock;
+	struct spdk_nvme_transport_id	*multipath_trids;
+	struct spdk_nvme_transport_id	*failover_trids;
 	TAILQ_HEAD(, nvme_ctrlr)	ctrlrs;
 	TAILQ_HEAD(, nvme_bdev)		bdevs;
 	TAILQ_ENTRY(nvme_bdev_ctrlr)	tailq;
+	uint32_t 			num_multipath_trids;
+	uint32_t			num_failover_trids;
 };
 
 struct nvme_error_stat {
 	uint32_t status_type[8];
 	uint32_t status[4][256];
+};
+
+struct nvme_ctrlr_lazy_param {
+	struct spdk_nvme_transport_id trid;
+	struct nvme_ctrlr_opts bdev_opts;
+	struct spdk_nvme_ctrlr_opts drv_opts;
+	struct bdev_nvme_lazy_opts lazy;
+	char *base_name;
 };
 
 struct nvme_bdev {
@@ -175,20 +215,11 @@ struct nvme_bdev {
 	uint32_t			rr_min_io;
 	TAILQ_HEAD(, nvme_ns)		nvme_ns_list;
 	bool				opal;
+	bool				connected;
 	TAILQ_ENTRY(nvme_bdev)		tailq;
+	/* This needs to be saved by every bdev to establish connection */
+	struct nvme_ctrlr_lazy_param	*ctrlr_lazy_param;
 	struct nvme_error_stat		*err_stat;
-};
-
-struct nvme_qpair {
-	struct nvme_ctrlr		*ctrlr;
-	struct spdk_nvme_qpair		*qpair;
-	struct nvme_poll_group		*group;
-	struct nvme_ctrlr_channel	*ctrlr_ch;
-
-	/* The following is used to update io_path cache of nvme_bdev_channels. */
-	TAILQ_HEAD(, nvme_io_path)	io_path_list;
-
-	TAILQ_ENTRY(nvme_qpair)		tailq;
 };
 
 struct nvme_ctrlr_channel {
@@ -202,6 +233,7 @@ struct nvme_io_path {
 	struct nvme_ns			*nvme_ns;
 	struct nvme_qpair		*qpair;
 	STAILQ_ENTRY(nvme_io_path)	stailq;
+	uint32_t			core_id;
 
 	/* The following are used to update io_path cache of the nvme_bdev_channel. */
 	struct nvme_bdev_channel	*nbdev_ch;
@@ -220,6 +252,7 @@ struct nvme_bdev_channel {
 	STAILQ_HEAD(, nvme_io_path)		io_path_list;
 	TAILQ_HEAD(retry_io_head, spdk_bdev_io)	retry_io_list;
 	struct spdk_poller			*retry_io_poller;
+	struct nvme_poll_group			*group;
 };
 
 struct nvme_poll_group {
@@ -293,6 +326,7 @@ struct spdk_bdev_nvme_opts {
 	uint32_t rdma_srq_size;
 	bool io_path_stat;
 	uint32_t poll_group_requests;
+	bool nested_mode;
 };
 
 struct spdk_nvme_qpair *bdev_nvme_get_io_qpair(struct spdk_io_channel *ctrlr_io_ch);
@@ -310,7 +344,8 @@ int bdev_nvme_create(struct spdk_nvme_transport_id *trid,
 		     void *cb_ctx,
 		     struct spdk_nvme_ctrlr_opts *drv_opts,
 		     struct nvme_ctrlr_opts *bdev_opts,
-		     bool multipath);
+		     bool multipath,
+		     struct bdev_nvme_lazy_ctrlr_opts *lazy);
 
 int bdev_nvme_start_discovery(struct spdk_nvme_transport_id *trid, const char *base_name,
 			      struct spdk_nvme_ctrlr_opts *drv_opts, struct nvme_ctrlr_opts *bdev_opts,

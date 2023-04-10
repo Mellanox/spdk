@@ -73,31 +73,22 @@ fi
 TGT_LIBXLIO=${TGT_LIBXLIO:-}
 
 XLIO_OPTS="
+XLIO_STATS_FILE=/tmp/xlio.stat
 XLIO_STATS_FD_NUM=1000
 XLIO_RING_ALLOCATION_LOGIC_TX=30
 XLIO_RING_ALLOCATION_LOGIC_RX=30
-XLIO_RX_BUFS=4096
-XLIO_STRQ_STRIDE_SIZE_BYTES=64
-XLIO_STRQ_NUM_STRIDES=2048
-XLIO_RX_WRE=4
 XLIO_QP_COMPENSATION_LEVEL=8
 XLIO_STRQ_STRIDES_COMPENSATION_LEVEL=32768
 XLIO_FORK=0
 XLIO_SPEC=latency
 XLIO_INTERNAL_THREAD_AFFINITY=0x01
-XLIO_LRO=on
-XLIO_TX_BUFS=10000
 XLIO_TX_WRE=1024
-XLIO_TX_SEGS_TCP=200000
 XLIO_RX_WRE_BATCHING=1
-XLIO_GRO_STREAMS_MAX=0
 XLIO_THREAD_MODE=1
 XLIO_TX_WRE_BATCHING=128
 XLIO_TSO=1
-XLIO_SKIP_POLL_IN_RX=2
 XLIO_RX_POLL=-1
 XLIO_RX_PREFETCH_BYTES_BEFORE_POLL=256
-XLIO_RING_DEV_MEM_TX=1024
 XLIO_MEM_ALLOC_TYPE=1
 XLIO_AVOID_SYS_CALLS_ON_TCP_FD=1
 XLIO_CQ_KEEP_QP_FULL=0
@@ -109,7 +100,20 @@ XLIO_SELECT_POLL_OS_FORCE=1
 XLIO_SELECT_POLL_OS_RATIO=1
 XLIO_SELECT_SKIP_OS=1
 XLIO_TCP_NODELAY=0
+XLIO_RING_ALLOCATION_LOGIC_TX=20
+XLIO_RING_ALLOCATION_LOGIC_RX=20
 XLIO_TCP_ABORT_ON_CLOSE=1
+XLIO_RX_BUFS=4096
+XLIO_STRQ_STRIDE_SIZE_BYTES=64
+XLIO_STRQ_NUM_STRIDES=2048
+XLIO_RX_WRE=4
+XLIO_SKIP_POLL_IN_RX=2
+XLIO_RING_DEV_MEM_TX=1024
+XLIO_GRO_STREAMS_MAX=0
+XLIO_LRO=on
+XLIO_TX_SEGS_TCP=600000
+XLIO_TX_BUFS=30000
+XLIO_BUFFER_BATCHING_MODE=0
 "
 
 SOCK_IMPL=${SOCK_IMPL:-xlio}
@@ -126,7 +130,7 @@ TGT_MASK=${TGT_MASK:-0xFF}
 SNAP_MASK=${SNAP_MASK:-0xFF}
 PERF_TIME=${PERF_TIME:-60}
 WARMUP_TIME=${WARMUP_TIME:-5}
-PERF_MASKS=${PERF_MASKS:-0x10 0x30 0xF0 0xFF 0xFC}
+PERF_MASKS=${PERF_MASKS:-0x10}
 QUEUE_DEPTHS=${QUEUE_DEPTHS:-1 2 4 8 16 32 64 128}
 IO_SIZES=${IO_SIZES:-4096 8192 16384 32768 65536 131072}
 RW=${RW:-randread}
@@ -288,6 +292,8 @@ function start_snap() {
 	 $SNAP_ENV_OPTS \
 	 nice --20 $SNAP_BIN_PATH/snap_service -m $SNAP_MASK -u --wait-for-rpc \
 	 2>&1 | tee snap.log &
+    SNAP_PID=$!
+    echo "SNAP PID is $SNAP_PID" 2>&1 | tee -a snap.log
     for i in $(seq 10); do
 	if rpc_snap_spdk spdk_get_version; then
 	    return
@@ -299,7 +305,8 @@ function start_snap() {
 function stop_snap() {
     local SIGNAL=${1:-15}
     rpc_snap_spdk spdk_kill_instance $SIGNAL
-    sleep 3
+    echo "Waiting for SNAP: $SNAP_PID"
+    wait $SNAP_PID 
 }
 
 function snap_enable_debug() {
@@ -354,7 +361,7 @@ function config_snap() {
     rpc_snap_spdk_batch "$CONFIG"
 
     CONFIG=""
-    CONFIG="$CONFIG\nnvme_subsystem_create --nqn nqn.2020-12.mlnx.snap --model_number Mellanox_NVMe_SNAP"
+    CONFIG="$CONFIG\nnvme_subsystem_create --nqn nqn.2020-12.mlnx.snap -nn 2048 -mnan 2048 --model_number Mellanox_NVMe_SNAP"
     CONFIG="$CONFIG\nnvme_controller_create --nqn nqn.2020-12.mlnx.snap --pf_id 0 --num_queues 31 --mdts $MDTS"
     for ((i=0;i<$SUBSYS;i++))
     do
@@ -383,7 +390,7 @@ function config_snap_crypto() {
     CONFIG="$CONFIG\nbdev_nvme_set_options -k 0"
     CONFIG="$CONFIG\naccel_crypto_key_create --name Key0 --cipher AES_XTS \
 		  --key 00112233445566778899001122334455 \
-		  --key2 11223344556677889900112233445500"
+		  --key2 11223344556677889900112233445500 --tweak-offset 0"
     for ((i=0;i<$SUBSYS;i++))
     do
 	for ((j=0; j<PATHS; j++)); do
@@ -523,14 +530,21 @@ function generate_fio_config_nvme_pci() {
 {
   "subsystems": [ {
     "subsystem": "bdev",
-    "config": [ {
-      "method": "bdev_nvme_attach_controller",
-      "params": {
-        "trtype": "pcie",
-        "name":"Nvme0",
-        "traddr":"$PCI_ADDR"
-      }
-    } ]
+    "config": [
+        {
+          "method": "bdev_set_options",
+          "params": {
+            "bdev_auto_examine": false
+          }
+        },
+        {
+          "method": "bdev_nvme_attach_controller",
+          "params": {
+            "trtype": "pcie",
+            "name":"Nvme0",
+            "traddr":"$PCI_ADDR"
+          }
+        } ]
   } ]
 }
 EOF
@@ -594,15 +608,16 @@ function report_fio() {
     local LAT9900_W=$(jq ".jobs[0].write.clat_ns.percentile[\"99.000000\"] / 100 | round / 10" fio_result.json)
     local LAT9999_W=$(jq ".jobs[0].write.clat_ns.percentile[\"99.990000\"] / 100 | round / 10" fio_result.json)
 
+    echo -n "| $TEST | $FIO_JOBS@$FIO_CPUS | $TGT_MASK | $SNAP_MASK | $SUBSYS | $RW | $IO_SIZE | $QUEUE_DEPTH | " >> report.log
     case "$RW" in
 	*"read")
-	    echo "| $TEST | $FIO_JOBS@$FIO_CPUS | $TGT_MASK | $SNAP_MASK | $RW | $IO_SIZE | $QUEUE_DEPTH | $IOPS_R | $BW_R | $LAT_AVG_R | $LAT9900_R | $LAT9999_R" >> report.log
+	    echo "$IOPS_R | $BW_R | $LAT_AVG_R | $LAT9900_R | $LAT9999_R" >> report.log
 	    ;;
 	*"write")
-	    echo "| $TEST | $FIO_JOBS@$FIO_CPUS | $TGT_MASK | $SNAP_MASK | $RW | $IO_SIZE | $QUEUE_DEPTH | $IOPS_W | $BW_W | $LAT_AVG_W | $LAT9900_W | $LAT9999_W" >> report.log
+	    echo "$IOPS_W | $BW_W | $LAT_AVG_W | $LAT9900_W | $LAT9999_W" >> report.log
 	    ;;
 	*"rw")
-	    echo "| $TEST | $FIO_JOBS@$FIO_CPUS | $TGT_MASK | $SNAP_MASK | $RW | $IO_SIZE | $QUEUE_DEPTH | $IOPS_R+$IOPS_W | $BW_R+$BW_W | $LAT_AVG_R/$LAT_AVG_W | $LAT9900_R/$LAT9900_W | $LAT9999_R/$LAT9999_W" >> report.log
+	    echo "$IOPS_R+$IOPS_W | $BW_R+$BW_W | $LAT_AVG_R/$LAT_AVG_W | $LAT9900_R/$LAT9900_W | $LAT9999_R/$LAT9999_W" >> report.log
 	    ;;
     esac
 }
@@ -732,30 +747,39 @@ function basic_test_nvme_snap() {
 function basic_test_fio_snap() {
     local TGT_CONFIG=${TGT_CONFIG:-config_tgt}
     local SNAP_CONFIG=${SNAP_CONFIG:-config_snap}
-    start_tgt
-    $TGT_CONFIG
-    start_snap
-    if [ -n "$SNAP_DEBUG" ]; then
-	echo "You have 10 seconds to attach debugger"
-	echo 'gdb -p $(pidof snap_service)'
-	sleep 10
-    fi
-    $SNAP_CONFIG
-    for PERF_MASK in $PERF_MASKS; do
-	for QUEUE_DEPTH in $QUEUE_DEPTHS; do
-	    for IO_SIZE in $IO_SIZES; do
-		for REP in $(seq $REPEAT); do
-		    run_fio_bdev # > /dev/null 2>&1
-		    wait_fio
-		    report_fio
-		    rpc_snap_spdk bdev_nvme_get_transport_statistics
-		    rpc_snap_spdk bdev_get_iostat
+    local RWS=$RW
+    local RW=""
+    local NUM_SUBSYS=$SUBSYS
+    local SUBSYS=""
+
+    for SUBSYS in $NUM_SUBSYS; do
+	start_tgt
+	$TGT_CONFIG
+	start_snap
+	if [ -n "$SNAP_DEBUG" ]; then
+	    echo "You have 10 seconds to attach debugger"
+	    echo 'gdb -p $(pidof snap_service)'
+	    sleep 10
+	fi
+	$SNAP_CONFIG
+	for PERF_MASK in $PERF_MASKS; do
+	    for RW in $RWS; do
+ 		for QUEUE_DEPTH in $QUEUE_DEPTHS; do
+		    for IO_SIZE in $IO_SIZES; do
+			for REP in $(seq $REPEAT); do
+			    run_fio_bdev # > /dev/null 2>&1
+			    wait_fio
+			    report_fio
+			    rpc_snap_spdk bdev_nvme_get_transport_statistics
+			    rpc_snap_spdk bdev_get_iostat
+			done
+		    done
 		done
 	    done
 	done
+	stop_snap
+	stop_tgt
     done
-    stop_snap
-    stop_tgt
 }
 
 function basic_test_fio_snap_multipath() {
@@ -1117,6 +1141,31 @@ function test_perf_snap4_crypto_digest_sw() {
 		 basic_test_fio_snap
 }
 
+# Run as SETUP=<your setup> ./test.sh set_trust_level
+function set_trust_level() {
+    sudo /etc/init.d/openibd stop
+    sleep 10
+    $(ssh_prefix $SNAP_SSH) sudo devlink dev eswitch set pci/0000:03:00.0 mode legacy
+    $(ssh_prefix $SNAP_SSH) sudo devlink dev eswitch set pci/0000:03:00.1 mode legacy
+    # These lines seems to be not required but are present in original instruction
+    #$(ssh_prefix $SNAP_SSH) sudo sh -c "'echo none > /sys/class/net/p0/compat/devlink/encap'"
+    #$(ssh_prefix $SNAP_SSH) sudo sh -c "'echo none > /sys/class/net/p1/compat/devlink/encap'"
+    $(ssh_prefix $SNAP_SSH) sudo devlink dev eswitch set pci/0000:03:00.0 mode switchdev
+    $(ssh_prefix $SNAP_SSH) sudo devlink dev eswitch set pci/0000:03:00.1 mode switchdev
+    $(ssh_prefix $SNAP_SSH) sudo mlxreg -d /dev/mst/mt41692_pciconf0 --reg_name VHCA_TRUST_LEVEL --yes --indexes "vhca_id=0x0,all_vhca=0x1" --set "trust_level=0x1"
+    $(ssh_prefix $SNAP_SSH) sudo mlxreg -d /dev/mst/mt41692_pciconf0.1 --reg_name VHCA_TRUST_LEVEL --yes --indexes "vhca_id=0x0,all_vhca=0x1" --set "trust_level=0x1"
+    sudo /etc/init.d/openibd start
+    sleep 10
+    $(ssh_prefix $SNAP_SSH) sudo /opt/mellanox/iproute2/sbin/mlxdevm port add pci/0000:03:00.0 flavour pcisf pfnum 0 sfnum 0
+    $(ssh_prefix $SNAP_SSH) sudo /opt/mellanox/iproute2/sbin/mlxdevm port add pci/0000:03:00.1 flavour pcisf pfnum 1 sfnum 0
+    $(ssh_prefix $SNAP_SSH) sudo /opt/mellanox/iproute2/sbin/mlxdevm port function set pci/0000:03:00.0/360480 state active
+    $(ssh_prefix $SNAP_SSH) sudo /opt/mellanox/iproute2/sbin/mlxdevm port function set pci/0000:03:00.1/426016 state active
+    $(ssh_prefix $SNAP_SSH) sudo sh -c "'echo mlx5_core.sf.2 > /sys/bus/auxiliary/drivers/mlx5_core.sf_cfg/unbind'"
+    $(ssh_prefix $SNAP_SSH) sudo sh -c "'echo mlx5_core.sf.3 > /sys/bus/auxiliary/drivers/mlx5_core.sf_cfg/unbind'"
+    $(ssh_prefix $SNAP_SSH) sudo sh -c "'echo mlx5_core.sf.2 > /sys/bus/auxiliary/drivers/mlx5_core.sf/bind'"
+    $(ssh_prefix $SNAP_SSH) sudo sh -c "'echo mlx5_core.sf.3 > /sys/bus/auxiliary/drivers/mlx5_core.sf/bind'"
+}
+
 function cleanup() {
     sudo kill -9 $(pidof fio)
     stop_snap 9
@@ -1145,7 +1194,7 @@ else
 fi
 
 rm -rf rpc.log rpc_snap.log rpc_tgt.log perf.log tgt.log snap.log report.log fio.log
-echo "| Test | Perf CPU | TGT CPU | SNAP CPU | RW | IO size | QD | KIOPS | BW | Lat_avg | Lat_99 | Lat_99.99 |" >> report.log
+echo "| Test | Perf CPU | TGT CPU | SNAP CPU | Subsys | RW | IO size | QD | KIOPS | BW | Lat_avg | Lat_99 | Lat_99.99 |" >> report.log
 echo "Running tests: $tests"
 for t in $tests; do
     TEST="$t"

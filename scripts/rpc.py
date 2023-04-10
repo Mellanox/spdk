@@ -560,7 +560,8 @@ if __name__ == "__main__":
                                        nvme_error_stat=args.nvme_error_stat,
                                        rdma_srq_size=args.rdma_srq_size,
                                        io_path_stat=args.io_path_stat,
-                                       poll_group_requests=args.poll_group_requests)
+                                       poll_group_requests=args.poll_group_requests,
+                                       nested_mode=args.nested_mode)
 
     p = subparsers.add_parser('bdev_nvme_set_options',
                               help='Set options for the bdev nvme type. This is startup command.')
@@ -640,6 +641,7 @@ if __name__ == "__main__":
                    action='store_true')
     p.add_argument('--poll-group-requests',
                    help='The number of requests allocated for each NVMe poll group. Default: 0', type=int)
+    p.add_argument('--nested-mode', help="""Enable nested multipath mode.""", action='store_true')
 
     p.set_defaults(func=bdev_nvme_set_options)
 
@@ -675,7 +677,8 @@ if __name__ == "__main__":
                                                          ctrlr_loss_timeout_sec=args.ctrlr_loss_timeout_sec,
                                                          reconnect_delay_sec=args.reconnect_delay_sec,
                                                          fast_io_fail_timeout_sec=args.fast_io_fail_timeout_sec,
-                                                         psk=args.psk))
+                                                         psk=args.psk,
+                                                         lazy_conn=args.lazy_conn))
 
     p = subparsers.add_parser('bdev_nvme_attach_controller', help='Add bdevs with nvme backend')
     p.add_argument('-b', '--name', help="Name of the NVMe controller, prefix for each bdev name", required=True)
@@ -728,6 +731,8 @@ if __name__ == "__main__":
                    type=int)
     p.add_argument('-k', '--psk',
                    help='Set PSK and enable TCP SSL socket implementation: e.g., 1234567890ABCDEF')
+    p.add_argument('-y', '--lazy-conn',
+                   help='nsid:1 blocklen:512 blockcnt:1024, nsid:...', type=str)
     p.set_defaults(func=bdev_nvme_attach_controller)
 
     def bdev_nvme_get_controllers(args):

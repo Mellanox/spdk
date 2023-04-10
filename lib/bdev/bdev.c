@@ -3774,6 +3774,8 @@ bdev_channel_create(void *io_device, void *ctx_buf)
 	struct spdk_bdev_mgmt_channel	*mgmt_ch;
 	struct spdk_bdev_shared_resource *shared_resource;
 	struct lba_range		*range;
+	struct spdk_bdev_desc		*desc;
+	int i;
 
 	ch->bdev = bdev;
 	ch->channel = bdev->fn_table->get_io_channel(bdev->ctxt);
@@ -3893,6 +3895,16 @@ bdev_channel_create(void *io_device, void *ctx_buf)
 		new_range->offset = range->offset;
 		new_range->locked_ctx = range->locked_ctx;
 		TAILQ_INSERT_TAIL(&ch->locked_ranges, new_range, tailq);
+	}
+
+	TAILQ_FOREACH(desc, &bdev->internal.open_descs, link) {
+		if (bdev->fn_table->accel_sequence_supported != NULL) {
+			for (i = 0; i < SPDK_BDEV_NUM_IO_TYPES; ++i) {
+				desc->accel_sequence_supported[i] =
+					bdev->fn_table->accel_sequence_supported(bdev->ctxt, (enum spdk_bdev_io_type)i);
+			}
+		}
+		desc->memory_domains_supported = spdk_bdev_get_memory_domains(bdev, NULL, 0) > 0;
 	}
 
 	spdk_spin_unlock(&bdev->internal.spinlock);
@@ -9542,6 +9554,23 @@ spdk_bdev_copy_blocks(struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
 
 	bdev_io_submit(bdev_io);
 	return 0;
+}
+
+int
+spdk_bdev_wait_for_ready(struct spdk_bdev_desc *desc, int64_t timeout_in_msec,
+			 spdk_bdev_wait_for_ready_cb cb_fn, void *cb_arg)
+{
+	struct spdk_bdev *bdev = spdk_bdev_desc_get_bdev(desc);
+
+	if (cb_fn == NULL) {
+		return -EINVAL;
+	}
+
+	if (bdev->fn_table->wait_for_ready == NULL) {
+		return -ENOTSUP;
+	}
+
+	return bdev->fn_table->wait_for_ready(bdev->ctxt, timeout_in_msec, cb_fn, cb_arg);
 }
 
 SPDK_LOG_REGISTER_COMPONENT(bdev)

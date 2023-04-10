@@ -1915,6 +1915,15 @@ spdk_nvme_qp_failure_reason spdk_nvme_qpair_get_failure_reason(struct spdk_nvme_
 void spdk_nvme_qpair_set_dnr(struct spdk_nvme_qpair *qpair, uint8_t dnr);
 
 /**
+ * Check whether the qpair is enabled and ready to process I/O.
+ *
+ * \param qpair The qpair to check.
+ *
+ * \return true if the qpair is enable or false otherwise.
+ */
+bool spdk_nvme_qpair_is_enabled(struct spdk_nvme_qpair *qpair);
+
+/**
  * Send the given admin command to the NVMe controller.
  *
  * This is a low level interface for submitting admin commands directly. Prefer

@@ -1898,7 +1898,8 @@ spdk_accel_crypto_key_create(const struct spdk_accel_crypto_key_create_param *pa
 	if (!param || !param->hex_key || !param->cipher || !param->key_name) {
 		return -EINVAL;
 	}
-	if (param->tweak_offset > 8) {
+	if (param->tweak_offset != 0 && param->tweak_offset != 8) {
+		SPDK_ERRLOG("Incorrect tweak offset %u, should be 0 or 8\n", param->tweak_offset);
 		return -EINVAL;
 	}
 

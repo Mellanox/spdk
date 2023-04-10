@@ -121,6 +121,7 @@ mlx5_qp_init(struct ibv_pd *pd, const struct spdk_mlx5_qp_attr *attr, struct ibv
 {
 	struct mlx5dv_qp dv_qp;
 	struct mlx5dv_obj dv_obj;
+	struct spdk_mlx5_aes_xts_caps crypto_caps = {};
 	struct ibv_qp_init_attr_ex dv_qp_attr = {
 		.cap = attr->cap,
 		.qp_type = IBV_QPT_RC,
@@ -137,6 +138,12 @@ mlx5_qp_init(struct ibv_pd *pd, const struct spdk_mlx5_qp_attr *attr, struct ibv
 		.send_ops_flags = MLX5DV_QP_EX_WITH_MKEY_CONFIGURE
 	};
 	int rc;
+
+	rc = spdk_mlx5_query_aes_xts_caps(pd->context, &crypto_caps);
+	if (rc) {
+		SPDK_ERRLOG("Failed to query dev %s crypto caps\n", pd->context->device->name);
+		return rc;
+	}
 
 	qp->verbs_qp = mlx5dv_create_qp(pd->context, &dv_qp_attr, &mlx5_qp_attr);
 	if (!qp->verbs_qp) {
@@ -161,7 +168,7 @@ mlx5_qp_init(struct ibv_pd *pd, const struct spdk_mlx5_qp_attr *attr, struct ibv
 	qp->hw.sq.wqe_cnt = dv_qp.sq.wqe_cnt;
 	qp->hw.rq.wqe_cnt = dv_qp.rq.wqe_cnt;
 
-	SPDK_NOTICELOG("Created QP, sq size %u WQE_BB. Requested %u send_wrs -> %u WQE_BB per send WR\n", qp->hw.sq.wqe_cnt, attr->cap.max_send_wr, qp->hw.sq.wqe_cnt / attr->cap.max_send_wr);
+	SPDK_NOTICELOG("mlx5 QP, sq size %u WQE_BB. %u send_wrs -> %u WQE_BB per send WR\n", qp->hw.sq.wqe_cnt, attr->cap.max_send_wr, qp->hw.sq.wqe_cnt / attr->cap.max_send_wr);
 
 	qp->hw.rq.ci = qp->hw.sq.pi = 0;
 	qp->hw.qp_num = qp->verbs_qp->qp_num;
@@ -177,6 +184,9 @@ mlx5_qp_init(struct ibv_pd *pd, const struct spdk_mlx5_qp_attr *attr, struct ibv
 	qp->hw.sq.tx_db_nc = dv_qp.bf.size == 0;
 	qp->tx_available = qp->hw.sq.wqe_cnt;
 	qp->max_sge = attr->cap.max_send_sge;
+	qp->aes_xts_inc_64 = crypto_caps.tweak_inc_64;
+	/* We have only mode BE mode, if it is not set then tweak is LE */
+	qp->aes_xts_tweak_be = crypto_caps.multi_block_be_tweak;
 	rc = posix_memalign((void **)&qp->completions, 4096, qp->hw.sq.wqe_cnt * sizeof(*qp->completions));
 	if (rc) {
 		SPDK_ERRLOG("Failed to alloc completions\n");
@@ -274,8 +284,6 @@ mlx5_fill_qp_conn_caps(struct ibv_context *context,
 
 	uint8_t in[DEVX_ST_SZ_BYTES(query_hca_cap_in)] = {0};
 	uint8_t out[DEVX_ST_SZ_BYTES(query_hca_cap_out)] = {0};
-	uint32_t log_max_bsf_list_size;
-	bool bsf_in_create_mkey;
 	int ret;
 
 	DEVX_SET(query_hca_cap_in, in, opcode, MLX5_CMD_OP_QUERY_HCA_CAP);
@@ -294,13 +302,6 @@ mlx5_fill_qp_conn_caps(struct ibv_context *context,
 					   capability.cmd_hca_cap.fl_rc_qp_when_roce_disabled);
 	conn_caps->roce_enabled = DEVX_GET(query_hca_cap_out, out,
 					   capability.cmd_hca_cap.roce);
-
-	log_max_bsf_list_size = DEVX_GET(query_hca_cap_out, out,
-					 capability.cmd_hca_cap.log_max_bsf_list_size);
-	bsf_in_create_mkey = DEVX_GET(query_hca_cap_out, out,
-				      capability.cmd_hca_cap.bsf_in_create_mkey);
-	SPDK_NOTICELOG("log_max_bsf_list_size %u, bsf_in_create_mkey %u\n", log_max_bsf_list_size, bsf_in_create_mkey);
-
 	if (!conn_caps->roce_enabled) {
 		goto out;
 	}
@@ -324,7 +325,7 @@ mlx5_fill_qp_conn_caps(struct ibv_context *context,
 	conn_caps->r_roce_min_src_udp_port = DEVX_GET(query_hca_cap_out,
 					     out, capability.roce_cap.r_roce_min_src_udp_port);
 out:
-	SPDK_NOTICELOG("RoCE Caps: enabled %d ver %d fl allowed %d\n",
+	SPDK_DEBUGLOG(mlx5, "RoCE Caps: enabled %d ver %d fl allowed %d\n",
 		       conn_caps->roce_enabled, conn_caps->roce_version,
 		       conn_caps->roce_enabled ? conn_caps->fl_when_roce_enabled :
 		       conn_caps->fl_when_roce_disabled);

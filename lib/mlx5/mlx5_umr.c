@@ -97,25 +97,29 @@ mlx5_build_inline_mtt(struct spdk_mlx5_hw_qp *qp,
 }
 
 static inline void
-set_umr_crypto_bsf_seg(struct mlx5_crypto_bsf_seg *bsf,
-		       struct spdk_mlx5_umr_crypto_attr *attr)
+set_umr_crypto_bsf_seg(struct mlx5_crypto_bsf_seg *bsf, struct spdk_mlx5_umr_crypto_attr *attr,
+		       uint32_t umr_len, bool tweak_inc_64, bool tweak_be)
 {
+	uint64_t iv = attr->xts_iv;
+
+	if (tweak_be) {
+		iv = htobe64(iv);
+	}
+
+	/* BSF xts_initial_tweak is 128b, indexed [127-0]
+	 * If represent the tweak as an array of chars then bits 127-120 correspond
+	 * bsf->xts_initial_tweak[0] */
 	memset(bsf, 0, sizeof(*bsf));
 	bsf->size_type = (MLX5_CRYPTO_BSF_SIZE_64B << 6) | MLX5_CRYPTO_BSF_P_TYPE_CRYPTO;
 	bsf->enc_order = attr->enc_order;
-	/* We memset this structure, MLX5_ENCRYPTION_STANDARD_AES_XTS value is 0 so just skip it
-	bsf->enc_standard = MLX5_ENCRYPTION_STANDARD_AES_XTS;
-	 */
-	/*
-	 * Number of bytes of Raw data covered by this BSF. If HCA_- CAP.aes_xts_single_block_le_tweak is set,
-	 * this should not exceed a single block size as indicated in crypto_block_- size_pointer.
-	 * rdma-core sets raw_data_size to UINT32_MAX, follow it for simplicity
-	 */
-	bsf->raw_data_size = htobe32(UINT32_MAX);
+	bsf->raw_data_size = htobe32(umr_len);
 	bsf->crypto_block_size_pointer = attr->bs_selector;
 	bsf->dek_pointer = htobe32(attr->dek_obj_id);
-	assert(attr->tweak_offset < 9);
-	memcpy(bsf->xts_initial_tweak + attr->tweak_offset, &attr->xts_iv, sizeof(attr->xts_iv));
+	assert(attr->tweak_offset == 0 || attr->tweak_offset == 8);
+	memcpy(bsf->xts_initial_tweak + attr->tweak_offset, &iv, sizeof(iv));
+	if (tweak_inc_64 && attr->tweak_offset == 8) {
+		*((uint64_t *) bsf->xts_initial_tweak) = UINT64_MAX;
+	}
 	*((uint64_t *)bsf->keytag) = attr->keytag;
 }
 
@@ -172,7 +176,8 @@ mlx5_umr_configure_full_crypto(struct spdk_mlx5_qp *dv_qp, struct spdk_mlx5_umr_
 	}
 
 	bsf = (struct mlx5_crypto_bsf_seg *)klm;
-	set_umr_crypto_bsf_seg(bsf, crypto_attr);
+	set_umr_crypto_bsf_seg(bsf, crypto_attr, umr_attr->umr_len,
+			       dv_qp->aes_xts_inc_64, dv_qp->aes_xts_tweak_be);
 
 	mlx5_qp_wqe_submit(dv_qp, ctrl, umr_wqe_n_bb);
 
@@ -283,7 +288,8 @@ mlx5_umr_configure_with_wrap_around_crypto(struct spdk_mlx5_qp *dv_qp, struct sp
 	klm = mlx5_qp_get_next_wqbb(hw, &to_end, mkey);
 	bsf = mlx5_build_inline_mtt(hw, &to_end, klm, umr_attr);
 
-	set_umr_crypto_bsf_seg(bsf, crypto_attr);
+	set_umr_crypto_bsf_seg(bsf, crypto_attr, umr_attr->umr_len,
+			       dv_qp->aes_xts_inc_64, dv_qp->aes_xts_tweak_be);
 
 	mlx5_qp_wqe_submit(dv_qp, ctrl, umr_wqe_n_bb);
 
@@ -441,29 +447,34 @@ spdk_mlx5_umr_configure(struct spdk_mlx5_dma_qp *dma_qp, struct spdk_mlx5_umr_at
 	return 0;
 }
 
-/**
-* spdk_mlx5_query_relaxed_ordering_caps() - Query for Relaxed-Ordering
-	*				       capabilities.
-* @context: ibv_context to query.
-* @caps: relaxed-ordering capabilities (output)
-*
-* Relaxed Ordering is a feature that improves performance by disabling the
-	* strict order imposed on PCIe writes/reads. Applications that can handle
-* this lack of strict ordering can benefit from it and improve performance.
-*
-* The function queries for the below capabilities:
-* - relaxed_ordering_write_pci_enabled: relaxed_ordering_write is supported by
-*     the device and also enabled in PCI.
-* - relaxed_ordering_write: relaxed_ordering_write is supported by the device
-*     and can be set in Mkey Context when creating Mkey.
-* - relaxed_ordering_read: relaxed_ordering_read can be set in Mkey Context
-	*     when creating Mkey.
-* - relaxed_ordering_write_umr: relaxed_ordering_write can be modified by UMR.
-* - relaxed_ordering_read_umr: relaxed_ordering_read can be modified by UMR.
-*
-* Return:
-* 0 or -errno on error
-*/
+int spdk_mlx5_query_aes_xts_caps(struct ibv_context *context, struct spdk_mlx5_aes_xts_caps *caps)
+{
+	uint16_t opmod = MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE |
+		HCA_CAP_OPMOD_GET_CUR;
+	uint32_t out[DEVX_ST_SZ_DW(query_hca_cap_out)] = {};
+	uint32_t in[DEVX_ST_SZ_DW(query_hca_cap_in)] = {};
+	int rc;
+
+	DEVX_SET(query_hca_cap_in, in, opcode, MLX5_CMD_OP_QUERY_HCA_CAP);
+	DEVX_SET(query_hca_cap_in, in, op_mod, opmod);
+
+	rc = mlx5dv_devx_general_cmd(context, in, sizeof(in), out, sizeof(out));
+	if (rc) {
+		return rc;
+	}
+
+	caps->crypto = DEVX_GET(query_hca_cap_out, out, capability.cmd_hca_cap.crypto);
+	caps->single_block_le_tweak = DEVX_GET(query_hca_cap_out,
+			out, capability.cmd_hca_cap.aes_xts_single_block_le_tweak);
+	caps->multi_block_be_tweak = DEVX_GET(query_hca_cap_out, out,
+						capability.cmd_hca_cap.aes_xts_multi_block_be_tweak);
+	caps->multi_block_le_tweak = DEVX_GET(query_hca_cap_out, out,
+						capability.cmd_hca_cap.aes_xts_multi_block_le_tweak);
+	caps->tweak_inc_64 = DEVX_GET(query_hca_cap_out, out,
+					       capability.cmd_hca_cap.aes_xts_tweak_inc_64);
+	return 0;
+}
+
 int
 spdk_mlx5_query_relaxed_ordering_caps(struct ibv_context *context,
 				      struct spdk_mlx5_relaxed_ordering_caps *caps)

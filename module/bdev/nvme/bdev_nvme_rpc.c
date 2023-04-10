@@ -67,6 +67,7 @@ static const struct spdk_json_object_decoder rpc_bdev_nvme_options_decoders[] = 
 	{"rdma_srq_size", offsetof(struct spdk_bdev_nvme_opts, rdma_srq_size), spdk_json_decode_uint32, true},
 	{"io_path_stat", offsetof(struct spdk_bdev_nvme_opts, io_path_stat), spdk_json_decode_bool, true},
 	{"poll_group_requests", offsetof(struct spdk_bdev_nvme_opts, poll_group_requests), spdk_json_decode_uint32, true},
+	{"nested_mode", offsetof(struct spdk_bdev_nvme_opts, nested_mode), spdk_json_decode_bool, true},
 };
 
 static void
@@ -164,6 +165,7 @@ struct rpc_bdev_nvme_attach_controller {
 	char *hostsvcid;
 	char *psk;
 	enum bdev_nvme_multipath_mode multipath;
+	struct bdev_nvme_lazy_ctrlr_opts lazy_opts;
 	struct nvme_ctrlr_opts bdev_opts;
 	struct spdk_nvme_ctrlr_opts drv_opts;
 };
@@ -182,6 +184,7 @@ free_rpc_bdev_nvme_attach_controller(struct rpc_bdev_nvme_attach_controller *req
 	free(req->hostaddr);
 	free(req->hostsvcid);
 	free(req->psk);
+	free(req->lazy_opts.bdevs);
 }
 
 static int
@@ -233,6 +236,92 @@ bdev_nvme_decode_multipath(const struct spdk_json_val *val, void *out)
 	return 0;
 }
 
+/*
+ * Values are passed as a plain string in format
+ * nsid:1 blocklen:512 blockcnt:1024, nsid:...
+ */
+static int
+bdev_nvme_decode_lazy_conn(const struct spdk_json_val *val, void *out)
+{
+	struct bdev_nvme_lazy_ctrlr_opts *opts = (struct bdev_nvme_lazy_ctrlr_opts *)out;
+	char *tmp, *tok;
+	char *str = spdk_json_strdup(val);
+	uint32_t i = 0;
+	int rc = 0;
+	long int parsed_int;
+
+	if (!str) {
+		return -ENOMEM;
+	}
+	opts->bdev_count = 0;
+	tmp = str;
+	while ((tmp = strchr(tmp, ',')) != NULL) {
+		tmp++;
+		opts->bdev_count++;
+	}
+	opts->bdev_count++;
+	opts->bdevs = calloc(opts->bdev_count, sizeof(struct bdev_nvme_lazy_ctrlr_opts));
+	if (!opts->bdevs) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	tok = strtok(str, ",");
+	while (tok) {
+		tmp = strstr(tok, "nsid:");
+		if (!tmp) {
+			rc = -EINVAL;
+			goto out;
+		}
+		tmp += 5;
+		errno = 0;
+		parsed_int = strtol(tmp, &tmp, 10);
+		if (parsed_int < 0 || errno) {
+			rc = -EINVAL;
+			goto out;
+		}
+		opts->bdevs[i].nsid = (uint32_t)parsed_int;
+
+		tmp = strstr(tok, "blocklen:");
+		if (!tmp) {
+			rc = -EINVAL;
+			goto out;
+		}
+		tmp += 9;
+		errno = 0;
+		parsed_int = strtol(tmp, &tmp, 10);
+		if (parsed_int < 0 || errno) {
+			rc = -EINVAL;
+			goto out;
+		}
+		opts->bdevs[i].blocklen = (uint32_t)parsed_int;
+
+		tmp = strstr(tok, "blockcnt:");
+		if (!tmp) {
+			rc = -EINVAL;
+			goto out;
+		}
+		tmp += 9;
+		errno = 0;
+		parsed_int = strtol(tmp, &tmp, 10);
+		if (parsed_int < 0 || errno) {
+			rc = -EINVAL;
+			goto out;
+		}
+		opts->bdevs[i].blockcnt = (uint64_t)parsed_int;
+
+		tok = strtok(NULL, ",");
+		i++;
+	}
+
+out:
+	free(str);
+	if (rc) {
+		free(opts->bdevs);
+	}
+
+	return rc;
+}
 
 static const struct spdk_json_object_decoder rpc_bdev_nvme_attach_controller_decoders[] = {
 	{"name", offsetof(struct rpc_bdev_nvme_attach_controller, name), spdk_json_decode_string},
@@ -258,6 +347,7 @@ static const struct spdk_json_object_decoder rpc_bdev_nvme_attach_controller_dec
 	{"reconnect_delay_sec", offsetof(struct rpc_bdev_nvme_attach_controller, bdev_opts.reconnect_delay_sec), spdk_json_decode_uint32, true},
 	{"fast_io_fail_timeout_sec", offsetof(struct rpc_bdev_nvme_attach_controller, bdev_opts.fast_io_fail_timeout_sec), spdk_json_decode_uint32, true},
 	{"psk", offsetof(struct rpc_bdev_nvme_attach_controller, psk), spdk_json_decode_string, true},
+	{"lazy_conn", offsetof(struct rpc_bdev_nvme_attach_controller, lazy_opts), bdev_nvme_decode_lazy_conn, true},
 };
 
 #define NVME_MAX_BDEVS_PER_RPC 128
@@ -484,7 +574,7 @@ rpc_bdev_nvme_attach_controller(struct spdk_jsonrpc_request *request,
 	ctx->req.bdev_opts.from_discovery_service = false;
 	rc = bdev_nvme_create(&trid, ctx->req.name, ctx->names, ctx->count,
 			      rpc_bdev_nvme_attach_controller_done, ctx, &ctx->req.drv_opts,
-			      &ctx->req.bdev_opts, multipath);
+			      &ctx->req.bdev_opts, multipath, ctx->req.lazy_opts.bdev_count ? &ctx->req.lazy_opts : NULL);
 	if (rc) {
 		spdk_jsonrpc_send_error_response(request, rc, spdk_strerror(-rc));
 		goto cleanup;

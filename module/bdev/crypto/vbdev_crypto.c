@@ -88,6 +88,9 @@ crypto_io_fail(struct crypto_bdev_io *crypto_io)
 	/* This function can only be used to fail an IO that hasn't been sent to the base bdev,
 	 * otherwise accel sequence might have already been executed/aborted. */
 	spdk_accel_sequence_abort(crypto_io->seq);
+	if (crypto_io->aux_buf_raw) {
+		spdk_bdev_io_put_aux_buf(bdev_io, crypto_io->aux_buf_raw);
+	}
 	spdk_bdev_io_complete(bdev_io, SPDK_BDEV_IO_STATUS_FAILED);
 }
 
@@ -117,14 +120,6 @@ crypto_write(struct crypto_io_channel *crypto_ch, struct spdk_bdev_io *bdev_io)
 			crypto_io_fail(crypto_io);
 		}
 	}
-}
-
-static void
-crypto_encrypt_cb(void *cb_arg)
-{
-	struct crypto_bdev_io *crypto_io = cb_arg;
-
-	spdk_bdev_io_put_aux_buf(spdk_bdev_io_from_ctx(crypto_io), crypto_io->aux_buf_raw);
 }
 
 /* We're either encrypting on the way down or decrypting on the way back. */
@@ -158,7 +153,7 @@ crypto_encrypt(struct crypto_io_channel *crypto_ch, struct spdk_bdev_io *bdev_io
 				       bdev_io->u.bdev.memory_domain,
 				       bdev_io->u.bdev.memory_domain_ctx,
 				       bdev_io->u.bdev.offset_blocks, crypto_len, 0,
-				       crypto_encrypt_cb, crypto_io);
+				       NULL, NULL);
 	if (spdk_unlikely(rc != 0)) {
 		spdk_bdev_io_put_aux_buf(bdev_io, crypto_io->aux_buf_raw);
 		if (rc == -ENOMEM) {
@@ -199,9 +194,13 @@ static void
 _complete_internal_io(struct spdk_bdev_io *bdev_io, bool success, void *cb_arg)
 {
 	struct spdk_bdev_io *orig_io = cb_arg;
+	struct crypto_bdev_io *crypto_io = (struct crypto_bdev_io *)orig_io->driver_ctx;
 	int status = success ? SPDK_BDEV_IO_STATUS_SUCCESS : SPDK_BDEV_IO_STATUS_FAILED;
 
 	spdk_bdev_io_complete(orig_io, status);
+	if (crypto_io->aux_buf_raw) {
+		spdk_bdev_io_put_aux_buf(orig_io, crypto_io->aux_buf_raw);
+	}
 	spdk_bdev_free_io(bdev_io);
 }
 
