@@ -79,11 +79,16 @@ struct nvme_bdev_io {
 	/** Keeps track if first of fused commands was completed */
 	bool first_fused_completed;
 
-	/** Temporary pointer to zone report buffer */
-	struct spdk_nvme_zns_zone_report *zone_report_buf;
-
 	/** Keep track of how many zones that have been copied to the spdk_bdev_zone_info struct */
 	uint64_t handled_zones;
+
+	union {
+		/** Temporary pointer to zone report buffer */
+		struct spdk_nvme_zns_zone_report *zone_report_buf;
+
+		/** Temporary pointer to reservation report buffer */
+		void *reservation_report_buf;
+	};
 
 	/** Expiration value in ticks to retry the current I/O. */
 	uint64_t retry_ticks;
@@ -196,6 +201,63 @@ static int nvme_ctrlr_read_ana_log_page(struct nvme_ctrlr *nvme_ctrlr);
 
 static struct nvme_ns *nvme_ns_alloc(void);
 static void nvme_ns_free(struct nvme_ns *ns);
+
+/* Reservation Specific Function Declarations */
+static int bdev_nvme_reservation_register(struct nvme_bdev_io *bio, bool ignore_key,
+		enum spdk_bdev_reservation_register_cptpl cptpl,
+		enum spdk_bdev_reservation_register_action action,
+		uint64_t crkey, uint64_t nrkey);
+
+static int bdev_nvme_reservation_acquire(struct nvme_bdev_io *bio, bool ignore_key,
+		enum spdk_bdev_reservation_type type,
+		enum spdk_bdev_reservation_acquire_action action,
+		uint64_t crkey, uint64_t prkey);
+
+static int bdev_nvme_reservation_release(struct nvme_bdev_io *bio, bool ignore_key,
+		enum spdk_bdev_reservation_type type,
+		enum spdk_bdev_reservation_release_action action,
+		uint64_t crkey);
+
+static int bdev_nvme_reservation_report(struct nvme_bdev_io *bio);
+
+SPDK_STATIC_ASSERT(((short)SPDK_NVME_RESERVE_REGISTER_KEY == (short)SPDK_BDEV_RESERVATION_REGISTER_KEY),
+		    "BDEV and NVME Reservations enum mismatch");
+SPDK_STATIC_ASSERT(((short)SPDK_NVME_RESERVE_UNREGISTER_KEY == (short)SPDK_BDEV_RESERVATION_UNREGISTER_KEY),
+		   "BDEV and NVME Reservations enum mismatch");
+SPDK_STATIC_ASSERT(((short)SPDK_NVME_RESERVE_REPLACE_KEY == (short)SPDK_BDEV_RESERVATION_REPLACE_KEY),
+		   "BDEV and NVME Reservations enum mismatch");
+
+SPDK_STATIC_ASSERT((short)SPDK_NVME_RESERVE_PTPL_NO_CHANGES == (short)SPDK_BDEV_RESERVATION_PTPL_NO_CHANGES,
+		   "BDEV and NVME Reservations enum mismatch");
+SPDK_STATIC_ASSERT((short)SPDK_NVME_RESERVE_PTPL_CLEAR_POWER_ON == (short)SPDK_BDEV_RESERVATION_PTPL_CLEAR_POWER_ON,
+		   "BDEV and NVME Reservations enum mismatch");
+SPDK_STATIC_ASSERT((short)SPDK_NVME_RESERVE_PTPL_PERSIST_POWER_LOSS == (short)SPDK_BDEV_RESERVATION_PTPL_PERSIST_POWER_LOSS,
+		   "BDEV and NVME Reservations enum mismatch");
+
+SPDK_STATIC_ASSERT((short)SPDK_NVME_RESERVE_RELEASE == (short)SPDK_BDEV_RESERVATION_RELEASE,
+		   "BDEV and NVME Reservations enum mismatch");
+SPDK_STATIC_ASSERT((short)SPDK_NVME_RESERVE_CLEAR == (short)SPDK_BDEV_RESERVATION_CLEAR,
+		   "BDEV and NVME Reservations enum mismatch");
+
+SPDK_STATIC_ASSERT((short)SPDK_NVME_RESERVE_ACQUIRE == (short)SPDK_BDEV_RESERVATION_ACQUIRE,
+		   "BDEV and NVME Reservations enum mismatch");
+SPDK_STATIC_ASSERT((short)SPDK_NVME_RESERVE_PREEMPT == (short)SPDK_BDEV_RESERVATION_PREEMPT,
+		   "BDEV and NVME Reservations enum mismatch");
+SPDK_STATIC_ASSERT((short)SPDK_NVME_RESERVE_PREEMPT_ABORT == (short)SPDK_BDEV_RESERVATION_PREEMPT_ABORT,
+		   "BDEV and NVME Reservations enum mismatch");
+
+SPDK_STATIC_ASSERT((short)SPDK_NVME_RESERVE_WRITE_EXCLUSIVE == (short)SPDK_BDEV_RESERVATION_WRITE_EXCLUSIVE,
+		   "BDEV and NVME Reservations enum mismatch");
+SPDK_STATIC_ASSERT((short)SPDK_NVME_RESERVE_EXCLUSIVE_ACCESS == (short)SPDK_BDEV_RESERVATION_EXCLUSIVE_ACCESS,
+		   "BDEV and NVME Reservations enum mismatch");
+SPDK_STATIC_ASSERT((short)SPDK_NVME_RESERVE_WRITE_EXCLUSIVE_REG_ONLY == (short)SPDK_BDEV_RESERVATION_WRITE_EXCLUSIVE_REG_ONLY,
+		   "BDEV and NVME Reservations enum mismatch");
+SPDK_STATIC_ASSERT((short)SPDK_NVME_RESERVE_EXCLUSIVE_ACCESS_REG_ONLY == (short)SPDK_BDEV_RESERVATION_EXCLUSIVE_ACCESS_REG_ONLY,
+		    "BDEV and NVME Reservations enum mismatch");
+SPDK_STATIC_ASSERT((short)SPDK_NVME_RESERVE_WRITE_EXCLUSIVE_ALL_REGS == (short)SPDK_BDEV_RESERVATION_WRITE_EXCLUSIVE_ALL_REGS,
+		   "BDEV and NVME Reservations enum mismatch");
+SPDK_STATIC_ASSERT((short)SPDK_NVME_RESERVE_EXCLUSIVE_ACCESS_ALL_REGS == (short)SPDK_BDEV_RESERVATION_EXCLUSIVE_ACCESS_ALL_REGS,
+		   "BDEV and NVME Reservations enum mismatch");
 
 static int
 nvme_ns_cmp(struct nvme_ns *ns1, struct nvme_ns *ns2)
@@ -2579,6 +2641,32 @@ _bdev_nvme_submit_request(struct nvme_bdev_channel *nbdev_ch, struct spdk_bdev_i
 				    bdev_io->u.bdev.copy.src_offset_blocks,
 				    bdev_io->u.bdev.num_blocks);
 		break;
+	case SPDK_BDEV_IO_TYPE_RESERVATION_REGISTER:
+		rc = bdev_nvme_reservation_register(nbdev_io,
+						    bdev_io->u.reservation_register.ignore_key,
+						    bdev_io->u.reservation_register.cptpl,
+						    bdev_io->u.reservation_register.action,
+						    bdev_io->u.reservation_register.crkey,
+						    bdev_io->u.reservation_register.nrkey);
+		break;
+	case SPDK_BDEV_IO_TYPE_RESERVATION_ACQUIRE:
+		rc = bdev_nvme_reservation_acquire(nbdev_io,
+						   bdev_io->u.reservation_acquire.ignore_key,
+						   bdev_io->u.reservation_acquire.type,
+						   bdev_io->u.reservation_acquire.action,
+						   bdev_io->u.reservation_acquire.crkey,
+						   bdev_io->u.reservation_acquire.prkey);
+		break;
+	case SPDK_BDEV_IO_TYPE_RESERVATION_RELEASE:
+		rc = bdev_nvme_reservation_release(nbdev_io,
+						   bdev_io->u.reservation_release.ignore_key,
+						   bdev_io->u.reservation_release.type,
+						   bdev_io->u.reservation_release.action,
+						   bdev_io->u.reservation_release.crkey);
+		break;
+	case SPDK_BDEV_IO_TYPE_RESERVATION_REPORT:
+		rc = bdev_nvme_reservation_report(nbdev_io);
+		break;
 	default:
 		rc = -EINVAL;
 		break;
@@ -2646,6 +2734,13 @@ bdev_nvme_io_type_supported(void *ctx, enum spdk_bdev_io_type io_type)
 	case SPDK_BDEV_IO_TYPE_NVME_IO:
 	case SPDK_BDEV_IO_TYPE_ABORT:
 		return true;
+
+	case SPDK_BDEV_IO_TYPE_RESERVATION_REGISTER:
+	case SPDK_BDEV_IO_TYPE_RESERVATION_ACQUIRE:
+	case SPDK_BDEV_IO_TYPE_RESERVATION_RELEASE:
+	case SPDK_BDEV_IO_TYPE_RESERVATION_REPORT:
+		cdata = spdk_nvme_ctrlr_get_data(ctrlr);
+		return cdata->oncs.reservations;
 
 	case SPDK_BDEV_IO_TYPE_ZCOPY:
 		/* @todo: with multipath all controllers must be checked */
@@ -7316,6 +7411,215 @@ bdev_nvme_copy(struct nvme_bdev_io *bio, uint64_t dst_offset_blocks, uint64_t sr
 				     bio->io_path->qpair->qpair,
 				     &range, 1, dst_offset_blocks,
 				     bdev_nvme_queued_done, bio);
+}
+
+static void
+bdev_nvme_reservation_done(void *ref, const struct spdk_nvme_cpl *cpl)
+{
+	struct nvme_bdev_io *bio = ref;
+
+	bdev_nvme_io_complete_nvme_status(bio, cpl);
+}
+
+static int
+bdev_nvme_reservation_register(struct nvme_bdev_io *bio, bool ignore_key,
+			       enum spdk_bdev_reservation_register_cptpl cptpl,
+			       enum spdk_bdev_reservation_register_action action,
+			       uint64_t crkey, uint64_t nrkey)
+{
+	struct spdk_nvme_reservation_register_data payload = {0};
+
+	payload.crkey = crkey;
+	payload.nrkey = nrkey;
+
+	return spdk_nvme_ns_cmd_reservation_register(bio->io_path->nvme_ns->ns,
+			bio->io_path->qpair->qpair,
+			&payload, ignore_key,
+			(enum spdk_nvme_reservation_register_action)action,
+			(enum spdk_nvme_reservation_register_cptpl)cptpl,
+			bdev_nvme_reservation_done,
+			bio);
+}
+
+static int
+bdev_nvme_reservation_acquire(struct nvme_bdev_io *bio, bool ignore_key,
+			      enum spdk_bdev_reservation_type type,
+			      enum spdk_bdev_reservation_acquire_action action,
+			      uint64_t crkey, uint64_t prkey)
+{
+	struct spdk_nvme_reservation_acquire_data payload = {0};
+
+	payload.crkey = crkey;
+	payload.prkey = prkey;
+
+	return spdk_nvme_ns_cmd_reservation_acquire(bio->io_path->nvme_ns->ns,
+			bio->io_path->qpair->qpair,
+			&payload, ignore_key,
+			(enum spdk_nvme_reservation_acquire_action)action,
+			(enum spdk_nvme_reservation_type)type,
+			bdev_nvme_reservation_done,
+			bio);
+}
+
+static int
+bdev_nvme_reservation_release(struct nvme_bdev_io *bio, bool ignore_key,
+			      enum spdk_bdev_reservation_type type,
+			      enum spdk_bdev_reservation_release_action action, uint64_t crkey)
+{
+	struct spdk_nvme_reservation_key_data payload = {0};
+
+	payload.crkey = crkey;
+
+	return spdk_nvme_ns_cmd_reservation_release(bio->io_path->nvme_ns->ns,
+			bio->io_path->qpair->qpair,
+			&payload, ignore_key,
+			(enum spdk_nvme_reservation_release_action)action,
+			(enum spdk_nvme_reservation_type)type,
+			bdev_nvme_reservation_done, bio);
+}
+
+static void
+bdev_nvme_convert_reservation_report(struct nvme_bdev_io *bio)
+{
+	bool buf_over = false;
+	uint32_t idx = 0, bdev_report_len = 0;
+	struct spdk_bdev_io *bdev_io = spdk_bdev_io_from_ctx(bio);
+	struct spdk_bdev_reservation_status_data *bdev_status_data;
+	struct spdk_bdev_registered_ctrlr_data *bdev_ctrlr_data;
+	struct spdk_nvme_registered_ctrlr_data *nvme_ctrlr_data;
+	struct spdk_nvme_reservation_status_data *nvme_status_data;
+
+	bdev_status_data = bdev_io->u.reservation_report.status_data;
+	bdev_report_len = bdev_io->u.reservation_report.len;
+
+	nvme_status_data = (struct spdk_nvme_reservation_status_data *)bio->reservation_report_buf;
+
+	bdev_status_data->ptpls = nvme_status_data->ptpls;
+	bdev_status_data->regctl = nvme_status_data->regctl;
+	bdev_status_data->hostid_is_ext = false;
+	bdev_status_data->gen = nvme_status_data->gen;
+	bdev_status_data->rtype = nvme_status_data->rtype;
+
+	bdev_report_len -= sizeof(struct spdk_bdev_reservation_status_data);
+
+	for (idx = 0; idx < bdev_status_data->regctl; idx++) {
+		if (bdev_report_len < sizeof(struct spdk_bdev_registered_ctrlr_data)) {
+			buf_over = true;
+			break;
+		}
+
+		nvme_ctrlr_data = (struct spdk_nvme_registered_ctrlr_data *)
+				 ((uint8_t *)nvme_status_data + sizeof(*nvme_status_data) + sizeof(*nvme_ctrlr_data) * idx);
+		bdev_ctrlr_data = (struct spdk_bdev_registered_ctrlr_data *)&bdev_status_data->ctrlr_data[idx];
+
+		bdev_ctrlr_data->cntlid = nvme_ctrlr_data->cntlid;
+		bdev_ctrlr_data->holds_reservation =  nvme_ctrlr_data->rcsts.status;
+		bdev_ctrlr_data->rkey = nvme_ctrlr_data->rkey;
+		bdev_ctrlr_data->hostid = nvme_ctrlr_data->hostid;
+
+		bdev_report_len -= sizeof(struct spdk_bdev_registered_ctrlr_data);
+	}
+
+	/* Update the number of controllers if we had to break the loop
+	 * due to insufficient user buffer */
+	if (buf_over)
+		bdev_status_data->regctl = idx;
+}
+
+static void
+bdev_nvme_convert_reservation_report_extended(struct nvme_bdev_io *bio)
+{
+	bool buf_over = false;
+	uint32_t idx = 0, bdev_report_len = 0;
+	struct spdk_bdev_io *bdev_io = spdk_bdev_io_from_ctx(bio);
+	struct spdk_bdev_reservation_status_data *bdev_status_data;
+	struct spdk_bdev_registered_ctrlr_data *bdev_ctrlr_data;
+	struct spdk_nvme_registered_ctrlr_extended_data *nvme_ctrlr_data;
+	struct spdk_nvme_reservation_status_extended_data *nvme_status_data;
+
+	bdev_status_data = bdev_io->u.reservation_report.status_data;
+	bdev_report_len = bdev_io->u.reservation_report.len;
+
+	nvme_status_data = (struct spdk_nvme_reservation_status_extended_data *)bio->reservation_report_buf;
+
+	bdev_status_data->ptpls = nvme_status_data->data.ptpls;
+	bdev_status_data->regctl = nvme_status_data->data.regctl;
+	bdev_status_data->hostid_is_ext = true;
+	bdev_status_data->gen = nvme_status_data->data.gen;
+	bdev_status_data->rtype = nvme_status_data->data.rtype;
+
+	bdev_report_len -= sizeof(struct spdk_bdev_reservation_status_data);
+
+	for (idx = 0; idx < bdev_status_data->regctl; idx++) {
+		if (bdev_report_len < sizeof(struct spdk_bdev_registered_ctrlr_data)) {
+			buf_over = true;
+			break;
+		}
+
+		nvme_ctrlr_data = (struct spdk_nvme_registered_ctrlr_extended_data *)
+				 ((uint8_t *)nvme_status_data + sizeof(*nvme_status_data) + sizeof(*nvme_ctrlr_data) * idx);
+		bdev_ctrlr_data = (struct spdk_bdev_registered_ctrlr_data *)&bdev_status_data->ctrlr_data[idx];
+		bdev_ctrlr_data->cntlid = nvme_ctrlr_data->cntlid;
+		bdev_ctrlr_data->holds_reservation =  nvme_ctrlr_data->rcsts.status;
+		bdev_ctrlr_data->rkey = nvme_ctrlr_data->rkey;
+		memcpy(&bdev_ctrlr_data->hostid_ext, &nvme_ctrlr_data->hostid, 16);
+
+		bdev_report_len -= sizeof(struct spdk_bdev_registered_ctrlr_data);
+	}
+
+	/* Update the number of controllers if we had to break the loop
+	 * due to insufficient user buffer */
+	if (buf_over)
+		bdev_status_data->regctl = idx;
+}
+
+static void
+bdev_nvme_reservation_report_convert_to_generic_format(void *ref)
+{
+	struct nvme_bdev_io *bio = ref;
+	struct spdk_nvme_ctrlr *ctrlr = spdk_nvme_ns_get_ctrlr(bio->io_path->nvme_ns->ns);
+
+	if (spdk_nvme_ctrlr_get_data(ctrlr)->ctratt.host_id_exhid_supported)
+		bdev_nvme_convert_reservation_report_extended(bio);
+	else
+		bdev_nvme_convert_reservation_report(bio);
+}
+
+static void
+bdev_nvme_reservation_report_done(void *ref, const struct spdk_nvme_cpl *cpl)
+{
+	struct nvme_bdev_io *bio = ref;
+
+	if (spdk_nvme_cpl_is_error(cpl) == false) {
+		/* NVMe layer fills the payload using nvme layer structs i.e.
+		 * struct spdk_nvme_registered_ctrlr_data.
+		 * Convert it now to to bdev layer generic format i.e.
+		 * struct spdk_bdev_registered_ctrlr_data */
+		bdev_nvme_reservation_report_convert_to_generic_format(ref);
+	}
+
+	bdev_nvme_reservation_done(ref, cpl);
+
+	/* Free the allocated buffer */
+	free (bio->reservation_report_buf);
+	bio->reservation_report_buf = NULL;
+}
+
+static int
+bdev_nvme_reservation_report(struct nvme_bdev_io *bio)
+{
+	struct spdk_nvme_ns *ns = bio->io_path->nvme_ns->ns;
+	uint32_t reservation_report_bufsize = spdk_nvme_ns_get_max_io_xfer_size(ns);
+
+	assert(!bio->reservation_report_buf);
+	bio->reservation_report_buf = calloc(1, reservation_report_bufsize);
+	if (!bio->reservation_report_buf) {
+		return -ENOMEM;
+	}
+
+	return spdk_nvme_ns_cmd_reservation_report(ns, bio->io_path->qpair->qpair,
+			bio->reservation_report_buf, reservation_report_bufsize,
+			bdev_nvme_reservation_report_done, bio);
 }
 
 static void
