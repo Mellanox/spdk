@@ -10,6 +10,8 @@
 
 #include <infiniband/mlx5dv.h>
 
+#define SPDK_MLX5_VENDOR_ID_MELLANOX 0x2c9
+
 struct spdk_mlx5_crypto_dek;
 struct spdk_mlx5_crypto_keytag;
 
@@ -19,6 +21,25 @@ struct spdk_mlx5_crypto_dek_create_attr {
 	/* Length of the dek */
 	size_t dek_len;
 };
+
+/**
+ * Specify which devices are allowed to be used for crypto operation.
+ *
+ * If the user doesn't call this function then all devices which support crypto will be used.
+ * This function copies devices names, in order to free allocated memory, the user must call
+ * this function with either NULL \b dev_names or with \b devs_count equal 0. That method can
+ * also be used to allow all devices.
+ *
+ * Subsequent calls with non-NULL \b dev_names and non-zero \b devs_count overwrite previously set
+ * values.
+ *
+ * This function is not thread safe.
+ *
+ * \param dev_names Array of devices names which are allowed to be used for crypto operations
+ * \param devs_count Size of \b devs_count array
+ * \return 0 on success, negated errno on failure
+ */
+int spdk_mlx5_crypto_devs_allow(const char * const dev_names[], size_t devs_count);
 
 /**
  * Return a NULL terminated array of devices which support crypto operation on Nvidia NICs
@@ -298,16 +319,19 @@ struct spdk_mlx5_relaxed_ordering_caps {
 	bool relaxed_ordering_read_umr;
 };
 
-struct spdk_mlx5_aes_xts_caps {
+struct spdk_mlx5_crypto_caps {
 	/* crypto supported or not */
 	bool crypto;
+	bool wrapped_crypto_operational;
+	bool wrapped_crypto_going_to_commissioning;
+	bool wrapped_import_method_aes_xts;
 	bool single_block_le_tweak;
 	bool multi_block_be_tweak;
 	bool multi_block_le_tweak;
 	bool tweak_inc_64;
 };
 
-int spdk_mlx5_query_aes_xts_caps(struct ibv_context *context, struct spdk_mlx5_aes_xts_caps *caps);
+int spdk_mlx5_query_crypto_caps(struct ibv_context *context, struct spdk_mlx5_crypto_caps *caps);
 
 /**
 * spdk_mlx5_query_relaxed_ordering_caps() - Query for Relaxed-Ordering

@@ -1,6 +1,7 @@
 {
 	global:
 
+    spdk_mlx5_crypto_devs_allow;
     spdk_mlx5_crypto_devs_get;
     spdk_mlx5_crypto_devs_release;
     spdk_mlx5_crypto_keytag_create;
@@ -12,7 +13,7 @@
     spdk_mlx5_dma_qp_rdma_write;
     spdk_mlx5_dma_qp_rdma_read;
     spdk_mlx5_dma_qp_poll_completions;
-    spdk_mlx5_query_aes_xts_caps;
+    spdk_mlx5_query_crypto_caps;
     spdk_mlx5_query_relaxed_ordering_caps;
     spdk_mlx5_create_indirect_mkey;
     spdk_mlx5_destroy_indirect_mkey;

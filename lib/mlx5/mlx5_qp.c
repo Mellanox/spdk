@@ -1,4 +1,6 @@
-
+/*   SPDX-License-Identifier: BSD-3-Clause
+ *   Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ */
 
 #include "mlx5_priv.h"
 #include "infiniband/mlx5dv.h"
@@ -121,7 +123,7 @@ mlx5_qp_init(struct ibv_pd *pd, const struct spdk_mlx5_qp_attr *attr, struct ibv
 {
 	struct mlx5dv_qp dv_qp;
 	struct mlx5dv_obj dv_obj;
-	struct spdk_mlx5_aes_xts_caps crypto_caps = {};
+	struct spdk_mlx5_crypto_caps crypto_caps = {};
 	struct ibv_qp_init_attr_ex dv_qp_attr = {
 		.cap = attr->cap,
 		.qp_type = IBV_QPT_RC,
@@ -139,7 +141,7 @@ mlx5_qp_init(struct ibv_pd *pd, const struct spdk_mlx5_qp_attr *attr, struct ibv
 	};
 	int rc;
 
-	rc = spdk_mlx5_query_aes_xts_caps(pd->context, &crypto_caps);
+	rc = spdk_mlx5_query_crypto_caps(pd->context, &crypto_caps);
 	if (rc) {
 		SPDK_ERRLOG("Failed to query dev %s crypto caps\n", pd->context->device->name);
 		return rc;

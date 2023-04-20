@@ -1797,3 +1797,99 @@ def bdev_nvme_get_mdns_discovery_info(client):
     """Get information about the automatic mdns discovery
     """
     return client.call('bdev_nvme_get_mdns_discovery_info')
+
+
+def bdev_group_create(client, name):
+    """Construct bdev group.
+
+    Args:
+        name: name of bdev group
+
+    Returns:
+        Name of created bdev group.
+    """
+    params = {'name': name}
+    return client.call('bdev_group_create', params)
+
+
+def bdev_group_add_bdev(client, name, bdev):
+    """Add bdev to a group.
+
+    Args:
+        name: name of bdev group
+        bdev: name of bdev
+
+    Returns:
+        result of the operation
+    """
+    params = {'name': name, 'bdev': bdev}
+    return client.call('bdev_group_add_bdev', params)
+
+
+def bdev_group_set_qos_limit(
+        client,
+        name,
+        rw_ios_per_sec=None,
+        rw_mbytes_per_sec=None,
+        r_mbytes_per_sec=None,
+        w_mbytes_per_sec=None):
+    """Set QoS rate limit on a bdev group.
+
+    Args:
+        name: name of block device group
+        rw_ios_per_sec: R/W IOs per second limit (>=1000, example: 20000). 0 means unlimited.
+        rw_mbytes_per_sec: R/W megabytes per second limit (>=10, example: 100). 0 means unlimited.
+        r_mbytes_per_sec: Read megabytes per second limit (>=10, example: 100). 0 means unlimited.
+        w_mbytes_per_sec: Write megabytes per second limit (>=10, example: 100). 0 means unlimited.
+    """
+    params = {}
+    params['name'] = name
+    if rw_ios_per_sec is not None:
+        params['rw_ios_per_sec'] = rw_ios_per_sec
+    if rw_mbytes_per_sec is not None:
+        params['rw_mbytes_per_sec'] = rw_mbytes_per_sec
+    if r_mbytes_per_sec is not None:
+        params['r_mbytes_per_sec'] = r_mbytes_per_sec
+    if w_mbytes_per_sec is not None:
+        params['w_mbytes_per_sec'] = w_mbytes_per_sec
+    return client.call('bdev_group_set_qos_limit', params)
+
+
+def bdev_group_remove_bdev(client, name, bdev):
+    """Remove bdev from a group.
+
+    Args:
+        name: name of bdev group
+        bdev: name of bdev
+    """
+    params = {'name': name, 'bdev': bdev}
+    return client.call('bdev_group_remove_bdev', params)
+
+
+def bdev_group_delete(client, name):
+    """Delete bdev group.
+
+    Args:
+        name: name of bdev group
+
+    Returns:
+        Result of the operation.
+    """
+    params = {'name': name}
+    return client.call('bdev_group_delete', params)
+
+
+def bdev_groups_get(client, name):
+    """Get bdev group info.
+
+    Args:
+        name: name of bdev group
+
+    Returns:
+        bdev groups info
+    """
+    params = {}
+    if name is not None:
+        params['name'] = name
+
+    return client.call('bdev_groups_get', params)

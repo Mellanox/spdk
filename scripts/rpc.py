@@ -2996,16 +2996,14 @@ Format: 'user:u1 secret:s1 muser:mu1 msecret:ms1,user:u2 secret:s2 muser:mu2 mse
         rpc.mlx5.mlx5_scan_accel_module(args.client,
                                         qp_size=args.qp_size,
                                         num_requests=args.num_requests,
-                                        enable_crypto=args.enable_crypto,
-                                        use_crypto_mb=args.use_crypto_mb,
-                                        split_mb_blocks=args.split_mb_blocks)
+                                        split_mb_blocks=args.split_mb_blocks,
+                                        allowed_crypto_devs=args.allowed_crypto_devs)
 
     p = subparsers.add_parser('mlx5_scan_accel_module', help='Enable mlx5 accel module.')
     p.add_argument('-q', '--qp-size', type=int, help='QP size')
     p.add_argument('-r', '--num-requests', type=int, help='Size of the shared requests pool')
-    p.add_argument('-c', '--enable-crypto', dest='enable_crypto', action='store_true', help="Enable crypto operations")
-    p.add_argument('-m', '--use-crypto-mb', dest='use_crypto_mb', action='store_true', help="Use crypto multi block operations if supported by HW")
     p.add_argument('-s', '--split-mb-blocks', type=int, help="Number of data blocks to be processed in 1 UMR. Requires crypto-mb")
+    p.add_argument('-d', '--allowed-crypto-devs', help="Comma separated list of allowed crypto device names")
     p.set_defaults(func=mlx5_scan_accel_module)
 
     # opal
@@ -3446,6 +3444,69 @@ Format: 'user:u1 secret:s1 muser:mu1 msecret:ms1,user:u2 secret:s2 muser:mu2 mse
     def check_called_name(name):
         if name in deprecated_aliases:
             print("{} is deprecated, use {} instead.".format(name, deprecated_aliases[name]), file=sys.stderr)
+
+    def bdev_group_create(args):
+        print_json(rpc.bdev.bdev_group_create(args.client, name=args.name))
+
+    p = subparsers.add_parser('bdev_group_create', help='Create a bdev group')
+    p.add_argument('name', help="Name of the bdev group")
+    p.set_defaults(func=bdev_group_create)
+
+    def bdev_group_add_bdev(args):
+        print_json(rpc.bdev.bdev_group_add_bdev(args.client, name=args.name, bdev=args.bdev))
+
+    p = subparsers.add_parser('bdev_group_add_bdev', help='Add a bdev to a group')
+    p.add_argument('name', help="Name of the bdev group")
+    p.add_argument('bdev', help="Name of the bdev")
+    p.set_defaults(func=bdev_group_add_bdev)
+
+    def bdev_group_set_qos_limit(args):
+        rpc.bdev.bdev_group_set_qos_limit(args.client,
+                                          name=args.name,
+                                          rw_ios_per_sec=args.rw_ios_per_sec,
+                                          rw_mbytes_per_sec=args.rw_mbytes_per_sec,
+                                          r_mbytes_per_sec=args.r_mbytes_per_sec,
+                                          w_mbytes_per_sec=args.w_mbytes_per_sec)
+
+    p = subparsers.add_parser('bdev_group_set_qos_limit',
+                              help='Set QoS rate limit on a bdev group')
+    p.add_argument('name', help='bdev group name to set QoS. Example: group0')
+    p.add_argument('--rw-ios-per-sec',
+                   help='R/W IOs per second limit (>=1000, example: 20000). 0 means unlimited.',
+                   type=int, required=False)
+    p.add_argument('--rw-mbytes-per-sec',
+                   help="R/W megabytes per second limit (>=10, example: 100). 0 means unlimited.",
+                   type=int, required=False)
+    p.add_argument('--r-mbytes-per-sec',
+                   help="Read megabytes per second limit (>=10, example: 100). 0 means unlimited.",
+                   type=int, required=False)
+    p.add_argument('--w-mbytes-per-sec',
+                   help="Write megabytes per second limit (>=10, example: 100). 0 means unlimited.",
+                   type=int, required=False)
+    p.set_defaults(func=bdev_group_set_qos_limit)
+
+    def bdev_group_remove_bdev(args):
+        print_json(rpc.bdev.bdev_group_remove_bdev(args.client, name=args.name, bdev=args.bdev))
+
+    p = subparsers.add_parser('bdev_group_remove_bdev', help='Remove a bdev from a group')
+    p.add_argument('name', help="Name of the bdev group")
+    p.add_argument('bdev', help="Name of the bdev")
+    p.set_defaults(func=bdev_group_remove_bdev)
+
+    def bdev_group_delete(args):
+        print_json(rpc.bdev.bdev_group_delete(args.client, name=args.name))
+
+    p = subparsers.add_parser('bdev_group_delete', help='Delete a bdev group')
+    p.add_argument('name', help="Name of the bdev group")
+    p.set_defaults(func=bdev_group_delete)
+
+    def bdev_groups_get(args):
+        print_json(rpc.bdev.bdev_groups_get(args.client, name=args.name))
+
+    p = subparsers.add_parser('bdev_groups_get', help='Get bdev groups info')
+    p.add_argument('-g', '--name', help="Name of the bdev group", required=False)
+    p.set_defaults(func=bdev_groups_get)
+
 
     class dry_run_client:
         def call(self, method, params=None):

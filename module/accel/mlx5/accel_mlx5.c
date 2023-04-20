@@ -46,6 +46,7 @@ struct accel_mlx5_cryptodev_memory_domain {
 	struct spdk_memory_domain *domain;
 };
 
+/* TODO: rename structures to remove 'crypto' word */
 struct accel_mlx5_crypto_dev_ctx {
 	struct spdk_mempool *mkey_pool;
 	struct ibv_context *context;
@@ -60,7 +61,10 @@ struct accel_mlx5_module {
 	struct accel_mlx5_crypto_dev_ctx *crypto_ctxs;
 	uint32_t num_crypto_ctxs;
 	struct accel_mlx5_attr attr;
+	char **allowed_crypto_devs;
+	size_t allowed_crypto_devs_count;
 	bool enabled;
+	bool crypto_supported;
 };
 
 enum accel_mlx5_wrid_type {
@@ -765,12 +769,14 @@ accel_mlx5_submit_tasks(struct spdk_io_channel *_ch, struct spdk_accel_task *tas
 		mlx5_task->crypto_op = false;
 		break;
 	case ACCEL_OPC_ENCRYPT:
+		assert(g_accel_mlx5.crypto_supported);
 		mlx5_task->enc_order = MLX5_ENCRYPTION_ORDER_ENCRYPTED_RAW_WIRE;
 		mlx5_task->crypto_op = true;
 		crypto_key_ok = (task->crypto_key && task->crypto_key->module_if == &g_accel_mlx5.module &&
 						    task->crypto_key->priv);
 		break;
 	case ACCEL_OPC_DECRYPT:
+		assert(g_accel_mlx5.crypto_supported);
 		mlx5_task->enc_order = MLX5_ENCRYPTION_ORDER_ENCRYPTED_RAW_MEMORY;
 		mlx5_task->crypto_op = true;
 		crypto_key_ok = (task->crypto_key && task->crypto_key->module_if == &g_accel_mlx5.module &&
@@ -929,9 +935,10 @@ accel_mlx5_supports_opcode(enum accel_opcode opc)
 
 	switch (opc) {
 	case ACCEL_OPC_COPY:
+		return true;
 	case ACCEL_OPC_ENCRYPT:
 	case ACCEL_OPC_DECRYPT:
-		return true;
+		return g_accel_mlx5.crypto_supported;
 	default:
 		return false;
 	}
@@ -1032,26 +1039,99 @@ accel_mlx5_get_default_attr(struct accel_mlx5_attr *attr)
 {
 	assert(attr);
 
+	memset(attr, 0, sizeof(*attr));
+
 	attr->qp_size = ACCEL_MLX5_QP_SIZE;
 	attr->num_requests = ACCEL_MLX5_NUM_MKEYS;
-	attr->enable_crypto = false;
-	attr->use_crypto_mb = false;
 	attr->split_mb_blocks = 0;
+}
+
+static void
+accel_mlx5_allowed_crypto_devs_free(void)
+{
+	size_t i;
+
+	if (!g_accel_mlx5.allowed_crypto_devs || !g_accel_mlx5.allowed_crypto_devs_count) {
+		return;
+	}
+
+	for (i = 0; i < g_accel_mlx5.allowed_crypto_devs_count; i++) {
+		free(g_accel_mlx5.allowed_crypto_devs[i]);
+	}
+	free(g_accel_mlx5.allowed_crypto_devs);
+}
+
+static int
+accel_mlx5_allowed_crypto_devs_parse(void)
+{
+	char *str, *tmp, *tok;
+	size_t devs_count = 0;
+
+	str = strdup(g_accel_mlx5.attr.allowed_crypto_devs);
+	if (!str) {
+		return -ENOMEM;
+	}
+	tmp = str;
+	while ((tmp = strchr(tmp, ',')) != NULL) {
+		tmp++;
+		devs_count++;
+	}
+	devs_count++;
+
+	g_accel_mlx5.allowed_crypto_devs = calloc(devs_count, sizeof(char *));
+	if (!g_accel_mlx5.allowed_crypto_devs) {
+		free(str);
+		return -ENOMEM;
+	}
+
+	devs_count = 0;
+	tok = strtok(str, ",");
+	while (tok) {
+		g_accel_mlx5.allowed_crypto_devs[devs_count] = strdup(tok);
+		if (!g_accel_mlx5.allowed_crypto_devs[devs_count]) {
+			free(str);
+			accel_mlx5_allowed_crypto_devs_free();
+			return -ENOMEM;
+		}
+		tok = strtok(NULL, ",");
+		devs_count++;
+		g_accel_mlx5.allowed_crypto_devs_count++;
+	}
+
+	free(str);
+
+	return 0;
 }
 
 int
 accel_mlx5_enable(struct accel_mlx5_attr *attr)
 {
 	if (attr) {
-		if (!attr->enable_crypto && attr->use_crypto_mb) {
-			SPDK_ERRLOG("Crypto multi block requires to enable crypto\n");
-			return -EINVAL;
-		}
-		if (!attr->use_crypto_mb && attr->split_mb_blocks) {
-			SPDK_ERRLOG("\"split_mb_blocks\" requires \"use_crypto_mb\"\n");
-			return -EINVAL;
-		}
 		g_accel_mlx5.attr = *attr;
+		if (attr->allowed_crypto_devs) {
+			int rc;
+
+			g_accel_mlx5.attr.allowed_crypto_devs = strdup(attr->allowed_crypto_devs);
+			if (!g_accel_mlx5.attr.allowed_crypto_devs) {
+				return -ENOMEM;
+			}
+			rc = accel_mlx5_allowed_crypto_devs_parse();
+			if (rc) {
+				free(g_accel_mlx5.attr.allowed_crypto_devs);
+				g_accel_mlx5.attr.allowed_crypto_devs = NULL;
+
+				return rc;
+			}
+			rc = spdk_mlx5_crypto_devs_allow((const char * const *)g_accel_mlx5.allowed_crypto_devs,
+							 g_accel_mlx5.allowed_crypto_devs_count);
+			if (rc) {
+				free(g_accel_mlx5.attr.allowed_crypto_devs);
+				g_accel_mlx5.attr.allowed_crypto_devs = NULL;
+				accel_mlx5_allowed_crypto_devs_free();
+
+				return rc;
+			}
+		}
 	}
 
 	g_accel_mlx5.enabled = true;
@@ -1110,6 +1190,11 @@ accel_mlx5_deinit_cb(void *ctx)
 static void
 accel_mlx5_deinit(void *ctx)
 {
+	if (g_accel_mlx5.attr.allowed_crypto_devs) {
+		free(g_accel_mlx5.attr.allowed_crypto_devs);
+		accel_mlx5_allowed_crypto_devs_free();
+		spdk_mlx5_crypto_devs_allow(NULL, 0);
+	}
 	if (g_accel_mlx5.crypto_ctxs) {
 		spdk_io_device_unregister(&g_accel_mlx5, accel_mlx5_deinit_cb);
 	} else {
@@ -1146,7 +1231,7 @@ accel_mlx5_configure_crypto_mkey(struct spdk_mempool *mp, void *cb_arg, void *_m
 	mkey_attr.relaxed_ordering_read = caps.relaxed_ordering_read;
 	mkey_attr.sg_count = 0;
 	mkey_attr.sg = NULL;
-	if (g_accel_mlx5.attr.enable_crypto) {
+	if (g_accel_mlx5.crypto_supported) {
 		mkey_attr.crypto_en = true;
 		bsf_size += 64;
 	}
@@ -1193,6 +1278,91 @@ accel_mlx5_crypto_ctx_mempool_create(struct accel_mlx5_crypto_dev_ctx *crypto_de
 	return 0;
 }
 
+static struct ibv_context *
+accel_mlx5_rdma_get_mlx5_dev(struct ibv_context **devices, int num_devs)
+{
+	struct ibv_device_attr dev_attr = {};
+	int rc, i;
+
+	for (i = 0; i < num_devs; i++) {
+		rc = ibv_query_device(devices[i], &dev_attr);
+		if (rc) {
+			continue;
+		}
+		if (dev_attr.vendor_id == SPDK_MLX5_VENDOR_ID_MELLANOX) {
+			return devices[i];
+		}
+	}
+	return NULL;
+}
+
+static int
+accel_mlx5_init_mem_op(void)
+{
+	struct accel_mlx5_crypto_dev_ctx *crypto_dev_ctx;
+	struct accel_mlx5_cryptodev_memory_domain *domain;
+	struct ibv_context **rdma_devs, *dev;
+	struct spdk_memory_domain_ctx ctx;
+	struct ibv_pd *pd;
+	int num_devs = 0, rc;
+
+	rdma_devs = rdma_get_devices(&num_devs);
+	if (!rdma_devs || !num_devs) {
+		return -ENODEV;
+	}
+
+	dev = accel_mlx5_rdma_get_mlx5_dev(rdma_devs, num_devs);
+	if (!dev) {
+		SPDK_ERRLOG("No mlx devices found\n");
+		rc = -ENODEV;
+		goto cleanup;
+	}
+
+	g_accel_mlx5.crypto_ctxs = calloc(1, sizeof(*g_accel_mlx5.crypto_ctxs));
+	if (!g_accel_mlx5.crypto_ctxs) {
+		SPDK_ERRLOG("Memory allocation failed\n");
+		rc = -ENOMEM;
+		goto cleanup;
+	}
+
+	crypto_dev_ctx = &g_accel_mlx5.crypto_ctxs[0];
+
+	pd = spdk_rdma_utils_get_pd(dev);
+	if (!pd) {
+		SPDK_ERRLOG("Failed to get PD for context %p, dev %s\n", dev, dev->device->name);
+		rc = -EINVAL;
+		goto cleanup;
+	}
+	crypto_dev_ctx->context = dev;
+	crypto_dev_ctx->pd = pd;
+
+	domain = &g_accel_mlx5.crypto_ctxs[0].domain;
+	domain->rdma_ctx.size = sizeof(domain->rdma_ctx);
+	domain->rdma_ctx.ibv_pd = (void *) pd;
+	ctx.size = sizeof(ctx);
+	ctx.user_ctx = &domain->rdma_ctx;
+
+	rc = spdk_memory_domain_create(&domain->domain, SPDK_DMA_DEVICE_TYPE_RDMA, &ctx,
+				       SPDK_RDMA_DMA_DEVICE);
+	if (rc) {
+		goto cleanup;
+	}
+
+	g_accel_mlx5.num_crypto_ctxs = 1;
+
+	SPDK_NOTICELOG("Accel framework mlx5 initialized\n");
+	spdk_io_device_register(&g_accel_mlx5, accel_mlx5_create_cb, accel_mlx5_destroy_cb,
+				sizeof(struct accel_mlx5_io_channel), "accel_mlx5");
+
+	return 0;
+
+cleanup:
+	rdma_free_devices(rdma_devs);
+	accel_mlx5_free_resources();
+
+	return rc;
+}
+
 static int
 accel_mlx5_init(void)
 {
@@ -1201,7 +1371,7 @@ accel_mlx5_init(void)
 	struct ibv_context **rdma_devs, *dev;
 	struct spdk_memory_domain_ctx ctx;
 	struct ibv_pd *pd;
-	struct spdk_mlx5_aes_xts_caps crypto_caps;
+	struct spdk_mlx5_crypto_caps crypto_caps;
 	int num_devs = 0, rc = 0, i;
 
 	if (!g_accel_mlx5.enabled) {
@@ -1210,8 +1380,15 @@ accel_mlx5_init(void)
 
 	rdma_devs = spdk_mlx5_crypto_devs_get(&num_devs);
 	if (!rdma_devs || !num_devs) {
-		SPDK_WARNLOG("No crypto devs found\n");
-		return -ENOTSUP;
+		if (g_accel_mlx5.attr.allowed_crypto_devs) {
+			SPDK_WARNLOG("No crypto devs found, only memory operations will be supported\n");
+		} else {
+			SPDK_NOTICELOG("No crypto devs found, only memory operations will be supported\n");
+		}
+		g_accel_mlx5.crypto_supported = false;
+		return accel_mlx5_init_mem_op();
+	} else {
+		g_accel_mlx5.crypto_supported = true;
 	}
 
 	g_accel_mlx5.crypto_ctxs = calloc(num_devs, sizeof(*g_accel_mlx5.crypto_ctxs));
@@ -1225,7 +1402,7 @@ accel_mlx5_init(void)
 		crypto_dev_ctx = &g_accel_mlx5.crypto_ctxs[i];
 		dev = rdma_devs[i];
 		memset(&crypto_caps, 0, sizeof(crypto_caps));
-		rc = spdk_mlx5_query_aes_xts_caps(dev, &crypto_caps);
+		rc = spdk_mlx5_query_crypto_caps(dev, &crypto_caps);
 		if (rc) {
 			SPDK_ERRLOG("Failed to get aes_xts caps, dev %s\n", dev->device->name);
 			goto cleanup;
@@ -1264,8 +1441,12 @@ accel_mlx5_init(void)
 
 		/* Explicitly disabled by default */
 		crypto_dev_ctx->crypto_multi_block = false;
-		if (g_accel_mlx5.attr.use_crypto_mb && crypto_caps.multi_block_be_tweak) {
+		if (crypto_caps.multi_block_be_tweak) {
+			/* TODO: multi_block LE tweak will be checked later once LE BSF is fixed */
 			crypto_dev_ctx->crypto_multi_block = true;
+		} else if (g_accel_mlx5.attr.split_mb_blocks) {
+			SPDK_WARNLOG("\"split_mb_block\" is set but dev %s doesn't support multi block crypto\n",
+				     dev->device->name);
 		}
 
 		g_accel_mlx5.num_crypto_ctxs++;
@@ -1295,7 +1476,6 @@ accel_mlx5_write_config_json(struct spdk_json_write_ctx *w)
 		spdk_json_write_named_object_begin(w, "params");
 		spdk_json_write_named_uint16(w, "qp_size", g_accel_mlx5.attr.qp_size);
 		spdk_json_write_named_uint32(w, "num_requests", g_accel_mlx5.attr.num_requests);
-		spdk_json_write_named_bool(w, "enable_crypto", g_accel_mlx5.attr.enable_crypto);
 		spdk_json_write_object_end(w);
 		spdk_json_write_object_end(w);
 	}
@@ -1385,8 +1565,6 @@ static struct accel_mlx5_module g_accel_mlx5 = {
 	.attr = {
 		.qp_size = ACCEL_MLX5_QP_SIZE,
 		.num_requests = ACCEL_MLX5_NUM_MKEYS,
-		.enable_crypto = false,
-		.use_crypto_mb = false,
 		.split_mb_blocks = 0
 	}
 };

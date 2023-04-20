@@ -1,3 +1,6 @@
+/*   SPDX-License-Identifier: BSD-3-Clause
+ *   Copyright (c) 2022, 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ */
 
 #include "infiniband/mlx5dv.h"
 #include "mlx5_ifc.h"

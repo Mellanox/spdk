@@ -1,3 +1,7 @@
+/*   SPDX-License-Identifier: BSD-3-Clause
+ *   Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ */
+
 #include "infiniband/mlx5dv.h"
 #include "infiniband/verbs.h"
 #include "mlx5_ifc.h"
@@ -444,34 +448,6 @@ spdk_mlx5_umr_configure(struct spdk_mlx5_dma_qp *dma_qp, struct spdk_mlx5_umr_at
 		mlx5_umr_configure_full(dv_qp, umr_attr, wr_id, flags, wqe_size, umr_wqe_n_bb, mtt_size);
 	}
 
-	return 0;
-}
-
-int spdk_mlx5_query_aes_xts_caps(struct ibv_context *context, struct spdk_mlx5_aes_xts_caps *caps)
-{
-	uint16_t opmod = MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE |
-		HCA_CAP_OPMOD_GET_CUR;
-	uint32_t out[DEVX_ST_SZ_DW(query_hca_cap_out)] = {};
-	uint32_t in[DEVX_ST_SZ_DW(query_hca_cap_in)] = {};
-	int rc;
-
-	DEVX_SET(query_hca_cap_in, in, opcode, MLX5_CMD_OP_QUERY_HCA_CAP);
-	DEVX_SET(query_hca_cap_in, in, op_mod, opmod);
-
-	rc = mlx5dv_devx_general_cmd(context, in, sizeof(in), out, sizeof(out));
-	if (rc) {
-		return rc;
-	}
-
-	caps->crypto = DEVX_GET(query_hca_cap_out, out, capability.cmd_hca_cap.crypto);
-	caps->single_block_le_tweak = DEVX_GET(query_hca_cap_out,
-			out, capability.cmd_hca_cap.aes_xts_single_block_le_tweak);
-	caps->multi_block_be_tweak = DEVX_GET(query_hca_cap_out, out,
-						capability.cmd_hca_cap.aes_xts_multi_block_be_tweak);
-	caps->multi_block_le_tweak = DEVX_GET(query_hca_cap_out, out,
-						capability.cmd_hca_cap.aes_xts_multi_block_le_tweak);
-	caps->tweak_inc_64 = DEVX_GET(query_hca_cap_out, out,
-					       capability.cmd_hca_cap.aes_xts_tweak_inc_64);
 	return 0;
 }
 

@@ -17,6 +17,7 @@
 
 #include "spdk/bdev.h"
 #include "spdk/bdev_zone.h"
+#include "spdk/bdev_group.h"
 #include "spdk/queue.h"
 #include "spdk/scsi_spec.h"
 #include "spdk/thread.h"
@@ -616,8 +617,13 @@ struct spdk_bdev {
 	 *  must not read or write to these fields.
 	 */
 	struct __bdev_internal_fields {
+		/** Quality of service configuratiion */
+		uint64_t qos_limits[SPDK_BDEV_QOS_NUM_RATE_LIMIT_TYPES];
+
 		/** Quality of service parameters */
 		struct spdk_bdev_qos *qos;
+
+		struct spdk_bdev_group *group;
 
 		/** True if the state of the QoS is being modified */
 		bool qos_mod_in_progress;

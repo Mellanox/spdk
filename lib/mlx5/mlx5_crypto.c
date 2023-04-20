@@ -1,11 +1,12 @@
 /*   SPDX-License-Identifier: BSD-3-Clause
- *   Copyright (c) 2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ *   Copyright (c) 2022, 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  */
 
 #include <rdma/rdma_cma.h>
 #include <infiniband/verbs.h>
 #include <infiniband/mlx5dv.h>
 
+#include "mlx5_ifc.h"
 #include "spdk/stdinc.h"
 #include "spdk/queue.h"
 #include "spdk/log.h"
@@ -13,8 +14,6 @@
 #include "spdk/util.h"
 #include "spdk_internal/mlx5.h"
 #include "spdk_internal/rdma_utils.h"
-
-#define MLX5_VENDOR_ID_MELLANOX 0x2c9
 
 /* Plaintext key sizes */
 /* 64b keytag */
@@ -43,12 +42,126 @@ struct spdk_mlx5_crypto_keytag {
 	int vendor_id;
 };
 
+static char **g_allowed_devices;
+static size_t g_allowed_devices_count;
+
+static void
+mlx5_crypto_devs_free(void)
+{
+	size_t i;
+
+	if (!g_allowed_devices || !g_allowed_devices_count) {
+		return;
+	}
+
+	for (i = 0; i < g_allowed_devices_count; i++) {
+		free(g_allowed_devices[i]);
+	}
+	free(g_allowed_devices);
+	g_allowed_devices_count = 0;
+}
+
+static bool
+mlx5_crypto_dev_allowed(const char *dev)
+{
+	size_t i;
+
+	if (!g_allowed_devices || !g_allowed_devices_count) {
+		return true;
+	}
+
+	for (i = 0; i < g_allowed_devices_count; i++) {
+		if (strcmp(g_allowed_devices[i], dev) == 0) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+int
+spdk_mlx5_crypto_devs_allow(const char * const dev_names[], size_t devs_count)
+{
+	size_t i;
+
+	mlx5_crypto_devs_free();
+
+	if (!dev_names || !devs_count) {
+		return 0;
+	}
+
+	g_allowed_devices = calloc(devs_count, sizeof(char *));
+	if (!g_allowed_devices) {
+		return -ENOMEM;
+	}
+	for (i = 0; i < devs_count; i++) {
+		g_allowed_devices[i] = strdup(dev_names[i]);
+		if (!g_allowed_devices[i]) {
+			mlx5_crypto_devs_free();
+			return -ENOMEM;
+		}
+		g_allowed_devices_count++;
+	}
+
+	return 0;
+}
+
+int
+spdk_mlx5_query_crypto_caps(struct ibv_context *context, struct spdk_mlx5_crypto_caps *caps)
+{
+	uint16_t opmod = MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE |
+		HCA_CAP_OPMOD_GET_CUR;
+	uint32_t out[DEVX_ST_SZ_DW(query_hca_cap_out)] = {};
+	uint32_t in[DEVX_ST_SZ_DW(query_hca_cap_in)] = {};
+	int rc;
+
+	DEVX_SET(query_hca_cap_in, in, opcode, MLX5_CMD_OP_QUERY_HCA_CAP);
+	DEVX_SET(query_hca_cap_in, in, op_mod, opmod);
+
+	rc = mlx5dv_devx_general_cmd(context, in, sizeof(in), out, sizeof(out));
+	if (rc) {
+		return rc;
+	}
+
+	caps->crypto = DEVX_GET(query_hca_cap_out, out, capability.cmd_hca_cap.crypto);
+	caps->single_block_le_tweak = DEVX_GET(query_hca_cap_out,
+			out, capability.cmd_hca_cap.aes_xts_single_block_le_tweak);
+	caps->multi_block_be_tweak = DEVX_GET(query_hca_cap_out, out,
+						capability.cmd_hca_cap.aes_xts_multi_block_be_tweak);
+	caps->multi_block_le_tweak = DEVX_GET(query_hca_cap_out, out,
+						capability.cmd_hca_cap.aes_xts_multi_block_le_tweak);
+	caps->tweak_inc_64 = DEVX_GET(query_hca_cap_out, out,
+					       capability.cmd_hca_cap.aes_xts_tweak_inc_64);
+
+	opmod = MLX5_SET_HCA_CAP_OP_MOD_CRYPTO | HCA_CAP_OPMOD_GET_CUR;
+	memset(&out, 0, sizeof(out));
+	memset(&in, 0, sizeof(in));
+
+	DEVX_SET(query_hca_cap_in, in, opcode, MLX5_CMD_OP_QUERY_HCA_CAP);
+	DEVX_SET(query_hca_cap_in, in, op_mod, opmod);
+
+	rc = mlx5dv_devx_general_cmd(context, in, sizeof(in), out, sizeof(out));
+	if (rc) {
+		return rc;
+	}
+
+	caps->wrapped_crypto_operational = DEVX_GET(query_hca_cap_out, out,
+						    capability.crypto_caps.wrapped_crypto_operational);
+	caps->wrapped_crypto_going_to_commissioning = DEVX_GET(query_hca_cap_out, out,
+						    capability.crypto_caps .wrapped_crypto_going_to_commissioning);
+	caps->wrapped_import_method_aes_xts = (DEVX_GET(query_hca_cap_out, out,
+						    capability.crypto_caps.wrapped_import_method) &
+		    				MLX5_CRYPTO_CAPS_WRAPPED_IMPORT_METHOD_AES) != 0;
+
+	return 0;
+}
+
 struct ibv_context **
 spdk_mlx5_crypto_devs_get(int *dev_num)
 {
 	struct ibv_context **rdma_devs, **rdma_devs_out = NULL, *dev;
 	struct ibv_device_attr dev_attr;
-	struct mlx5dv_context dv_dev_attr;
+	struct spdk_mlx5_crypto_caps crypto_caps;
 	int num_rdma_devs = 0, i, rc;
 	int num_crypto_devs = 0;
 
@@ -72,38 +185,38 @@ spdk_mlx5_crypto_devs_get(int *dev_num)
 			SPDK_ERRLOG("Failed to query dev %s, skipping\n", dev->device->name);
 			continue;
 		}
-		if (dev_attr.vendor_id != MLX5_VENDOR_ID_MELLANOX) {
+		if (dev_attr.vendor_id != SPDK_MLX5_VENDOR_ID_MELLANOX) {
 			SPDK_DEBUGLOG(mlx5, "dev %s is not Mellanox device, skipping\n", dev->device->name);
 			continue;
 		}
 
-		memset(&dv_dev_attr, 0, sizeof(dv_dev_attr));
-		dv_dev_attr.comp_mask |= MLX5DV_CONTEXT_MASK_CRYPTO_OFFLOAD;
-		rc = mlx5dv_query_device(dev, &dv_dev_attr);
+		if (!mlx5_crypto_dev_allowed(dev->device->name)) {
+			continue;
+		}
+
+		memset(&crypto_caps, 0, sizeof(crypto_caps));
+		rc = spdk_mlx5_query_crypto_caps(dev, &crypto_caps);
 		if (rc) {
 			SPDK_ERRLOG("Failed to query mlx5 dev %s, skipping\n", dev->device->name);
 			continue;
 		}
-		if (!(dv_dev_attr.crypto_caps.flags & MLX5DV_CRYPTO_CAPS_CRYPTO)) {
+		if (!crypto_caps.crypto) {
 			SPDK_WARNLOG("dev %s crypto engine doesn't support crypto\n", dev->device->name);
-			/* continue; */
+			continue;
 		}
-		if (!(dv_dev_attr.crypto_caps.crypto_engines & (MLX5DV_CRYPTO_ENGINES_CAP_AES_XTS |
-				MLX5DV_CRYPTO_ENGINES_CAP_AES_XTS_SINGLE_BLOCK |
-				MLX5DV_CRYPTO_ENGINES_CAP_AES_XTS_MULTI_BLOCK))) {
+		if (!(crypto_caps.single_block_le_tweak || crypto_caps.multi_block_le_tweak ||
+			crypto_caps.multi_block_be_tweak)) {
 			SPDK_WARNLOG("dev %s crypto engine doesn't support AES_XTS\n", dev->device->name);
-			/* continue; */
+			continue;
 		}
-		if (dv_dev_attr.crypto_caps.wrapped_import_method &
-		    MLX5DV_CRYPTO_WRAPPED_IMPORT_METHOD_CAP_AES_XTS) {
-			SPDK_WARNLOG("dev %s uses wrapped import method (0x%x) which is not supported by mlx5 accel module\n",
-				     dev->device->name, dv_dev_attr.crypto_caps.wrapped_import_method);
-			/* continue; */
+		if (crypto_caps.wrapped_import_method_aes_xts ) {
+			SPDK_WARNLOG("dev %s uses wrapped import method which is not supported by mlx5 lib\n",
+				     dev->device->name);
+			continue;
 		}
 
 		SPDK_NOTICELOG("Crypto dev %s\n", dev->device->name);
 		rdma_devs_out[num_crypto_devs++] = dev;
-		break;
 	}
 
 	if (!num_crypto_devs) {
@@ -268,7 +381,7 @@ spdk_mlx5_crypto_keytag_create(struct spdk_mlx5_crypto_dek_create_attr *attr,
 		memcpy(keytag->keytag, attr->dek + attr->dek_len - SPDK_MLX5_AES_XTS_KEYTAG_SIZE,
 		       SPDK_MLX5_AES_XTS_KEYTAG_SIZE);
 	}
-	keytag->vendor_id = MLX5_VENDOR_ID_MELLANOX;
+	keytag->vendor_id = SPDK_MLX5_VENDOR_ID_MELLANOX;
 	spdk_mlx5_crypto_devs_release(devs);
 	*out = keytag;
 
@@ -333,7 +446,7 @@ spdk_mlx5_crypto_get_dek_obj_id(struct spdk_mlx5_crypto_keytag *keytag, struct i
 {
 	struct spdk_mlx5_crypto_dek *dek;
 
-	if (spdk_unlikely(keytag->vendor_id != MLX5_VENDOR_ID_MELLANOX)) {
+	if (spdk_unlikely(keytag->vendor_id != SPDK_MLX5_VENDOR_ID_MELLANOX)) {
 		return -EINVAL;
 	}
 	dek = mlx5_crypto_get_dek_by_pd(keytag, pd);

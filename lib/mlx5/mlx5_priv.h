@@ -1,3 +1,7 @@
+/*   SPDX-License-Identifier: BSD-3-Clause
+ *   Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ */
+
 #include "spdk/stdinc.h"
 #include "spdk/queue.h"
 #include "spdk/barrier.h"
