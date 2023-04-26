@@ -130,7 +130,12 @@ export LDFLAGS
         --with-raid5f
 
 # SPDK make
+# DISABLE ISAL_CRYPTO in centos 7 (no hw cap)
+%if 0%{?rhel} == 7
+CONFIG_ISAL_CRYPTO=n make %{?_smp_mflags}
+%else
 make %{?_smp_mflags}
+%endif
 
 %install
 mkdir -p %{install_bindir}
@@ -169,7 +174,9 @@ cp -pr include/spdk ${RPM_BUILD_ROOT}%{pkg_prefix}/include/
 cp -pr build/lib/*.*    ${RPM_BUILD_ROOT}%{pkg_prefix}/lib/
 %ifarch aarch64
 cp -p isa-l/.libs/libisal.a ${RPM_BUILD_ROOT}%{pkg_prefix}/lib/
+%if 0%{?rhel} == 0 || 0%{?rhel} > 7
 cp -p isa-l-crypto/.libs/libisal_crypto.a ${RPM_BUILD_ROOT}%{pkg_prefix}/lib/
+%endif
 %endif
 install -p -m 644 contrib/spdk_tgt.service ${systemd_dir}
 install -p -m 644 contrib/vhost.service ${systemd_dir}
