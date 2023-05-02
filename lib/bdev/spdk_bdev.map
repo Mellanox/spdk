@@ -189,6 +189,7 @@
 	spdk_bdev_reservation_acquire;
 	spdk_bdev_reservation_release;
 	spdk_bdev_reservation_report;
+	spdk_bdev_get_reservation_caps;
 
 	# Everything else
 	local: *;

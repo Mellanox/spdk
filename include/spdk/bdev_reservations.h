@@ -16,6 +16,32 @@
 extern "C" {
 #endif
 
+struct spdk_bdev_reservation_caps {
+	/** supports persist through power loss */
+	bool persist;
+
+	/** supports write exclusive */
+	bool write_exclusive;
+
+	/** supports exclusive access */
+	bool exclusive_access;
+
+	/** supports write exclusive - registrants only */
+	bool write_exclusive_reg_only;
+
+	/** supports exclusive access - registrants only */
+	bool exclusive_access_reg_only;
+
+	/** supports write exclusive - all registrants */
+	bool write_exclusive_all_reg;
+
+	/** supports exclusive access - all registrants */
+	bool exclusive_access_all_reg;
+
+	/** supports ignore existing key */
+	bool ignore_existing_key;
+};
+
 /**
  * Change persist through power loss state for
  *  Reservation Register command
@@ -220,6 +246,15 @@ int spdk_bdev_reservation_report(struct spdk_bdev_desc *desc,
 				 uint32_t len,
 				 spdk_bdev_io_completion_cb cb,
 				 void *cb_arg);
+
+/**
+ * Get the reservation capabilities of the block device
+ *
+ * \param bdev Block Device
+ *
+ * \return Reference to the reservation capabilities of block device
+ */
+const struct spdk_bdev_reservation_caps *spdk_bdev_get_reservation_caps(struct spdk_bdev *bdev);
 
 #ifdef __cplusplus
 }
