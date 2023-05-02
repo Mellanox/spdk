@@ -11,6 +11,7 @@
 #include "spdk/thread.h"
 #include "spdk/bdev_module.h"
 #include "spdk/likely.h"
+#include "spdk/bdev_reservations.h"
 
 /* Limit the max IO size by some reasonable value. Since in write operation we use aux buffer,
  * let's set the limit to the bdev bounce aux buffer size */
@@ -373,6 +374,38 @@ vbdev_crypto_submit_request(struct spdk_io_channel *ch, struct spdk_bdev_io *bde
 		rc = spdk_bdev_reset(crypto_bdev->base_desc, crypto_ch->base_ch,
 				     _complete_internal_io, bdev_io);
 		break;
+	case SPDK_BDEV_IO_TYPE_RESERVATION_REGISTER:
+		rc = spdk_bdev_reservation_register(crypto_bdev->base_desc, crypto_ch->base_ch,
+						    bdev_io->u.reservation_register.crkey,
+						    bdev_io->u.reservation_register.nrkey,
+					            bdev_io->u.reservation_register.ignore_key,
+					            bdev_io->u.reservation_register.action,
+					            bdev_io->u.reservation_register.cptpl,
+					            _complete_internal_io, bdev_io);
+		break;
+	case SPDK_BDEV_IO_TYPE_RESERVATION_ACQUIRE:
+		rc = spdk_bdev_reservation_acquire(crypto_bdev->base_desc, crypto_ch->base_ch,
+						   bdev_io->u.reservation_acquire.crkey,
+						   bdev_io->u.reservation_acquire.prkey,
+						   bdev_io->u.reservation_acquire.ignore_key,
+						   bdev_io->u.reservation_acquire.action,
+						   bdev_io->u.reservation_acquire.type,
+					           _complete_internal_io, bdev_io);
+		break;
+	case SPDK_BDEV_IO_TYPE_RESERVATION_RELEASE:
+		rc = spdk_bdev_reservation_release(crypto_bdev->base_desc, crypto_ch->base_ch,
+						   bdev_io->u.reservation_release.crkey,
+						   bdev_io->u.reservation_release.ignore_key,
+						   bdev_io->u.reservation_release.action,
+						   bdev_io->u.reservation_release.type,
+					           _complete_internal_io, bdev_io);
+		break;
+	case SPDK_BDEV_IO_TYPE_RESERVATION_REPORT:
+		rc = spdk_bdev_reservation_report(crypto_bdev->base_desc, crypto_ch->base_ch,
+						  bdev_io->u.reservation_report.status_data,
+						  bdev_io->u.reservation_report.len,
+					          _complete_internal_io, bdev_io);
+		break;
 	case SPDK_BDEV_IO_TYPE_WRITE_ZEROES:
 	default:
 		SPDK_ERRLOG("crypto: unknown I/O type %d\n", bdev_io->type);
@@ -406,6 +439,10 @@ vbdev_crypto_io_type_supported(void *ctx, enum spdk_bdev_io_type io_type)
 	case SPDK_BDEV_IO_TYPE_RESET:
 	case SPDK_BDEV_IO_TYPE_READ:
 	case SPDK_BDEV_IO_TYPE_FLUSH:
+	case SPDK_BDEV_IO_TYPE_RESERVATION_REGISTER:
+	case SPDK_BDEV_IO_TYPE_RESERVATION_ACQUIRE:
+	case SPDK_BDEV_IO_TYPE_RESERVATION_RELEASE:
+	case SPDK_BDEV_IO_TYPE_RESERVATION_REPORT:
 		return spdk_bdev_io_type_supported(crypto_bdev->base_bdev, io_type);
 	case SPDK_BDEV_IO_TYPE_WRITE_ZEROES:
 	/* Force the bdev layer to issue actual writes of zeroes so we can
