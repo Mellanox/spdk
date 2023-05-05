@@ -5823,15 +5823,7 @@ bdev_reset_freeze_channel(struct spdk_bdev_channel_iter *i, struct spdk_bdev *bd
 	channel->flags |= BDEV_CH_RESET_IN_PROGRESS;
 
 	if ((channel->flags & BDEV_CH_QOS_ENABLED) != 0) {
-		/* The QoS object is always valid and readable while
-		 * the channel flag is set, so the lock here should not
-		 * be necessary. We're not in the fast path though, so
-		 * just take it anyway. */
-		spdk_spin_lock(&channel->bdev->internal.spinlock);
-		if (channel->bdev->internal.qos->ch == channel) {
-			TAILQ_SWAP(&channel->queued_ios, &tmp_queued, spdk_bdev_io, internal.link);
-		}
-		spdk_spin_unlock(&channel->bdev->internal.spinlock);
+		TAILQ_SWAP(&channel->queued_ios, &tmp_queued, spdk_bdev_io, internal.link);
 	}
 
 	bdev_abort_all_queued_io(&shared_resource->nomem_io, channel);
@@ -9257,7 +9249,11 @@ spdk_bdev_wait_for_ready(struct spdk_bdev_desc *desc, int64_t timeout_in_msec,
 	}
 
 	if (bdev->fn_table->wait_for_ready == NULL) {
-		return -ENOTSUP;
+		/* Return success immediately if the backend device does not
+		 * implement wait_for_ready.
+		 */
+		cb_fn(cb_arg, 0);
+		return 0;
 	}
 
 	return bdev->fn_table->wait_for_ready(bdev->ctxt, timeout_in_msec, cb_fn, cb_arg);

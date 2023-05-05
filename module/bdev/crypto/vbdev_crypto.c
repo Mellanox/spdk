@@ -80,6 +80,8 @@ static void _complete_internal_io(struct spdk_bdev_io *bdev_io, bool success, vo
 static void vbdev_crypto_examine(struct spdk_bdev *bdev);
 static int vbdev_crypto_claim(const char *bdev_name);
 static void vbdev_crypto_submit_request(struct spdk_io_channel *ch, struct spdk_bdev_io *bdev_io);
+static int vbdev_crypto_wait_for_ready(void *ctxt, int64_t timeout_msec,
+				       spdk_bdev_wait_for_ready_cb cb_fn, void *cb_arg);
 
 static void
 crypto_io_fail(struct crypto_bdev_io *crypto_io)
@@ -198,10 +200,10 @@ _complete_internal_io(struct spdk_bdev_io *bdev_io, bool success, void *cb_arg)
 	struct crypto_bdev_io *crypto_io = (struct crypto_bdev_io *)orig_io->driver_ctx;
 	int status = success ? SPDK_BDEV_IO_STATUS_SUCCESS : SPDK_BDEV_IO_STATUS_FAILED;
 
-	spdk_bdev_io_complete(orig_io, status);
 	if (crypto_io->aux_buf_raw) {
 		spdk_bdev_io_put_aux_buf(orig_io, crypto_io->aux_buf_raw);
 	}
+	spdk_bdev_io_complete(orig_io, status);
 	spdk_bdev_free_io(bdev_io);
 }
 
@@ -451,6 +453,21 @@ vbdev_crypto_io_type_supported(void *ctx, enum spdk_bdev_io_type io_type)
 	default:
 		return false;
 	}
+}
+
+static int
+vbdev_crypto_wait_for_ready(void *ctxt,  int64_t timeout_msec,
+			    spdk_bdev_wait_for_ready_cb cb_fn, void *cb_arg)
+{
+	struct vbdev_crypto *crypto_bdev = ctxt;
+	int rc;
+
+	rc = spdk_bdev_wait_for_ready(crypto_bdev->base_desc, timeout_msec, cb_fn, cb_arg);
+	if (rc != 0) {
+		cb_fn(cb_arg, rc);
+	}
+
+	return 0;
 }
 
 /* Callback for unregistering the IO device. */
@@ -765,6 +782,7 @@ static const struct spdk_bdev_fn_table vbdev_crypto_fn_table = {
 	.dump_info_json			= vbdev_crypto_dump_info_json,
 	.get_memory_domains		= vbdev_crypto_get_memory_domains,
 	.accel_sequence_supported	= vbdev_crypto_sequence_supported,
+	.wait_for_ready			= vbdev_crypto_wait_for_ready,
 };
 
 static struct spdk_bdev_module crypto_if = {

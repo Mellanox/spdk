@@ -280,6 +280,38 @@ function config_tgt_delay() {
     rpc_tgt save_config
 }
 
+function config_tgt_nested_mp() {
+    local CONFIG=""
+
+    rpc_tgt framework_start_init
+    CONFIG="$CONFIG\nnvmf_create_transport -t tcp -n 8192 -b 128"
+    for ((i=0;i<SUBSYS;i++)); do
+	local UUID=$(uuidgen -r)
+	local NGUID=$(printf "%032X" $((i + 1)))
+	local EUI64=$(printf "%016X" $((i + 1)))
+	for ((j=0; j<PATH_GROUPS; j++)); do
+	    local NQN="nqn.2016-06.io.spdk:cnode$i-$j"
+	    local BDEV="Null$i-$j"
+
+	    if [ -n "$VERIFY" ]; then
+		CONFIG="$CONFIG\nbdev_malloc_create -b $BDEV 8192 512"
+	    else
+		CONFIG="$CONFIG\nbdev_null_create $BDEV $BDEV_NULL_OPTS"
+	    fi
+
+
+	    CONFIG="$CONFIG\nnvmf_create_subsystem -a $NQN"
+	    for ((k=0; k<PATHS; k++)); do
+		local PORT=$((TGT_PORT + k))
+		CONFIG="$CONFIG\nnvmf_subsystem_add_listener -t tcp -a $TGT_ADDR -f ipv4 -s $PORT $NQN"
+	    done
+	    CONFIG="$CONFIG\nnvmf_subsystem_add_ns -n 1 $NQN $BDEV --uuid $UUID --nguid $NGUID --eui64 $EUI64"
+	done
+    done
+    rpc_tgt_batch "$CONFIG"
+    rpc_tgt save_config
+}
+
 function start_snap_service() {
     $(ssh_prefix $SNAP_SSH) sudo systemctl start mlnx_snap
 }
@@ -577,6 +609,58 @@ function config_snap_vfs_qos_demo() {
     CONFIG="$CONFIG\nnvme_namespace_create --nqn nqn.2020-12.mlnx.snap:cnode1 --bdev_name Nvme3n1 --nsid 2 --uuid $(uuidgen -r)"
     CONFIG="$CONFIG\nnvme_controller_attach_ns --ctrl NVMeCtrl1 --nsid 1"
     CONFIG="$CONFIG\nnvme_controller_attach_ns --ctrl NVMeCtrl1 --nsid 2"
+    rpc_snap_snap_batch "$CONFIG"
+}
+
+function config_snap_nested_mp() {
+    local CONFIG=""
+
+    snap_enable_debug
+    CONFIG="$CONFIG\nsock_set_default_impl -i $SOCK_IMPL"
+    CONFIG="$CONFIG\nsock_impl_set_options -i $SOCK_IMPL $SOCK_EXTRA_OPTS"
+    CONFIG="$CONFIG\nmlx5_scan_accel_module $ACCEL_OPTS"
+    rpc_snap_spdk_batch "$CONFIG"
+
+    rpc_snap_spdk framework_start_init
+
+    CONFIG=""
+    CONFIG="$CONFIG\naccel_get_module_info"
+    CONFIG="$CONFIG\naccel_get_opc_assignments"
+    CONFIG="$CONFIG\nbdev_nvme_set_options -c 4 -e 12 -l -1 -o 10 --nested-mode"
+
+    for ((i=0;i<SUBSYS;i++)); do
+	local NAME="Nvme$i"
+
+	for ((j=0; j<PATH_GROUPS; j++)); do
+	    local NQN="nqn.2016-06.io.spdk:cnode$i-$j"
+
+	    for ((k=0; k<PATHS; k++)); do
+		local PORT=$((TGT_PORT + k))
+
+		CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS \
+			-b $NAME -t $TCP -f ipv4 -a $TGT_ADDR -s $PORT -n $NQN \
+			$DATA_DGST --fabrics-timeout $CONNECT_TIMEOUT"
+	    done
+	done
+
+	if [ -n "$MULTIPATH_OPTS" ]; then
+	    CONFIG="$CONFIG\nbdev_nvme_set_multipath_policy -b ${NAME}n1 $MULTIPATH_OPTS"
+	fi
+    done
+
+    rpc_snap_spdk_batch "$CONFIG"
+
+    CONFIG=""
+    CONFIG="$CONFIG\nnvme_subsystem_create --nqn nqn.2020-12.mlnx.snap -nn 2048 -mnan 2048 --model_number Mellanox_NVMe_SNAP"
+    CONFIG="$CONFIG\nnvme_controller_create --nqn nqn.2020-12.mlnx.snap --pf_id 0 --num_queues 31 --mdts $MDTS"
+    for ((i=0;i<$SUBSYS;i++))
+    do
+	    CONFIG="$CONFIG\nspdk_bdev_create Nvme${i}n1"
+	    nsid=$((i+1))
+	    CONFIG="$CONFIG\nnvme_namespace_create --nqn nqn.2020-12.mlnx.snap --bdev_name Nvme${i}n1 --nsid $nsid --uuid $(uuidgen -r)"
+	    CONFIG="$CONFIG\nnvme_controller_attach_ns --ctrl NVMeCtrl1 --nsid $nsid"
+    done
+
     rpc_snap_snap_batch "$CONFIG"
 }
 
@@ -1391,6 +1475,28 @@ function test_perf_snap4_crypto_digest_sw() {
 		 SOCK_IMPL=xlio \
 		 SOCK_EXTRA_OPTS="--enable-zerocopy-recv --enable-zerocopy-send-client" \
 		 basic_test_fio_snap
+}
+
+function test_perf_snap4_nested_mp() {
+    local EXTRA_SNAP_OPTS="SPDK_XLIO_PATH=$LIBXLIO \
+	  SNAP4_RDMA_ZCOPY_ENABLE=1 \
+	  SNAP4_TCP_XLIO_ENABLE=1 \
+	  MLX5_SHUT_UP_BF=1"
+    local FIO_SPDK_CONF="$PWD/fio_spdk_conf.json"
+    local FIO_BDEV_JOBS_CONF="$PWD/fio_bdev_jobs"
+    local SNAP_CONFIG=config_snap_nested_mp
+    local TGT_CONFIG=config_tgt_nested_mp
+    local PATH_GROUPS=${PATH_GROUPS:-1}
+    #local FIO_EXTRA_OPTS="--log_flags=all"
+    if [ -n "$VERIFY" ]; then
+	local FIO_EXTRA_OPTS="--verify=crc32c --verify_backlog=1"
+	local RW=randwrite
+	local FIO_JOBS=1
+	local QUEUE_DEPTHS=1
+    fi
+
+    local SNAP_ENV_OPTS="$SNAP_ENV_OPTS $EXTRA_SNAP_OPTS"
+    basic_test_fio_snap
 }
 
 # Run as SETUP=<your setup> ./test.sh set_trust_level

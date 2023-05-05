@@ -534,6 +534,21 @@ vbdev_passthru_get_memory_domains(void *ctx, struct spdk_memory_domain **domains
 	return spdk_bdev_get_memory_domains(pt_node->base_bdev, domains, array_size);
 }
 
+static int
+vbdev_passthru_wait_for_ready(void *ctxt, int64_t timeout_msec,
+			      spdk_bdev_wait_for_ready_cb cb_fn, void *cb_arg)
+{
+	struct vbdev_passthru *pt_node = ctxt;
+	int rc;
+
+	rc = spdk_bdev_wait_for_ready(pt_node->base_desc, timeout_msec, cb_fn, cb_arg);
+	if (rc != 0) {
+		cb_fn(cb_arg, rc);
+	}
+
+	return 0;
+}
+
 /* When we register our bdev this is how we specify our entry points. */
 static const struct spdk_bdev_fn_table vbdev_passthru_fn_table = {
 	.destruct		= vbdev_passthru_destruct,
@@ -543,6 +558,7 @@ static const struct spdk_bdev_fn_table vbdev_passthru_fn_table = {
 	.dump_info_json		= vbdev_passthru_dump_info_json,
 	.write_config_json	= vbdev_passthru_write_config_json,
 	.get_memory_domains	= vbdev_passthru_get_memory_domains,
+	.wait_for_ready		= vbdev_passthru_wait_for_ready,
 };
 
 static void

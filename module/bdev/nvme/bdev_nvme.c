@@ -4335,7 +4335,8 @@ nested_nvme_wait_for_ready(void *ctxt, int64_t timeout_msec,
 	struct nested_wait_for_ready_ctx *ctx;
 
 	if (!g_opts.nested_mode) {
-		return -ENOTSUP;
+		cb_fn(cb_arg, 0);
+		return 0;
 	}
 
 	ctx = calloc(1, sizeof(*ctx));

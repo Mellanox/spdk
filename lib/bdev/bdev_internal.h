@@ -7,12 +7,14 @@
 #define SPDK_BDEV_INTERNAL_H
 
 #include "spdk/bdev.h"
+#include "spdk/bdev_module.h"
 
 #define ZERO_BUFFER_SIZE	0x100000
 
 struct spdk_bdev;
 struct spdk_bdev_io;
 struct spdk_bdev_channel;
+struct spdk_bdev_group;
 
 struct spdk_bdev_io *bdev_channel_get_io(struct spdk_bdev_channel *channel);
 
