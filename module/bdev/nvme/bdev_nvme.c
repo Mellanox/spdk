@@ -4585,6 +4585,22 @@ nvme_generate_uuid(const char *sn, uint32_t nsid)
 }
 
 static void
+nvme_bdev_fill_reservation_capabilities(struct spdk_bdev *disk,
+					const struct spdk_nvme_ns_data *nsdata)
+{
+	struct spdk_bdev_reservation_caps *disk_caps = &disk->reservation_caps;
+
+	disk_caps->persist = nsdata->nsrescap.rescap.persist ? true : false;
+	disk_caps->write_exclusive = nsdata->nsrescap.rescap.write_exclusive ? true : false;
+	disk_caps->exclusive_access = nsdata->nsrescap.rescap.exclusive_access ? true : false;
+	disk_caps->write_exclusive_reg_only = nsdata->nsrescap.rescap.write_exclusive_reg_only ? true : false;
+	disk_caps->exclusive_access_reg_only = nsdata->nsrescap.rescap.exclusive_access_reg_only ? true : false;
+	disk_caps->write_exclusive_all_reg = nsdata->nsrescap.rescap.write_exclusive_all_reg ? true : false;
+	disk_caps->exclusive_access_all_reg = nsdata->nsrescap.rescap.exclusive_access_all_reg ? true : false;
+	disk_caps->ignore_existing_key = nsdata->nsrescap.rescap.ignore_existing_key ? true : false;
+}
+
+static void
 nvme_disk_configure(struct spdk_bdev *disk, struct spdk_nvme_ns *ns,
 		    struct spdk_nvme_ctrlr *ctrlr,
 		    const struct spdk_nvme_ctrlr_opts *opts,
@@ -4669,6 +4685,9 @@ nvme_disk_configure(struct spdk_bdev *disk, struct spdk_nvme_ns *ns,
 	} else {
 		disk->acwu = cdata->acwu + 1; /* 0-based */
 	}
+
+	/* Fill Reservation Capabilities */
+	nvme_bdev_fill_reservation_capabilities(disk, nsdata);
 
 	if (cdata->oncs.copy) {
 		/* For now bdev interface allows only single segment copy */

@@ -162,3 +162,9 @@ spdk_bdev_reservation_report(struct spdk_bdev_desc *desc,
 	bdev_io_submit(bdev_io);
 	return 0;
 }
+
+const struct spdk_bdev_reservation_caps *
+spdk_bdev_get_reservation_caps(struct spdk_bdev *bdev)
+{
+	return &bdev->reservation_caps;
+}

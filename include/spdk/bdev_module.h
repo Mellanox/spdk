@@ -463,6 +463,9 @@ struct spdk_bdev {
 	/** Atomic compare & write unit */
 	uint16_t acwu;
 
+	/* Reservation Capabilities */
+	struct spdk_bdev_reservation_caps reservation_caps;
+
 	/**
 	 * Specifies an alignment requirement for data buffers associated with an spdk_bdev_io.
 	 * 0 = no alignment requirement
