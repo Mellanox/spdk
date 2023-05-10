@@ -883,6 +883,10 @@ vbdev_crypto_claim(const char *bdev_name)
 			goto error_claim;
 		}
 
+		/* Copy the reservation capabilities from the base bdev
+		 * to crypto bdev */
+		vbdev->crypto_bdev.reservation_caps = vbdev->base_bdev->reservation_caps;
+
 		rc = spdk_bdev_register(&vbdev->crypto_bdev);
 		if (rc < 0) {
 			SPDK_ERRLOG("Failed to register vbdev: error %d\n", rc);
