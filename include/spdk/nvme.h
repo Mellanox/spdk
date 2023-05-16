@@ -294,6 +294,8 @@ SPDK_STATIC_ASSERT(sizeof(struct spdk_nvme_ctrlr_opts) == 818, "Incorrect size")
  */
 typedef void (*spdk_nvme_accel_completion_cb)(void *cb_arg, int status);
 
+typedef void (*spdk_nvme_iobuf_cb)(void *cb_arg, void *buf);
+
 /**
  * Function table for the NVMe accelerator device.
  *
@@ -313,7 +315,9 @@ struct spdk_nvme_accel_fn_table {
 	/** The accelerated crc32c function. */
 	void (*submit_accel_crc32c)(void *ctx, uint32_t *dst, struct iovec *iov,
 				    uint32_t iov_cnt, uint32_t seed, spdk_nvme_accel_completion_cb cb_fn, void *cb_arg);
-	struct spdk_io_channel * (*get_accel_channel)(void *ctx);
+	struct spdk_io_channel *(*get_accel_channel)(void *ctx);
+
+	struct spdk_iobuf_channel *(*get_iobuf_channel)(void *io_ctx);
 };
 
 /**

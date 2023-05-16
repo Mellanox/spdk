@@ -14,6 +14,8 @@ struct accel_mlx5_attr {
 	/* The number of data blocks to be processed in 1 UMR.
 	 * 0 means no limit. HW must support multi block crypto */
 	uint32_t split_mb_blocks;
+	/* Ignore CQ_UPDATE flags, mark last WQE with CQ_UPDATE before updating the DB */
+	bool siglast;
 };
 
 void accel_mlx5_get_default_attr(struct accel_mlx5_attr *attr);

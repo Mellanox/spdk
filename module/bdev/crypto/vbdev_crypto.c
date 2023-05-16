@@ -1,7 +1,7 @@
 /*   SPDX-License-Identifier: BSD-3-Clause
  *   Copyright (C) 2018 Intel Corporation.
  *   All rights reserved.
- *   Copyright (c) 2022, NVIDIA CORPORATION & AFFILIATES.
+ *   Copyright (c) 2022, 2023 NVIDIA CORPORATION & AFFILIATES.
  *   All rights reserved.
  */
 
@@ -12,10 +12,6 @@
 #include "spdk/bdev_module.h"
 #include "spdk/likely.h"
 #include "spdk/bdev_reservations.h"
-
-/* Limit the max IO size by some reasonable value. Since in write operation we use aux buffer,
- * let's set the limit to the bdev bounce aux buffer size */
-#define CRYPTO_MAX_IO SPDK_BDEV_LARGE_BUF_MAX_SIZE
 
 struct bdev_names {
 	struct vbdev_crypto_opts	*opts;
@@ -49,7 +45,6 @@ struct crypto_io_channel {
 };
 
 enum crypto_io_resubmit_state {
-	CRYPTO_IO_NEW,		/* Resubmit IO from the scratch */
 	CRYPTO_IO_DECRYPT_DONE,	/* Appended decrypt, need to read */
 	CRYPTO_IO_ENCRYPT_DONE,	/* Need to write */
 };
@@ -87,13 +82,16 @@ static void
 crypto_io_fail(struct crypto_bdev_io *crypto_io)
 {
 	struct spdk_bdev_io *bdev_io = spdk_bdev_io_from_ctx(crypto_io);
+	struct crypto_io_channel *crypto_ch = crypto_io->crypto_ch;
+
+	if (crypto_io->aux_buf_raw) {
+		spdk_accel_put_buf(crypto_ch->accel_channel, crypto_io->aux_buf_raw,
+				   crypto_io->aux_domain, crypto_io->aux_domain_ctx);
+	}
 
 	/* This function can only be used to fail an IO that hasn't been sent to the base bdev,
 	 * otherwise accel sequence might have already been executed/aborted. */
 	spdk_accel_sequence_abort(crypto_io->seq);
-	if (crypto_io->aux_buf_raw) {
-		spdk_bdev_io_put_aux_buf(bdev_io, crypto_io->aux_buf_raw);
-	}
 	spdk_bdev_io_complete(bdev_io, SPDK_BDEV_IO_STATUS_FAILED);
 }
 
@@ -108,6 +106,8 @@ crypto_write(struct crypto_io_channel *crypto_ch, struct spdk_bdev_io *bdev_io)
 
 	opts.size = sizeof(opts);
 	opts.accel_sequence = crypto_io->seq;
+	opts.memory_domain = crypto_io->aux_domain;
+	opts.memory_domain_ctx = crypto_io->aux_domain_ctx;
 
 	/* Write the encrypted data. */
 	rc = spdk_bdev_writev_blocks_ext(crypto_bdev->base_desc, crypto_ch->base_ch,
@@ -151,17 +151,18 @@ crypto_encrypt(struct crypto_io_channel *crypto_ch, struct spdk_bdev_io *bdev_io
 
 	rc = spdk_accel_append_encrypt(&crypto_io->seq, crypto_ch->accel_channel,
 				       crypto_ch->crypto_key, &crypto_io->aux_buf_iov, 1,
-				       NULL, NULL,
+				       crypto_io->aux_domain, crypto_io->aux_domain_ctx,
 				       bdev_io->u.bdev.iovs, bdev_io->u.bdev.iovcnt,
 				       bdev_io->u.bdev.memory_domain,
 				       bdev_io->u.bdev.memory_domain_ctx,
 				       bdev_io->u.bdev.offset_blocks, crypto_len, 0,
 				       NULL, NULL);
 	if (spdk_unlikely(rc != 0)) {
-		spdk_bdev_io_put_aux_buf(bdev_io, crypto_io->aux_buf_raw);
+		spdk_accel_put_buf(crypto_ch->accel_channel, crypto_io->aux_buf_raw,
+				   crypto_io->aux_domain, crypto_io->aux_domain_ctx);
 		if (rc == -ENOMEM) {
 			SPDK_DEBUGLOG(vbdev_crypto, "No memory, queue the IO.\n");
-			vbdev_crypto_queue_io(bdev_io, CRYPTO_IO_NEW);
+			spdk_bdev_io_complete(bdev_io, SPDK_BDEV_IO_STATUS_NOMEM);
 		} else {
 			SPDK_ERRLOG("Failed to submit bdev_io!\n");
 			crypto_io_fail(crypto_io);
@@ -173,35 +174,17 @@ crypto_encrypt(struct crypto_io_channel *crypto_ch, struct spdk_bdev_io *bdev_io
 	crypto_write(crypto_ch, bdev_io);
 }
 
-/* For encryption we don't want to encrypt the data in place as the host isn't
- * expecting us to mangle its data buffers so we need to encrypt into the bdev
- * aux buffer, then we can use that as the source for the disk data transfer.
- */
-static void
-crypto_write_get_buf_cb(struct spdk_io_channel *ch, struct spdk_bdev_io *bdev_io,
-			void *aux_buf)
-{
-	struct crypto_bdev_io *crypto_io = (struct crypto_bdev_io *)bdev_io->driver_ctx;
-	struct crypto_io_channel *crypto_ch = spdk_io_channel_get_ctx(ch);
-
-	if (spdk_unlikely(!aux_buf)) {
-		SPDK_ERRLOG("Failed to get aux buffer!\n");
-		spdk_bdev_io_complete(bdev_io, SPDK_BDEV_IO_STATUS_FAILED);
-		return;
-	}
-	crypto_io->aux_buf_raw = aux_buf;
-	crypto_encrypt(crypto_ch, bdev_io);
-}
-
 static void
 _complete_internal_io(struct spdk_bdev_io *bdev_io, bool success, void *cb_arg)
 {
 	struct spdk_bdev_io *orig_io = cb_arg;
 	struct crypto_bdev_io *crypto_io = (struct crypto_bdev_io *)orig_io->driver_ctx;
+	struct crypto_io_channel *crypto_ch = crypto_io->crypto_ch;
 	int status = success ? SPDK_BDEV_IO_STATUS_SUCCESS : SPDK_BDEV_IO_STATUS_FAILED;
 
 	if (crypto_io->aux_buf_raw) {
-		spdk_bdev_io_put_aux_buf(orig_io, crypto_io->aux_buf_raw);
+		spdk_accel_put_buf(crypto_ch->accel_channel, crypto_io->aux_buf_raw,
+				   crypto_io->aux_domain, crypto_io->aux_domain_ctx);
 	}
 	spdk_bdev_io_complete(orig_io, status);
 	spdk_bdev_free_io(bdev_io);
@@ -214,14 +197,8 @@ vbdev_crypto_resubmit_io(void *arg)
 {
 	struct spdk_bdev_io *bdev_io = (struct spdk_bdev_io *)arg;
 	struct crypto_bdev_io *crypto_io = (struct crypto_bdev_io *)bdev_io->driver_ctx;
-	struct spdk_io_channel *ch;
 
 	switch (crypto_io->resubmit_state) {
-	case CRYPTO_IO_NEW:
-		assert(crypto_io->crypto_ch);
-		ch = spdk_io_channel_from_ctx(crypto_io->crypto_ch);
-		vbdev_crypto_submit_request(ch, bdev_io);
-		break;
 	case CRYPTO_IO_ENCRYPT_DONE:
 		crypto_write(crypto_io->crypto_ch, bdev_io);
 		break;
@@ -244,9 +221,6 @@ vbdev_crypto_queue_io(struct spdk_bdev_io *bdev_io, enum crypto_io_resubmit_stat
 	crypto_io->bdev_io_wait.cb_arg = bdev_io;
 	crypto_io->resubmit_state = state;
 
-	/* TODO: We shouldn't use spdk_bdev_queue_io_wait() for queueing IOs due to receiving ENOMEM
-	 * from anything other than one of the bdev functions (e.g. accel).  We should have a
-	 * different mechanism for handling such requests. */
 	rc = spdk_bdev_queue_io_wait(bdev_io->bdev, crypto_io->crypto_ch->base_ch,
 				     &crypto_io->bdev_io_wait);
 	if (rc != 0) {
@@ -315,7 +289,7 @@ crypto_read_get_buf_cb(struct spdk_io_channel *ch, struct spdk_bdev_io *bdev_io,
 	if (rc != 0) {
 		if (rc == -ENOMEM) {
 			SPDK_DEBUGLOG(vbdev_crypto, "No memory, queue the IO.\n");
-			vbdev_crypto_queue_io(bdev_io, CRYPTO_IO_NEW);
+			spdk_bdev_io_complete(bdev_io, SPDK_BDEV_IO_STATUS_NOMEM);
 		} else {
 			SPDK_ERRLOG("Failed to submit bdev_io!\n");
 			crypto_io_fail(crypto_io);
@@ -358,7 +332,13 @@ vbdev_crypto_submit_request(struct spdk_io_channel *ch, struct spdk_bdev_io *bde
 		 * expecting us to mangle its data buffers so we need to encrypt into the aux accel
 		 * buffer, then we can use that as the source for the disk data transfer.
 		 */
-		spdk_bdev_io_get_aux_buf(bdev_io, crypto_write_get_buf_cb);
+		rc = spdk_accel_get_buf(crypto_ch->accel_channel,
+					bdev_io->u.bdev.num_blocks * bdev_io->bdev->blocklen,
+					&crypto_io->aux_buf_raw, &crypto_io->aux_domain,
+					&crypto_io->aux_domain_ctx);
+		if (rc == 0) {
+			crypto_encrypt(crypto_ch, bdev_io);
+		}
 		break;
 	case SPDK_BDEV_IO_TYPE_UNMAP:
 		rc = spdk_bdev_unmap_blocks(crypto_bdev->base_desc, crypto_ch->base_ch,
@@ -418,7 +398,7 @@ vbdev_crypto_submit_request(struct spdk_io_channel *ch, struct spdk_bdev_io *bde
 	if (rc != 0) {
 		if (rc == -ENOMEM) {
 			SPDK_DEBUGLOG(vbdev_crypto, "No memory, queue the IO.\n");
-			vbdev_crypto_queue_io(bdev_io, CRYPTO_IO_NEW);
+			spdk_bdev_io_complete(bdev_io, SPDK_BDEV_IO_STATUS_NOMEM);
 		} else {
 			SPDK_ERRLOG("Failed to submit bdev_io!\n");
 			crypto_io_fail(crypto_io);
@@ -802,7 +782,12 @@ vbdev_crypto_claim(const char *bdev_name)
 	struct bdev_names *name;
 	struct vbdev_crypto *vbdev;
 	struct spdk_bdev *bdev;
+	struct spdk_iobuf_opts iobuf_opts;
 	int rc = 0;
+
+	/* Limit the max IO size by some reasonable value. Since in write operation we use aux buffer,
+	 * let's set the limit to the large_bufsize value */
+	spdk_iobuf_get_opts(&iobuf_opts);
 
 	/* Check our list of names from config versus this bdev and if
 	 * there's a match, create the crypto_bdev & bdev accordingly.
@@ -842,9 +827,9 @@ vbdev_crypto_claim(const char *bdev_name)
 		vbdev->crypto_bdev.write_cache = bdev->write_cache;
 		if (bdev->optimal_io_boundary > 0) {
 			vbdev->crypto_bdev.optimal_io_boundary =
-				spdk_min((CRYPTO_MAX_IO / bdev->blocklen), bdev->optimal_io_boundary);
+				spdk_min((iobuf_opts.large_bufsize / bdev->blocklen), bdev->optimal_io_boundary);
 		} else {
-			vbdev->crypto_bdev.optimal_io_boundary = (CRYPTO_MAX_IO / bdev->blocklen);
+			vbdev->crypto_bdev.optimal_io_boundary = (iobuf_opts.large_bufsize / bdev->blocklen);
 		}
 		vbdev->crypto_bdev.split_on_optimal_io_boundary = true;
 		if (bdev->required_alignment > 0) {

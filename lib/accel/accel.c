@@ -143,8 +143,8 @@ struct spdk_accel_sequence {
 	struct accel_sequence_tasks		tasks;
 	struct accel_sequence_tasks		completed;
 	TAILQ_HEAD(, accel_buffer)		bounce_bufs;
-	enum accel_sequence_state		state;
 	int					status;
+	int8_t					state;
 	bool					in_process_sequence;
 	spdk_accel_completion_cb		cb_fn;
 	void					*cb_arg;
@@ -273,8 +273,6 @@ _get_task(struct accel_io_channel *accel_ch, spdk_accel_completion_cb cb_fn, voi
 	accel_task->cb_fn = cb_fn;
 	accel_task->cb_arg = cb_arg;
 	accel_task->accel_ch = accel_ch;
-	accel_task->bounce.s.orig_iovs = NULL;
-	accel_task->bounce.d.orig_iovs = NULL;
 
 	return accel_task;
 }
@@ -1368,6 +1366,8 @@ accel_sequence_check_bouncebuf(struct spdk_accel_sequence *seq, struct spdk_acce
 
 		accel_set_bounce_buffer(&task->bounce.s, &task->s.iovs, &task->s.iovcnt,
 					&task->src_domain, &task->src_domain_ctx, buf);
+	} else {
+		task->bounce.s.orig_iovs = NULL;
 	}
 
 	if (task->dst_domain != NULL) {
@@ -1388,6 +1388,8 @@ accel_sequence_check_bouncebuf(struct spdk_accel_sequence *seq, struct spdk_acce
 
 		accel_set_bounce_buffer(&task->bounce.d, &task->d.iovs, &task->d.iovcnt,
 					&task->dst_domain, &task->dst_domain_ctx, buf);
+	} else {
+		task->bounce.d.orig_iovs = NULL;
 	}
 
 	return 0;
@@ -1474,7 +1476,7 @@ accel_process_sequence(struct spdk_accel_sequence *seq)
 	struct spdk_accel_module_if *module;
 	struct spdk_io_channel *module_ch;
 	struct spdk_accel_task *task;
-	enum accel_sequence_state state;
+	int8_t state;
 	int rc;
 
 	/* Prevent recursive calls to this function */
@@ -1520,7 +1522,8 @@ accel_process_sequence(struct spdk_accel_sequence *seq)
 				accel_sequence_set_fail(seq, rc);
 				break;
 			}
-			if (task->bounce.s.orig_iovs != NULL) {
+			if (task->src_domain != NULL) {
+				assert(task->bounce.s.orig_iovs);
 				accel_sequence_set_state(seq, ACCEL_SEQUENCE_STATE_PULL_DATA);
 				break;
 			}
@@ -1546,7 +1549,8 @@ accel_process_sequence(struct spdk_accel_sequence *seq)
 			accel_task_pull_data(seq, task);
 			break;
 		case ACCEL_SEQUENCE_STATE_COMPLETE_TASK:
-			if (task->bounce.d.orig_iovs != NULL) {
+			if (!g_modules_opc[task->op_code].supports_memory_domains && task->dst_domain) {
+				assert(task->bounce.d.orig_iovs);
 				accel_sequence_set_state(seq, ACCEL_SEQUENCE_STATE_PUSH_DATA);
 				break;
 			}
@@ -2074,10 +2078,11 @@ accel_create_channel(void *io_device, void *ctx_buf)
 	struct spdk_accel_sequence *seq;
 	struct accel_buffer *buf;
 	uint8_t *task_mem;
+	size_t task_size = SPDK_ALIGN_CEIL(g_max_accel_module_size, 64);
 	int i = 0, j, rc;
 
-	accel_ch->task_pool_base = calloc(MAX_TASKS_PER_CHANNEL, g_max_accel_module_size);
-	if (accel_ch->task_pool_base == NULL) {
+	rc = posix_memalign(&accel_ch->task_pool_base, 64, task_size * MAX_TASKS_PER_CHANNEL);
+	if (rc) {
 		return -ENOMEM;
 	}
 
@@ -2102,7 +2107,7 @@ accel_create_channel(void *io_device, void *ctx_buf)
 		TAILQ_INSERT_TAIL(&accel_ch->task_pool, accel_task, link);
 		TAILQ_INSERT_TAIL(&accel_ch->seq_pool, seq, link);
 		TAILQ_INSERT_TAIL(&accel_ch->buf_pool, buf, link);
-		task_mem += g_max_accel_module_size;
+		task_mem += task_size;
 	}
 
 	/* Assign modules and get IO channels for each */

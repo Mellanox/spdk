@@ -33,10 +33,20 @@
 
 #define SPDK_BDEV_NVME_DEFAULT_DELAY_CMD_SUBMIT true
 #define SPDK_BDEV_NVME_DEFAULT_KEEP_ALIVE_TIMEOUT_IN_MS	(10000)
+#define BDEV_NVME_IOBUF_SMALL_CACHE_SIZE		128
+#define BDEV_NVME_IOBUF_LARGE_CACHE_SIZE		128
 
 #define NSID_STR_LEN 10
 
 static int bdev_nvme_config_json(struct spdk_json_write_ctx *w);
+
+struct nvme_bdev_io_crypto_ctx {
+	struct spdk_accel_sequence *seq;
+	void *aux_buf_raw;
+	struct iovec aux_buf_iov;
+	struct spdk_memory_domain *aux_domain;
+	void *aux_domain_ctx;
+};
 
 struct nvme_bdev_io {
 	/** array of iovecs to transfer. */
@@ -73,6 +83,10 @@ struct nvme_bdev_io {
 
 	/** Extended IO opts passed by the user to bdev layer and mapped to NVME format */
 	struct spdk_nvme_ns_cmd_ext_io_opts ext_opts;
+
+	struct nvme_bdev_io_crypto_ctx crypto;
+
+	struct spdk_iobuf_entry iobuf_entry;
 
 	/** Keeps track if first of fused commands was submitted */
 	bool first_fused_submitted;
@@ -284,6 +298,8 @@ static struct spdk_bdev_nvme_opts g_opts = {
 	.io_path_stat = false,
 	.poll_group_requests = 0,
 	.nested_mode = false,
+	.small_cache_size = BDEV_NVME_IOBUF_SMALL_CACHE_SIZE,
+	.large_cache_size = BDEV_NVME_IOBUF_LARGE_CACHE_SIZE,
 };
 
 #define NVME_HOTPLUG_POLL_PERIOD_MAX			10000000ULL
@@ -313,16 +329,21 @@ static void _nested_nvme_submit_request(struct nvme_bdev_io *nbdev_io);
 static void nested_nvme_submit_request(struct spdk_io_channel *ch,
 				       struct spdk_bdev_io *bdev_io);
 
-static int
-bdev_nvme_readv(struct nvme_bdev_io *bio, struct iovec *iov, int iovcnt, void *md, uint64_t lba_count, uint64_t lba,
-		uint32_t flags, struct spdk_memory_domain *domain, void *domain_ctx,
-		struct spdk_accel_sequence *sequence);
+static int bdev_nvme_readv(struct nvme_bdev_io *bio, struct iovec *iov, int iovcnt, void *md,
+			   uint64_t lba_count, uint64_t lba,
+			   uint32_t flags, struct spdk_memory_domain *domain, void *domain_ctx,
+			   struct spdk_accel_sequence *sequence);
 static int bdev_nvme_no_pi_readv(struct nvme_bdev_io *bio, struct iovec *iov, int iovcnt,
 				 void *md, uint64_t lba_count, uint64_t lba);
 static int bdev_nvme_writev(struct nvme_bdev_io *bio, struct iovec *iov, int iovcnt, void *md,
 			    uint64_t lba_count, uint64_t lba,
 			    uint32_t flags, struct spdk_memory_domain *domain, void *domain_ctx,
 			    struct spdk_accel_sequence *sequence);
+static int bdev_nvme_writev_crypto(struct nvme_bdev_io *bio, struct iovec *iov, int iovcnt,
+				   void *md,
+				   uint64_t lba_count, uint64_t lba,
+				   uint32_t flags, struct spdk_memory_domain *domain, void *domain_ctx,
+				   struct spdk_accel_sequence *sequence);
 static int bdev_nvme_zone_appendv(struct nvme_bdev_io *bio, struct iovec *iov, int iovcnt,
 				  void *md, uint64_t lba_count,
 				  uint64_t zslba, uint32_t flags);
@@ -1837,6 +1858,11 @@ bdev_nvme_io_complete_nvme_status(struct nvme_bdev_io *bio,
 
 	assert(!bdev_nvme_io_type_is_admin(bdev_io->type));
 
+	if (bio->crypto.aux_buf_raw) {
+		spdk_accel_put_buf(bio->io_path->nbdev_ch->group->accel_channel, bio->crypto.aux_buf_raw,
+				   bio->crypto.aux_domain, bio->crypto.aux_domain_ctx);
+	}
+
 	if (spdk_likely(spdk_nvme_cpl_is_success(cpl))) {
 		bdev_nvme_update_io_path_stat(bio);
 		goto complete;
@@ -3101,8 +3127,12 @@ _bdev_nvme_submit_request(struct nvme_bdev_channel *nbdev_ch, struct spdk_bdev_i
 {
 	struct nvme_bdev_io *nbdev_io = (struct nvme_bdev_io *)bdev_io->driver_ctx;
 	struct spdk_bdev *bdev = bdev_io->bdev;
+	struct nvme_bdev *nbdev;
 	struct nvme_bdev_io *nbdev_io_to_abort;
+	size_t total_len;
 	int rc = 0;
+
+	nbdev_io->crypto.aux_buf_raw = NULL;
 
 	switch (bdev_io->type) {
 	case SPDK_BDEV_IO_TYPE_READ:
@@ -3124,16 +3154,38 @@ _bdev_nvme_submit_request(struct nvme_bdev_channel *nbdev_ch, struct spdk_bdev_i
 		}
 		break;
 	case SPDK_BDEV_IO_TYPE_WRITE:
-		rc = bdev_nvme_writev(nbdev_io,
-				      bdev_io->u.bdev.iovs,
-				      bdev_io->u.bdev.iovcnt,
-				      bdev_io->u.bdev.md_buf,
-				      bdev_io->u.bdev.num_blocks,
-				      bdev_io->u.bdev.offset_blocks,
-				      bdev->dif_check_flags,
-				      bdev_io->u.bdev.memory_domain,
-				      bdev_io->u.bdev.memory_domain_ctx,
-				      bdev_io->u.bdev.accel_sequence);
+		nbdev = bdev->ctxt;
+		if (nbdev->crypto_key) {
+			total_len = bdev_io->u.bdev.num_blocks * bdev->blocklen;
+			rc = spdk_accel_get_buf(nbdev_io->io_path->nbdev_ch->group->accel_channel, total_len,
+						&nbdev_io->crypto.aux_buf_raw, &nbdev_io->crypto.aux_domain, &nbdev_io->crypto.aux_domain_ctx);
+			if (spdk_likely(rc == 0)) {
+				nbdev_io->crypto.aux_buf_iov.iov_len = total_len;
+				nbdev_io->crypto.aux_buf_iov.iov_base  = nbdev_io->crypto.aux_buf_raw;
+
+				rc = bdev_nvme_writev_crypto(nbdev_io,
+							     bdev_io->u.bdev.iovs,
+							     bdev_io->u.bdev.iovcnt,
+							     bdev_io->u.bdev.md_buf,
+							     bdev_io->u.bdev.num_blocks,
+							     bdev_io->u.bdev.offset_blocks,
+							     bdev->dif_check_flags,
+							     bdev_io->u.bdev.memory_domain,
+							     bdev_io->u.bdev.memory_domain_ctx,
+							     bdev_io->u.bdev.accel_sequence);
+			}
+		} else {
+			rc = bdev_nvme_writev(nbdev_io,
+					      bdev_io->u.bdev.iovs,
+					      bdev_io->u.bdev.iovcnt,
+					      bdev_io->u.bdev.md_buf,
+					      bdev_io->u.bdev.num_blocks,
+					      bdev_io->u.bdev.offset_blocks,
+					      bdev->dif_check_flags,
+					      bdev_io->u.bdev.memory_domain,
+					      bdev_io->u.bdev.memory_domain_ctx,
+					      bdev_io->u.bdev.accel_sequence);
+		}
 		break;
 	case SPDK_BDEV_IO_TYPE_COMPARE:
 		rc = bdev_nvme_comparev(nbdev_io,
@@ -3766,16 +3818,26 @@ bdev_nvme_get_accel_channel(void *ctx)
 	return group->accel_channel;
 }
 
+static struct spdk_iobuf_channel *
+bdev_nvme_get_iobuf_ch(void *ctx)
+{
+	struct nvme_poll_group *group = ctx;
+
+	return &group->iobuf;
+}
+
 static struct spdk_nvme_accel_fn_table g_bdev_nvme_accel_fn_table = {
 	.table_size		= sizeof(struct spdk_nvme_accel_fn_table),
 	.submit_accel_crc32c	= bdev_nvme_submit_accel_crc32c,
 	.get_accel_channel	= bdev_nvme_get_accel_channel,
+	.get_iobuf_channel	= bdev_nvme_get_iobuf_ch,
 };
 
 static int
 bdev_nvme_create_poll_group_cb(void *io_device, void *ctx_buf)
 {
 	struct nvme_poll_group *group = ctx_buf;
+	int rc;
 
 	TAILQ_INIT(&group->qpair_list);
 
@@ -3784,9 +3846,18 @@ bdev_nvme_create_poll_group_cb(void *io_device, void *ctx_buf)
 		return -1;
 	}
 
+	rc = spdk_iobuf_channel_init(&group->iobuf, "nvme", g_opts.small_cache_size,
+				     g_opts.large_cache_size);
+	if (rc) {
+		SPDK_ERRLOG("Failed to init iobuf\n");
+		spdk_nvme_poll_group_destroy(group->group);
+		return -1;
+	}
+
 	group->accel_channel = spdk_accel_get_io_channel();
 	if (!group->accel_channel) {
 		spdk_nvme_poll_group_destroy(group->group);
+		spdk_iobuf_channel_fini(&group->iobuf);
 		SPDK_ERRLOG("Cannot get the accel_channel for bdev nvme polling group=%p\n",
 			    group);
 		return -1;
@@ -3796,6 +3867,7 @@ bdev_nvme_create_poll_group_cb(void *io_device, void *ctx_buf)
 
 	if (group->poller == NULL) {
 		spdk_put_io_channel(group->accel_channel);
+		spdk_iobuf_channel_fini(&group->iobuf);
 		spdk_nvme_poll_group_destroy(group->group);
 		return -1;
 	}
@@ -3813,6 +3885,8 @@ bdev_nvme_destroy_poll_group_cb(void *io_device, void *ctx_buf)
 	if (group->accel_channel) {
 		spdk_put_io_channel(group->accel_channel);
 	}
+
+	spdk_iobuf_channel_fini(&group->iobuf);
 
 	spdk_poller_unregister(&group->poller);
 	if (spdk_nvme_poll_group_destroy(group->group)) {
@@ -4777,7 +4851,8 @@ nvme_bdev_alloc(void)
 }
 
 static int
-nvme_bdev_create(struct nvme_ctrlr *nvme_ctrlr, struct nvme_ns *nvme_ns)
+nvme_bdev_create(struct nvme_ctrlr *nvme_ctrlr, struct nvme_ns *nvme_ns,
+		 struct spdk_accel_crypto_key *crypto_key)
 {
 	struct nvme_bdev *bdev;
 	int rc;
@@ -4791,6 +4866,7 @@ nvme_bdev_create(struct nvme_ctrlr *nvme_ctrlr, struct nvme_ns *nvme_ns)
 	TAILQ_INSERT_TAIL(&bdev->nvme_ns_list, nvme_ns, tailq);
 	bdev->opal = nvme_ctrlr->opal_dev != NULL;
 	bdev->connected = true;
+	bdev->crypto_key = crypto_key;
 
 	rc = nvme_disk_create(&bdev->disk, nvme_ctrlr->nbdev_ctrlr->name, nvme_ctrlr->ctrlr,
 			      nvme_ns->ns, nvme_ctrlr->opts.prchk_flags, bdev);
@@ -5090,7 +5166,8 @@ nvme_bdev_add_ns(struct nvme_bdev *bdev, struct nvme_ns *nvme_ns)
 }
 
 static void
-nvme_ctrlr_populate_namespace(struct nvme_ctrlr *nvme_ctrlr, struct nvme_ns *nvme_ns)
+nvme_ctrlr_populate_namespace(struct nvme_ctrlr *nvme_ctrlr, struct nvme_ns *nvme_ns,
+			      struct spdk_accel_crypto_key *crypto_key)
 {
 	struct spdk_nvme_ns	*ns;
 	struct nvme_bdev	*bdev;
@@ -5112,7 +5189,7 @@ nvme_ctrlr_populate_namespace(struct nvme_ctrlr *nvme_ctrlr, struct nvme_ns *nvm
 
 	bdev = nvme_bdev_ctrlr_get_bdev(nvme_ctrlr->nbdev_ctrlr, nvme_ns->id);
 	if (bdev == NULL) {
-		rc = nvme_bdev_create(nvme_ctrlr, nvme_ns);
+		rc = nvme_bdev_create(nvme_ctrlr, nvme_ns, crypto_key);
 	} else {
 		rc = nvme_bdev_add_ns(bdev, nvme_ns);
 		if (rc == 0) {
@@ -5270,7 +5347,7 @@ nvme_ctrlr_populate_namespaces(struct nvme_ctrlr *nvme_ctrlr,
 
 			RB_INSERT(nvme_ns_tree, &nvme_ctrlr->namespaces, nvme_ns);
 
-			nvme_ctrlr_populate_namespace(nvme_ctrlr, nvme_ns);
+			nvme_ctrlr_populate_namespace(nvme_ctrlr, nvme_ns, ctx ? ctx->crypto_key : NULL);
 		}
 
 		nsid = spdk_nvme_ctrlr_get_next_active_ns(ctrlr, nsid);
@@ -6697,6 +6774,7 @@ nvme_bdev_create_lazy(struct nvme_async_probe_ctx *ctx, struct bdev_nvme_lazy_op
 	bdev->rr_min_io = UINT32_MAX;
 	TAILQ_INIT(&bdev->nvme_ns_list);
 	bdev->opal = false;
+	bdev->crypto_key = ctx->crypto_key;
 
 	rc = nvme_bdev_disk_set_lazy_opts(bdev, ctx->base_name);
 	if (rc) {
@@ -6839,7 +6917,8 @@ bdev_nvme_create(struct spdk_nvme_transport_id *trid,
 		 struct spdk_nvme_ctrlr_opts *drv_opts,
 		 struct nvme_ctrlr_opts *bdev_opts,
 		 bool multipath,
-		 struct bdev_nvme_lazy_ctrlr_opts *lazy)
+		 struct bdev_nvme_lazy_ctrlr_opts *lazy,
+		 const char *crypto_key)
 {
 	struct nvme_bdev_ctrlr *nbdev_ctrlr;
 	struct nvme_ctrlr *nvme_ctrlr;
@@ -6869,6 +6948,15 @@ bdev_nvme_create(struct spdk_nvme_transport_id *trid,
 		memcpy(&ctx->bdev_opts, bdev_opts, sizeof(*bdev_opts));
 	} else {
 		bdev_nvme_get_default_ctrlr_opts(&ctx->bdev_opts);
+	}
+
+	if (crypto_key) {
+		ctx->crypto_key = spdk_accel_crypto_key_get(crypto_key);
+		if (!ctx->crypto_key) {
+			SPDK_ERRLOG("Key \"%s\" not found\n", crypto_key);
+			free(ctx);
+			return -EINVAL;
+		}
 	}
 
 	if (trid->trtype == SPDK_NVME_TRANSPORT_PCIE) {
@@ -7414,7 +7502,7 @@ discovery_log_page_cb(void *cb_arg, int rc, const struct spdk_nvme_cpl *cpl,
 			snprintf(new_ctx->drv_opts.hostnqn, sizeof(new_ctx->drv_opts.hostnqn), "%s", ctx->hostnqn);
 			rc = bdev_nvme_create(&new_ctx->trid, new_ctx->name, NULL, 0,
 					      discovery_attach_controller_done, new_ctx,
-					      &new_ctx->drv_opts, &ctx->bdev_opts, true, NULL);
+					      &new_ctx->drv_opts, &ctx->bdev_opts, true, NULL, NULL);
 			if (rc == 0) {
 				TAILQ_INSERT_TAIL(&ctx->nvm_entry_ctxs, new_ctx, tailq);
 				ctx->attach_in_progress++;
@@ -7716,6 +7804,7 @@ bdev_nvme_library_init(void)
 	if (g_io_redirect_list == NULL) {
 		return -ENOMEM;
 	}
+	spdk_iobuf_register_module("nvme");
 
 	spdk_io_device_register(&g_nvme_bdev_ctrlrs, bdev_nvme_create_poll_group_cb,
 				bdev_nvme_destroy_poll_group_cb,
@@ -8395,22 +8484,38 @@ bdev_nvme_readv(struct nvme_bdev_io *bio, struct iovec *iov, int iovcnt,
 {
 	struct spdk_nvme_ns *ns = bio->io_path->nvme_ns->ns;
 	struct spdk_nvme_qpair *qpair = bio->io_path->qpair->qpair;
+	struct nvme_bdev *nbdev = bio->io_path->nvme_ns->bdev;
+	struct spdk_accel_crypto_key *key = nbdev->crypto_key;
 	int rc;
 
 	SPDK_DEBUGLOG(bdev_nvme, "read %" PRIu64 " blocks with offset %#" PRIx64 "\n",
 		      lba_count, lba);
-
-	bio->iovs = iov;
-	bio->iovcnt = iovcnt;
-	bio->iovpos = 0;
-	bio->iov_offset = 0;
 
 	bio->ext_opts.size = sizeof(struct spdk_nvme_ns_cmd_ext_io_opts);
 	bio->ext_opts.memory_domain = domain;
 	bio->ext_opts.memory_domain_ctx = domain_ctx;
 	bio->ext_opts.io_flags = flags;
 	bio->ext_opts.metadata = md;
-	bio->ext_opts.accel_seq = sequence;
+	bio->crypto.seq = sequence;
+
+	bio->iovs = iov;
+	bio->iovcnt = iovcnt;
+	bio->iovpos = 0;
+	bio->iov_offset = 0;
+
+	if (key) {
+		rc = spdk_accel_append_decrypt(&bio->crypto.seq, bio->io_path->nbdev_ch->group->accel_channel,
+					       nbdev->crypto_key,
+					       iov, iovcnt,
+					       domain, domain_ctx,
+					       iov, iovcnt,
+					       domain, domain_ctx,
+					       lba, nbdev->disk.blocklen, 0, NULL, NULL);
+		if (spdk_unlikely(rc)) {
+			return rc;
+		}
+	}
+	bio->ext_opts.accel_seq = bio->crypto.seq;
 
 	rc = spdk_nvme_ns_cmd_readv_ext(ns, qpair, lba, lba_count,
 					g_cmd_cb_table.readv_done, bio,
@@ -8418,6 +8523,58 @@ bdev_nvme_readv(struct nvme_bdev_io *bio, struct iovec *iov, int iovcnt,
 					&bio->ext_opts);
 	if (rc != 0 && rc != -ENOMEM) {
 		SPDK_ERRLOG("readv failed: rc = %d\n", rc);
+	}
+	return rc;
+}
+
+static int
+bdev_nvme_writev_crypto(struct nvme_bdev_io *bio, struct iovec *iov, int iovcnt,
+			void *md, uint64_t lba_count, uint64_t lba, uint32_t flags,
+			struct spdk_memory_domain *domain, void *domain_ctx,
+			struct spdk_accel_sequence *sequence)
+{
+	struct spdk_nvme_ns *ns = bio->io_path->nvme_ns->ns;
+	struct spdk_nvme_qpair *qpair = bio->io_path->qpair->qpair;
+	struct nvme_bdev *nbdev = bio->io_path->nvme_ns->bdev;
+	struct spdk_io_channel *accel_channel = bio->io_path->nbdev_ch->group->accel_channel;
+	int rc;
+
+	SPDK_DEBUGLOG(bdev_nvme, "write %" PRIu64 " blocks with offset %#" PRIx64 "\n",
+		      lba_count, lba);
+
+	bio->iovs = &bio->crypto.aux_buf_iov;
+	bio->iovcnt = 1;
+	bio->iovpos = 0;
+	bio->iov_offset = 0;
+
+	bio->ext_opts.size = sizeof(struct spdk_nvme_ns_cmd_ext_io_opts);
+	bio->ext_opts.memory_domain = bio->crypto.aux_domain;
+	bio->ext_opts.memory_domain_ctx = bio->crypto.aux_domain_ctx;
+	bio->ext_opts.io_flags = flags;
+	bio->ext_opts.metadata = md;
+	bio->crypto.seq = sequence;
+
+	rc = spdk_accel_append_encrypt(&bio->crypto.seq, accel_channel,
+				       nbdev->crypto_key, &bio->crypto.aux_buf_iov, 1,
+				       bio->crypto.aux_domain, bio->crypto.aux_domain_ctx,
+				       iov, iovcnt,
+				       domain, domain_ctx,
+				       lba, nbdev->disk.blocklen, 0,
+				       NULL, NULL);
+	if (spdk_unlikely(rc)) {
+		spdk_accel_put_buf(accel_channel, bio->crypto.aux_buf_raw,
+				   bio->crypto.aux_domain, bio->crypto.aux_domain_ctx);
+		return rc;
+	}
+
+
+	bio->ext_opts.accel_seq = bio->crypto.seq;
+	rc = spdk_nvme_ns_cmd_writev_ext(ns, qpair, lba, lba_count,
+					 g_cmd_cb_table.writev_done, bio,
+					 bdev_nvme_queued_reset_sgl, bdev_nvme_queued_next_sge,
+					 &bio->ext_opts);
+	if (rc != 0 && rc != -ENOMEM) {
+		SPDK_ERRLOG("writev failed: rc = %d\n", rc);
 	}
 	return rc;
 }

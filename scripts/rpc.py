@@ -561,7 +561,9 @@ if __name__ == "__main__":
                                        rdma_srq_size=args.rdma_srq_size,
                                        io_path_stat=args.io_path_stat,
                                        poll_group_requests=args.poll_group_requests,
-                                       nested_mode=args.nested_mode)
+                                       nested_mode=args.nested_mode,
+                                       small_cache_size=args.small_cache_size,
+                                       large_cache_size=args.large_cache_size)
 
     p = subparsers.add_parser('bdev_nvme_set_options',
                               help='Set options for the bdev nvme type. This is startup command.')
@@ -642,6 +644,8 @@ if __name__ == "__main__":
     p.add_argument('--poll-group-requests',
                    help='The number of requests allocated for each NVMe poll group. Default: 0', type=int)
     p.add_argument('--nested-mode', help="""Enable nested multipath mode.""", action='store_true')
+    p.add_argument('--small-cache-size', help='The number of small iobuf elements in cache. Default: 128', type=int)
+    p.add_argument('--large-cache-size', help='The number of large iobuf elements in cache. Default: 128', type=int)
 
     p.set_defaults(func=bdev_nvme_set_options)
 
@@ -678,7 +682,8 @@ if __name__ == "__main__":
                                                          reconnect_delay_sec=args.reconnect_delay_sec,
                                                          fast_io_fail_timeout_sec=args.fast_io_fail_timeout_sec,
                                                          psk=args.psk,
-                                                         lazy_conn=args.lazy_conn))
+                                                         lazy_conn=args.lazy_conn,
+                                                         crypto_key=args.crypto_key))
 
     p = subparsers.add_parser('bdev_nvme_attach_controller', help='Add bdevs with nvme backend')
     p.add_argument('-b', '--name', help="Name of the NVMe controller, prefix for each bdev name", required=True)
@@ -733,6 +738,7 @@ if __name__ == "__main__":
                    help='Set PSK and enable TCP SSL socket implementation: e.g., 1234567890ABCDEF')
     p.add_argument('-y', '--lazy-conn',
                    help='nsid:1 blocklen:512 blockcnt:1024, nsid:...', type=str)
+    p.add_argument('--crypto-key', help='Crypto key name to enable crypto operations', type=str)
     p.set_defaults(func=bdev_nvme_attach_controller)
 
     def bdev_nvme_get_controllers(args):
@@ -2997,13 +3003,16 @@ Format: 'user:u1 secret:s1 muser:mu1 msecret:ms1,user:u2 secret:s2 muser:mu2 mse
                                         qp_size=args.qp_size,
                                         num_requests=args.num_requests,
                                         split_mb_blocks=args.split_mb_blocks,
-                                        allowed_crypto_devs=args.allowed_crypto_devs)
+                                        allowed_crypto_devs=args.allowed_crypto_devs,
+                                        siglast=args.siglast)
 
     p = subparsers.add_parser('mlx5_scan_accel_module', help='Enable mlx5 accel module.')
     p.add_argument('-q', '--qp-size', type=int, help='QP size')
     p.add_argument('-r', '--num-requests', type=int, help='Size of the shared requests pool')
     p.add_argument('-s', '--split-mb-blocks', type=int, help="Number of data blocks to be processed in 1 UMR. Requires crypto-mb")
     p.add_argument('-d', '--allowed-crypto-devs', help="Comma separated list of allowed crypto device names")
+    p.add_argument('-l', '--siglast', dest='siglast', action='store_true',
+                   help="Ignore CQ_UPDATE flags, mark last WQE with CQ_UPDATE before updating the DB")
     p.set_defaults(func=mlx5_scan_accel_module)
 
     # opal

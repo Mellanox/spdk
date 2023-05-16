@@ -31,7 +31,7 @@ struct mlx5_crypto_bsf_seg {
 static inline void *
 mlx5_qp_get_wqe_bb(struct spdk_mlx5_hw_qp *hw_qp)
 {
-	return (void *)hw_qp->sq.addr + (hw_qp->sq.pi & (hw_qp->sq.wqe_cnt - 1)) * MLX5_SEND_WQE_BB;
+	return (void *)hw_qp->sq_addr + (hw_qp->sq_pi & (hw_qp->sq_wqe_cnt - 1)) * MLX5_SEND_WQE_BB;
 }
 
 static inline void *
@@ -39,8 +39,8 @@ mlx5_qp_get_next_wqbb(struct spdk_mlx5_hw_qp *qp, uint32_t *to_end, void *cur)
 {
 	*to_end -= MLX5_SEND_WQE_BB;
 	if (*to_end == 0) { /* wqe buffer wap around */
-		*to_end = qp->sq.wqe_cnt * MLX5_SEND_WQE_BB;
-		return (void *)(uintptr_t)qp->sq.addr;
+		*to_end = qp->sq_wqe_cnt * MLX5_SEND_WQE_BB;
+		return (void *)(uintptr_t)qp->sq_addr;
 	}
 
 	return ((char *)cur) + MLX5_SEND_WQE_BB;
@@ -78,13 +78,13 @@ mlx5_update_tx_db(struct spdk_mlx5_qp *qp)
 	 */
 	spdk_smp_wmb();
 
-	((uint32_t *)qp->hw.dbr_addr)[MLX5_SND_DBR] = htobe32(qp->hw.sq.pi);
+	((uint32_t *)qp->hw.dbr_addr)[MLX5_SND_DBR] = htobe32(qp->hw.sq_pi);
 }
 
 static inline void
 mlx5_flush_tx_db(struct spdk_mlx5_qp *qp, struct mlx5_wqe_ctrl_seg *ctrl)
 {
-	*(uint64_t *)(qp->hw.sq.bf_addr) = *(uint64_t *)ctrl;
+	*(uint64_t *)(qp->hw.sq_bf_addr) = *(uint64_t *)ctrl;
 }
 
 static inline void
@@ -114,7 +114,7 @@ mlx5_ring_tx_db(struct spdk_mlx5_qp *qp, struct mlx5_wqe_ctrl_seg *ctrl)
 	 * here.
 	 */
 #if !defined(__aarch64__)
-	if (!qp->hw.sq.tx_db_nc) {
+	if (!qp->hw.sq_tx_db_nc) {
 		spdk_memory_bus_store_fence();
 	}
 #endif
@@ -127,14 +127,14 @@ void mlx5_qp_dump_wqe(struct spdk_mlx5_qp *qp, int n_wqe_bb);
 #endif
 
 static inline void
-mlx5_qp_wqe_submit(struct spdk_mlx5_qp *qp, struct mlx5_wqe_ctrl_seg *ctrl,
-		   uint16_t n_wqe_bb)
+mlx5_qp_wqe_submit(struct spdk_mlx5_qp *qp, struct mlx5_wqe_ctrl_seg *ctrl, uint16_t n_wqe_bb, uint16_t ctrlr_pi)
 {
 	mlx5_qp_dump_wqe(qp, n_wqe_bb);
 
 	/* Delay ringing the doorbell */
-	qp->hw.sq.pi += n_wqe_bb;
+	qp->hw.sq_pi += n_wqe_bb;
 	qp->tx_need_ring_db = true;
+	qp->last_pi = ctrlr_pi;
 	qp->ctrl = ctrl;
 }
 

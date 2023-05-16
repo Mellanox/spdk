@@ -68,6 +68,8 @@ static const struct spdk_json_object_decoder rpc_bdev_nvme_options_decoders[] = 
 	{"io_path_stat", offsetof(struct spdk_bdev_nvme_opts, io_path_stat), spdk_json_decode_bool, true},
 	{"poll_group_requests", offsetof(struct spdk_bdev_nvme_opts, poll_group_requests), spdk_json_decode_uint32, true},
 	{"nested_mode", offsetof(struct spdk_bdev_nvme_opts, nested_mode), spdk_json_decode_bool, true},
+	{"small_cache_size", offsetof(struct spdk_bdev_nvme_opts, nested_mode), spdk_json_decode_uint32, true},
+	{"large_cache_size", offsetof(struct spdk_bdev_nvme_opts, nested_mode), spdk_json_decode_uint32, true},
 };
 
 static void
@@ -168,6 +170,7 @@ struct rpc_bdev_nvme_attach_controller {
 	struct bdev_nvme_lazy_ctrlr_opts lazy_opts;
 	struct nvme_ctrlr_opts bdev_opts;
 	struct spdk_nvme_ctrlr_opts drv_opts;
+	char *crypto_key;
 };
 
 static void
@@ -185,6 +188,7 @@ free_rpc_bdev_nvme_attach_controller(struct rpc_bdev_nvme_attach_controller *req
 	free(req->hostsvcid);
 	free(req->psk);
 	free(req->lazy_opts.bdevs);
+	free(req->crypto_key);
 }
 
 static int
@@ -348,6 +352,7 @@ static const struct spdk_json_object_decoder rpc_bdev_nvme_attach_controller_dec
 	{"fast_io_fail_timeout_sec", offsetof(struct rpc_bdev_nvme_attach_controller, bdev_opts.fast_io_fail_timeout_sec), spdk_json_decode_uint32, true},
 	{"psk", offsetof(struct rpc_bdev_nvme_attach_controller, psk), spdk_json_decode_string, true},
 	{"lazy_conn", offsetof(struct rpc_bdev_nvme_attach_controller, lazy_opts), bdev_nvme_decode_lazy_conn, true},
+	{"crypto_key", offsetof(struct rpc_bdev_nvme_attach_controller, crypto_key), spdk_json_decode_string, true},
 };
 
 #define NVME_MAX_BDEVS_PER_RPC 128
@@ -574,7 +579,8 @@ rpc_bdev_nvme_attach_controller(struct spdk_jsonrpc_request *request,
 	ctx->req.bdev_opts.from_discovery_service = false;
 	rc = bdev_nvme_create(&trid, ctx->req.name, ctx->names, ctx->count,
 			      rpc_bdev_nvme_attach_controller_done, ctx, &ctx->req.drv_opts,
-			      &ctx->req.bdev_opts, multipath, ctx->req.lazy_opts.bdev_count ? &ctx->req.lazy_opts : NULL);
+			      &ctx->req.bdev_opts, multipath, ctx->req.lazy_opts.bdev_count ? &ctx->req.lazy_opts : NULL,
+			      ctx->req.crypto_key);
 	if (rc) {
 		spdk_jsonrpc_send_error_response(request, rc, spdk_strerror(-rc));
 		goto cleanup;

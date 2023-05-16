@@ -99,19 +99,14 @@ int spdk_mlx5_crypto_set_attr(struct mlx5dv_crypto_attr *attr_out,
 int
 spdk_mlx5_crypto_get_dek_obj_id(struct spdk_mlx5_crypto_keytag *keytag, struct ibv_pd *pd, uint32_t *dek_obj_id);
 
-//TODOs: snap has tx_cq and rx_cq - do we need to separate CQs?
 /* low level cq view, suitable for the direct polling, adapted from struct mlx5dv_cq */
-//TODO: replace with mlx5dv_cq?
 struct spdk_mlx5_hw_cq {
 	uint64_t cq_addr;
 	uint32_t cqe_cnt;
 	uint32_t cqe_size;
 	uint32_t ci;
-	uint32_t cq_sn;
-	uint64_t dbr_addr;
-	uint64_t uar_addr;
 	uint32_t cq_num;
-}  __attribute__((packed));
+};
 
 struct spdk_mlx5_cq {
 	struct spdk_mlx5_hw_cq hw;
@@ -126,32 +121,22 @@ struct spdk_mlx5_cq_attr {
 	int comp_vector;
 };
 
-//TODO: replace with mlx5dv_qp?
 struct spdk_mlx5_hw_qp {
 	uint64_t dbr_addr;
-	struct {
-		uint64_t addr;
-		uint64_t bf_addr;
-		uint32_t wqe_cnt;
-		uint16_t rsvd;
-		uint16_t pi;
-		uint32_t tx_db_nc;
-	} __attribute__((packed)) sq;
+	uint64_t sq_addr;
+	uint64_t sq_bf_addr;
+	uint32_t sq_wqe_cnt;
+	uint16_t sq_pi;
+	uint32_t sq_tx_db_nc;
 	uint32_t qp_num;
-	struct {
-		uint64_t addr;
-		uint32_t wqe_cnt;
-		uint16_t rsvd;
-		uint16_t ci;
-	}  __attribute__((packed)) rq;
-}__attribute__((packed));
+};
 
 struct spdk_mlx5_qp_attr {
 	struct ibv_qp_cap cap;
-	uint32_t rx_q_size;
-	uint32_t rx_elem_size;
 	bool sigall;
-	bool dedicated_umr_qp;
+	/* If set then CQ_UPDATE will be cleared for every ctrl WQE and only last ctlr WQE before ringing the doorbell
+	 * will be updated with CQ_UPDATE flag */
+	bool siglast;
 };
 
 struct mlx5_qp_completion {
@@ -163,35 +148,25 @@ struct mlx5_qp_completion {
 struct spdk_mlx5_qp {
 	struct spdk_mlx5_hw_qp hw;
 	struct mlx5_qp_completion *completions;
-	uint32_t nonsignaled_outstanding;
+	struct mlx5_wqe_ctrl_seg *ctrl;
+	struct ibv_qp *verbs_qp;
+	uint16_t nonsignaled_outstanding;
+	uint16_t max_sge;
+	uint16_t tx_available;
+	uint16_t tx_flags;
+	uint16_t tx_revert_flags;
+	uint16_t last_pi;
 	bool tx_need_ring_db;
 	bool aes_xts_inc_64;
 	/* If set, HW expects tweak in big endian
 	 * Otherwise, in little endian */
 	bool aes_xts_tweak_be;
-	struct mlx5_wqe_ctrl_seg *ctrl;
-	uint16_t max_sge;
-	uint16_t tx_available;
-	uint32_t tx_flags;
-	struct ibv_qp *verbs_qp;
 };
 
 /* QP + CQ */
 struct spdk_mlx5_dma_qp {
 	struct spdk_mlx5_cq cq;
 	struct spdk_mlx5_qp qp;
-#if 0
-	struct ibv_pd *pd;
-	uint32_t rx_q_size;
-	uint32_t rx_elem_size;
-	uint32_t rx_buf_lkey;
-	uint8_t *rx_buf;
-
-#endif
-#if 0
-    	void *user_ctx;
-	struct spdk_rdma_utils_mem_map *mmap;
-#endif
 };
 
 struct spdk_mlx5_cq_completion {
@@ -224,8 +199,8 @@ struct spdk_mlx5_umr_crypto_attr {
 };
 
 struct spdk_mlx5_umr_attr {
-	struct spdk_mlx5_indirect_mkey *dv_mkey; /* mkey to configure */
 	struct mlx5_wqe_data_seg *klm;
+	uint32_t dv_mkey; /* mkey to configure */
 	uint32_t umr_len;
 	uint16_t klm_count;
 };
@@ -245,13 +220,13 @@ int spdk_mlx5_dma_qp_poll_completions(struct spdk_mlx5_dma_qp *dma_qp,
 //TODO: use more "intelligent" interface like - num_umrs, num_writes, etc
 static inline void spdk_mlx5_dma_qp_prefetch_sq(struct spdk_mlx5_dma_qp *dma_qp, uint32_t wqe_count)
 {
-	struct spdk_mlx5_hw_qp* hw = &dma_qp->qp.hw;
+	struct spdk_mlx5_hw_qp *hw = &dma_qp->qp.hw;
 	uint32_t to_end, pi, i;
 	char *sq;
 
-	pi = hw->sq.pi & (hw->sq.wqe_cnt - 1);
-	sq = (char *)hw->sq.addr + pi * MLX5_SEND_WQE_BB;
-	to_end = (hw->sq.wqe_cnt - pi) * MLX5_SEND_WQE_BB;
+	pi = hw->sq_pi & (hw->sq_wqe_cnt - 1);
+	sq = (char *)hw->sq_addr + pi * MLX5_SEND_WQE_BB;
+	to_end = (hw->sq_wqe_cnt - pi) * MLX5_SEND_WQE_BB;
 
 	if (spdk_likely(to_end >= wqe_count * MLX5_SEND_WQE_BB)) {
 		for (i = 0; i < wqe_count; i++) {
@@ -263,8 +238,8 @@ static inline void spdk_mlx5_dma_qp_prefetch_sq(struct spdk_mlx5_dma_qp *dma_qp,
 			__builtin_prefetch(sq);
 			to_end -= MLX5_SEND_WQE_BB;
 			if (to_end == 0) {
-				sq = (char *)hw->sq.addr;
-				to_end = hw->sq.wqe_cnt * MLX5_SEND_WQE_BB;
+				sq = (char *)hw->sq_addr;
+				to_end = hw->sq_wqe_cnt * MLX5_SEND_WQE_BB;
 			} else {
 				sq += MLX5_SEND_WQE_BB;
 			}

@@ -12,6 +12,7 @@ if [ "1" == $SETUP ]; then
     SNAP_SPDK_LIB_PATH=${SNAP_SPDK_LIB_PATH:-$SNIC_SPDK_PATH/install-$BF_HOSTNAME/lib}
     SNAP_DPDK_LIB_PATH=${SNAP_DPDK_LIB_PATH:-$SNIC_SPDK_PATH/dpdk/build/lib}
     LIBXLIO=${LIBXLIO:-$PWD/../libxlio/install-$BF_HOSTNAME/lib/libxlio.so}
+    SNAP_YAML=${SNAP_YAML:-$SNIC_SNAP_PATH/container/doca_snap.yaml}
     #SNIC_RDMA_CORE_PATH=${SNIC_RDMA_CORE_PATH:-$PWD/../rdma-core/build/lib}
     SNAP_ENV_OPTS="LD_LIBRARY_PATH=$SNAP_SPDK_LIB_PATH:$SNAP_DPDK_LIB_PATH:$SNIC_RDMA_CORE_PATH"
     #SNAP_ENV_OPTS="LD_PRELOAD=/usr/lib/gcc/aarch64-linux-gnu/11/libasan.so $SNAP_ENV_OPTS"
@@ -76,8 +77,6 @@ TGT_LIBXLIO=${TGT_LIBXLIO:-}
 XLIO_OPTS="
 XLIO_STATS_FILE=/tmp/xlio.stat
 XLIO_STATS_FD_NUM=1000
-XLIO_RING_ALLOCATION_LOGIC_TX=30
-XLIO_RING_ALLOCATION_LOGIC_RX=30
 XLIO_QP_COMPENSATION_LEVEL=8
 XLIO_STRQ_STRIDES_COMPENSATION_LEVEL=32768
 XLIO_FORK=0
@@ -110,11 +109,13 @@ XLIO_STRQ_NUM_STRIDES=2048
 XLIO_RX_WRE=4
 XLIO_SKIP_POLL_IN_RX=2
 XLIO_RING_DEV_MEM_TX=1024
-XLIO_GRO_STREAMS_MAX=0
-XLIO_LRO=on
 XLIO_TX_SEGS_TCP=600000
 XLIO_TX_BUFS=30000
 XLIO_BUFFER_BATCHING_MODE=0
+xXLIO_LRO=on
+xXLIO_GRO_STREAMS_MAX=0
+XLIO_LRO=off
+XLIO_GRO_STREAMS_MAX=8192
 "
 
 SOCK_IMPL=${SOCK_IMPL:-xlio}
@@ -126,6 +127,9 @@ MDTS=${MDTS:-4}
 SUBSYS=${SUBSYS:-1}
 PATHS=${PATHS:-1}
 CONNECT_TIMEOUT=${CONNECT_TIMEOUT:-500000}
+
+CONTAINER=${CONTAINER:-}
+CONTAINER_ID=${CONTAINER_ID:-}
 
 TGT_MASK=${TGT_MASK:-0xFF}
 SNAP_MASK=${SNAP_MASK:-0xFF}
@@ -172,19 +176,35 @@ function rpc_perf_batch() {
 }
 
 function rpc_snap_spdk() {
-    $(ssh_prefix $SNAP_SSH) sudo $SNIC_SPDK_PATH/scripts/rpc.py -v $@ 2>&1 | tee -a rpc_snap.log > /dev/null
+    if [ -n "$CONTAINER" ]; then
+        $(ssh_prefix $SNAP_SSH) sudo crictl exec -i $CONTAINER_ID spdk_rpc.py -v $@ 2>&1 | tee -a rpc_snap.log > /dev/null
+    else
+        $(ssh_prefix $SNAP_SSH) sudo $SNIC_SPDK_PATH/scripts/rpc.py -v $@ 2>&1 | tee -a rpc_snap.log > /dev/null
+    fi
 }
 
 function rpc_snap_spdk_batch() {
-    echo -e "$@" | $(ssh_prefix $SNAP_SSH) sudo $SNIC_SPDK_PATH/scripts/rpc.py -v 2>&1 | tee -a rpc_snap.log > /dev/null
+    if [ -n "$CONTAINER" ]; then
+        echo -e "$@" | $(ssh_prefix $SNAP_SSH) sudo crictl exec -i $CONTAINER_ID spdk_rpc.py -v 2>&1 | tee -a rpc_snap.log > /dev/null
+    else
+        echo -e "$@" | $(ssh_prefix $SNAP_SSH) sudo $SNIC_SPDK_PATH/scripts/rpc.py -v 2>&1 | tee -a rpc_snap.log > /dev/null
+    fi
 }
 
 function rpc_snap_snap() {
-    $(ssh_prefix $SNAP_SSH) sudo $SNIC_SNAP_PATH/snap_rpc.py $@ 2>&1 | tee -a rpc_snap.log > /dev/null
+    if [ -n "$CONTAINER" ]; then
+        $(ssh_prefix $SNAP_SSH) sudo crictl exec -i $CONTAINER_ID snap_rpc.py $@ 2>&1 | tee -a rpc_snap.log > /dev/null
+    else
+        $(ssh_prefix $SNAP_SSH) sudo $SNIC_SNAP_PATH/snap_rpc.py $@ 2>&1 | tee -a rpc_snap.log > /dev/null
+    fi
 }
 
 function rpc_snap_snap_batch() {
-    echo -e "$@" | $(ssh_prefix $SNAP_SSH) sudo $SNIC_SNAP_PATH/snap_rpc.py 2>&1 | tee -a rpc_snap.log > /dev/null
+    if [ -n "$CONTAINER" ]; then
+        echo -e "$@" | $(ssh_prefix $SNAP_SSH) sudo crictl exec -i $CONTAINER_ID snap_rpc.py 2>&1 | tee -a rpc_snap.log > /dev/null
+    else
+        echo -e "$@" | $(ssh_prefix $SNAP_SSH) sudo $SNIC_SNAP_PATH/snap_rpc.py 2>&1 | tee -a rpc_snap.log > /dev/null
+    fi
 }
 
 function start_tgt() {
@@ -340,6 +360,75 @@ function stop_snap() {
     rpc_snap_spdk spdk_kill_instance $SIGNAL
     echo "Waiting for SNAP: $SNAP_PID"
     wait $SNAP_PID 
+}
+
+function start_snap_container() {
+    if [ -z "$CONTAINER_ID" ]; then
+	    echo "There is no container"
+            return
+    fi
+    $(ssh_prefix $SNAP_SSH) sudo crictl start $CONTAINER_ID
+    for i in $(seq 30); do
+        if rpc_snap_spdk spdk_get_version; then
+            return
+        fi
+        sleep 1
+    done
+}
+
+function stop_snap_container() {
+    if [ -z "$CONTAINER_ID" ]; then
+	    CONTAINER_ID=$(ssh $SNAP_SSH sudo crictl ps -s running -q --name snap-*)
+    fi
+    echo "Start to stop container: $CONTAINER_ID"
+    $(ssh_prefix $SNAP_SSH) sudo crictl stop -t 10 $CONTAINER_ID
+}
+
+function init_snap_container() {
+    stop_snap_container
+    ssh $SNAP_SSH sudo cp -f $SNAP_YAML /etc/kubelet.d/
+    ssh $SNAP_SSH sudo systemctl restart containerd 
+    ssh $SNAP_SSH sudo systemctl restart kubelet 
+    for i in $(seq 30); do
+        CONTAINER_ID=$(ssh $SNAP_SSH sudo crictl ps -s running -q --name snap-*)
+
+        if [ -n "$CONTAINER_ID" ]; then
+            for i in $(seq 10); do
+                if rpc_snap_spdk spdk_get_version; then
+	            echo "Init container: $CONTAINER_ID done"
+                    return
+                fi
+                sleep 1
+            done
+        fi
+        sleep 1
+    done
+}
+
+function find_snap_container() {
+    for i in $(seq 30); do
+        CONTAINER_ID=$(ssh $SNAP_SSH sudo crictl ps -s running -q --name snap-*)
+        if [ -n "$CONTAINER_ID" ]; then
+            for i in $(seq 30); do
+                if rpc_snap_spdk spdk_get_version; then
+	            echo "Find container: $CONTAINER_ID"
+                    return
+                fi
+                sleep 1
+            done
+        fi
+        sleep 1
+    done
+}
+
+function rm_snap_container() {
+    ssh $SNAP_SSH sudo rm -rf /etc/kubelet.d/doca_snap.yaml
+    if [ -z "$CONTAINER_ID" ]; then
+	    CONTAINER_ID=$(ssh $SNAP_SSH sudo crictl ps -s running -q --name snap-*)
+    fi
+    echo "Start to rm container: $CONTAINER_ID"
+    $(ssh_prefix $SNAP_SSH) sudo crictl stop -t 10 $CONTAINER_ID
+    $(ssh_prefix $SNAP_SSH) sudo crictl rm $CONTAINER_ID
 }
 
 function snap_enable_debug() {
@@ -1082,16 +1171,28 @@ function basic_test_nvme_snap() {
 function basic_test_fio_snap() {
     local TGT_CONFIG=${TGT_CONFIG:-config_tgt}
     local SNAP_CONFIG=${SNAP_CONFIG:-config_snap}
+    local START_SNAP=${START_SNAP:-start_snap}
+    local STOP_SNAP=${STOP_SNAP:-stop_snap}
     local RWS=$RW
     local RW=""
     local NUM_SUBSYS=$SUBSYS
     local SUBSYS=""
 	local PER_REPEAT_REPORTER=${PER_REPEAT_REPORTER:-report_fio}
 
+    if [ -n "$CONTAINER" ]; then
+	    init_snap_container
+            if [ -z "$CONTAINER_ID" ]; then
+                echo "Can not find container!"
+                return
+            fi
+            START_SNAP=find_snap_container
+            STOP_SNAP=stop_snap_container
+    fi
+
     for SUBSYS in $NUM_SUBSYS; do
 	start_tgt
 	$TGT_CONFIG
-	start_snap
+        $START_SNAP
 	if [ -n "$SNAP_DEBUG" ]; then
 	    echo "You have 10 seconds to attach debugger"
 	    echo 'gdb -p $(pidof snap_service)'
@@ -1113,9 +1214,13 @@ function basic_test_fio_snap() {
 		done
 	    done
 	done
-	stop_snap
+        $STOP_SNAP
 	stop_tgt
     done
+
+    if [ -n "$CONTAINER" ]; then
+        rm_snap_container
+    fi
 }
 
 function basic_test_fio_snap_multipath() {
@@ -1604,7 +1709,12 @@ function test_perf_snap4_vfs_qos_demo() {
 
 function cleanup() {
     sudo kill -9 $(pidof fio)
-    stop_snap 9
+    if [ -n "$CONTAINER" ]; then
+        echo "Stop container: $CONTAINER_ID"
+        $(ssh_prefix $SNAP_SSH) sudo crictl stop -t 10 $CONTAINER_ID
+    else
+        stop_snap 9
+    fi
     stop_tgt 9
 }
 

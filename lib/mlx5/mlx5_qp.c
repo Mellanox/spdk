@@ -99,10 +99,7 @@ mlx5_cq_init(struct ibv_pd* pd, const struct spdk_mlx5_cq_attr *attr, struct spd
 	cq->hw.ci = 0;
 	cq->hw.cqe_cnt = mlx5_cq.cqe_cnt;
 	cq->hw.cqe_size = mlx5_cq.cqe_size;
-	cq->hw.dbr_addr = (uintptr_t)mlx5_cq.dbrec;
 	cq->hw.cq_num = mlx5_cq.cqn;
-	cq->hw.uar_addr = (uintptr_t)mlx5_cq.cq_uar;
-	cq->hw.cq_sn = 0;
 
 	return 0;
 }
@@ -163,16 +160,14 @@ mlx5_qp_init(struct ibv_pd *pd, const struct spdk_mlx5_qp_attr *attr, struct ibv
 		return rc;
 	}
 
-	qp->hw.sq.addr = (uint64_t)dv_qp.sq.buf;
-	qp->hw.rq.addr = (uint64_t)dv_qp.rq.buf;
+	qp->hw.sq_addr = (uint64_t)dv_qp.sq.buf;
 	qp->hw.dbr_addr = (uint64_t)dv_qp.dbrec;
-	qp->hw.sq.bf_addr = (uint64_t)dv_qp.bf.reg;
-	qp->hw.sq.wqe_cnt = dv_qp.sq.wqe_cnt;
-	qp->hw.rq.wqe_cnt = dv_qp.rq.wqe_cnt;
+	qp->hw.sq_bf_addr = (uint64_t)dv_qp.bf.reg;
+	qp->hw.sq_wqe_cnt = dv_qp.sq.wqe_cnt;
 
-	SPDK_NOTICELOG("mlx5 QP, sq size %u WQE_BB. %u send_wrs -> %u WQE_BB per send WR\n", qp->hw.sq.wqe_cnt, attr->cap.max_send_wr, qp->hw.sq.wqe_cnt / attr->cap.max_send_wr);
+	SPDK_NOTICELOG("mlx5 QP, sq size %u WQE_BB. %u send_wrs -> %u WQE_BB per send WR\n",
+		       qp->hw.sq_wqe_cnt, attr->cap.max_send_wr, qp->hw.sq_wqe_cnt / attr->cap.max_send_wr);
 
-	qp->hw.rq.ci = qp->hw.sq.pi = 0;
 	qp->hw.qp_num = qp->verbs_qp->qp_num;
 
 	/*
@@ -183,19 +178,23 @@ mlx5_qp_init(struct ibv_pd *pd, const struct spdk_mlx5_qp_attr *attr, struct ibv
 	 * The right solution is to allocate uars explicitly with the
 	 * mlx5dv_devx_alloc_uar()
 	 */
-	qp->hw.sq.tx_db_nc = dv_qp.bf.size == 0;
-	qp->tx_available = qp->hw.sq.wqe_cnt;
+	qp->hw.sq_tx_db_nc = dv_qp.bf.size == 0;
+	qp->tx_available = qp->hw.sq_wqe_cnt;
 	qp->max_sge = attr->cap.max_send_sge;
 	qp->aes_xts_inc_64 = crypto_caps.tweak_inc_64;
 	/* We have only mode BE mode, if it is not set then tweak is LE */
 	qp->aes_xts_tweak_be = crypto_caps.multi_block_be_tweak;
-	rc = posix_memalign((void **)&qp->completions, 4096, qp->hw.sq.wqe_cnt * sizeof(*qp->completions));
+	rc = posix_memalign((void **)&qp->completions, 4096, qp->hw.sq_wqe_cnt * sizeof(*qp->completions));
 	if (rc) {
 		SPDK_ERRLOG("Failed to alloc completions\n");
 		return rc;
 	}
 	if (attr->sigall) {
 		qp->tx_flags |= MLX5_WQE_CTRL_CQ_UPDATE;
+	}
+	qp->tx_revert_flags = (uint16_t)-1;
+	if (attr->siglast) {
+		qp->tx_revert_flags &= ~MLX5_WQE_CTRL_CQ_UPDATE;
 	}
 
 	rc = mlx5_qp_connect(qp);
@@ -529,7 +528,7 @@ mlx5_qp_connect(struct spdk_mlx5_qp *qp)
 {
 	struct mlx5_qp_conn_caps conn_caps = {};
 	struct ibv_context *context = qp->verbs_qp->context;
-	bool roce_en, ib_en, force_loopback = false;
+	bool roce_en, ib_en;
 	uint8_t port;
 	uint16_t pkey_idx;
 	enum ibv_mtu mtu;
@@ -555,9 +554,7 @@ mlx5_qp_connect(struct spdk_mlx5_qp *qp)
 	if (ib_en || (conn_caps.resources_on_nvme_emulation_manager &&
 		      ((conn_caps.roce_enabled && conn_caps.fl_when_roce_enabled) ||
 		       (!conn_caps.roce_enabled && conn_caps.fl_when_roce_disabled)))) {
-		force_loopback = true;
-	} else {
-		//TODO: we may ignore force loopback if roce_caps.resources_on_nvme_emulation_manager == false
+	} else if (conn_caps.resources_on_nvme_emulation_manager) {
 		SPDK_ERRLOG("Force-loopback QP is not supported. Cannot create queue.\n");
 		return -ENOTSUP;
 	}
@@ -570,16 +567,6 @@ spdk_mlx5_dma_qp_destroy(struct spdk_mlx5_dma_qp *dma_qp)
 {
 	mlx5_qp_destroy(&dma_qp->qp);
 	mlx5_cq_deinit(&dma_qp->cq);
-#if 0
-	if (dma_qp->mmap) {
-		spdk_rdma_utils_free_mem_map(&dma_qp->mmap);
-	}
-#endif
-#if 0
-	if (dma_qp->rx_buf) {
-		free(dma_qp->rx_buf);
-	}
-#endif
 	free(dma_qp);
 }
 
@@ -593,10 +580,6 @@ spdk_mlx5_dma_qp_create(struct ibv_pd *pd, struct spdk_mlx5_cq_attr *cq_attr,
 	if (!dma_qp) {
 		return -ENOMEM;
 	}
-#if 0
-	dma_qp->user_ctx = context;
-	dma_qp->pd = pd;
-#endif
 
 	rc = mlx5_cq_init(pd, cq_attr, dma_qp);
 	if (rc) {
@@ -609,33 +592,6 @@ spdk_mlx5_dma_qp_create(struct ibv_pd *pd, struct spdk_mlx5_cq_attr *cq_attr,
 		return rc;
 	}
 
-#if 0
-	dma_qp->mmap = spdk_rdma_utils_create_mem_map(pd, NULL,
-			IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_REMOTE_READ);
-	if (!dma_qp->mmap) {
-		spdk_mlx5_dma_qp_destroy(dma_qp);
-		return -EINVAL;
-	}
-#endif
-#if 0
-	if (qp_attr->rx_q_size) {
-		struct spdk_rdma_utils_memory_translation translation;
-		dma_qp->rx_q_size = qp_attr->rx_q_size;
-		dma_qp->rx_elem_size = qp_attr->rx_elem_size;
-		dma_qp->rx_buf = spdk_dma_zmalloc(dma_qp->rx_q_size * dma_qp->rx_elem_size, 4096, NULL);
-		if (!dma_qp->rx_buf) {
-			spdk_mlx5_dma_qp_destroy(dma_qp);
-			return -ENOMEM;
-		}
-		rc = spdk_rdma_utils_get_translation(dma_qp->mmap, dma_qp->rx_buf,
-						     dma_qp->rx_q_size * dma_qp->rx_elem_size, &translation);
-		if (rc) {
-			spdk_mlx5_dma_qp_destroy(dma_qp);
-			return rc;
-		}
-		dma_qp->rx_buf_lkey = spdk_rdma_utils_memory_translation_get_lkey(&translation);
-	}
-#endif
 	*dma_qp_out = dma_qp;
 
 	return 0;

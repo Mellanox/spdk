@@ -67,6 +67,7 @@ struct nvme_async_probe_ctx {
 	struct spdk_nvme_ctrlr_opts drv_opts;
 	spdk_bdev_create_nvme_fn cb_fn;
 	void *cb_ctx;
+	struct spdk_accel_crypto_key *crypto_key;
 	uint32_t populates_in_progress;
 	bool ctrlr_attached;
 	bool probe_done;
@@ -208,6 +209,7 @@ struct nvme_bdev {
 	struct spdk_bdev		disk;
 	uint32_t			nsid;
 	struct nvme_bdev_ctrlr		*nbdev_ctrlr;
+	struct spdk_accel_crypto_key	*crypto_key;
 	pthread_mutex_t			mutex;
 	int				ref;
 	enum bdev_nvme_multipath_policy	mp_policy;
@@ -259,6 +261,7 @@ struct nvme_poll_group {
 	struct spdk_nvme_poll_group		*group;
 	struct spdk_io_channel			*accel_channel;
 	struct spdk_poller			*poller;
+	struct spdk_iobuf_channel		iobuf;
 	bool					collect_spin_stat;
 	uint64_t				spin_ticks;
 	uint64_t				start_ticks;
@@ -327,6 +330,8 @@ struct spdk_bdev_nvme_opts {
 	bool io_path_stat;
 	uint32_t poll_group_requests;
 	bool nested_mode;
+	uint32_t small_cache_size;
+	uint32_t large_cache_size;
 };
 
 struct spdk_nvme_qpair *bdev_nvme_get_io_qpair(struct spdk_io_channel *ctrlr_io_ch);
@@ -345,7 +350,8 @@ int bdev_nvme_create(struct spdk_nvme_transport_id *trid,
 		     struct spdk_nvme_ctrlr_opts *drv_opts,
 		     struct nvme_ctrlr_opts *bdev_opts,
 		     bool multipath,
-		     struct bdev_nvme_lazy_ctrlr_opts *lazy);
+		     struct bdev_nvme_lazy_ctrlr_opts *lazy,
+		     const char *crypto_key);
 
 int bdev_nvme_start_discovery(struct spdk_nvme_transport_id *trid, const char *base_name,
 			      struct spdk_nvme_ctrlr_opts *drv_opts, struct nvme_ctrlr_opts *bdev_opts,

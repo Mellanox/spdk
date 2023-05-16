@@ -13,6 +13,7 @@ static const struct spdk_json_object_decoder rpc_mlx5_module_decoder[] = {
 	{"num_requests", offsetof(struct accel_mlx5_attr, num_requests), spdk_json_decode_uint32, true},
 	{"split_mb_blocks", offsetof(struct accel_mlx5_attr, split_mb_blocks), spdk_json_decode_uint32, true},
 	{"allowed_crypto_devs", offsetof(struct accel_mlx5_attr, allowed_crypto_devs), spdk_json_decode_string, true},
+	{"siglast", offsetof(struct accel_mlx5_attr, siglast), spdk_json_decode_bool, true},
 };
 
 static void

@@ -147,15 +147,16 @@ mlx5_dma_xfer_full(struct spdk_mlx5_qp *qp, struct mlx5_wqe_data_seg *klm, uint3
 	uint32_t i, pi;
 
 	fm_ce_se = flags | qp->tx_flags;
+	fm_ce_se &= qp->tx_revert_flags;
 
 	/* absolute PI value */
-	pi = hw_qp->sq.pi & (hw_qp->sq.wqe_cnt - 1);
+	pi = hw_qp->sq_pi & (hw_qp->sq_wqe_cnt - 1);
 	SPDK_DEBUGLOG(mlx5, "opc %d, sge_count %u, bb_count %u, orig pi %u, fm_ce_se %x\n", op, klm_count,
-		      bb_count, pi, fm_ce_se);
+		      bb_count, hw_qp->sq_pi, fm_ce_se);
 
 	ctrl = (struct mlx5_wqe_ctrl_seg *) mlx5_qp_get_wqe_bb(hw_qp);
 	/* WQE size in octowords (16-byte units). DS accounts for all the segments in the WQE as summarized in WQE construction */
-	mlx5_set_ctrl_seg(ctrl, hw_qp->sq.pi, op, 0, hw_qp->qp_num, fm_ce_se, 2 + klm_count, 0, 0);
+	mlx5_set_ctrl_seg(ctrl, hw_qp->sq_pi, op, 0, hw_qp->qp_num, fm_ce_se, 2 + klm_count, 0, 0);
 
 	rseg = (struct mlx5_wqe_raddr_seg *)(ctrl + 1);
 	rseg->raddr = htobe64(raddr);
@@ -169,7 +170,7 @@ mlx5_dma_xfer_full(struct spdk_mlx5_qp *qp, struct mlx5_wqe_data_seg *klm, uint3
 		dseg = dseg + 1;
 	}
 
-	mlx5_qp_wqe_submit(qp, ctrl, bb_count);
+	mlx5_qp_wqe_submit(qp, ctrl, bb_count, pi);
 
 	mlx5_qp_set_comp(qp, pi, wr_id, fm_ce_se, bb_count);
 	assert(qp->tx_available >= bb_count);
@@ -188,16 +189,17 @@ mlx5_dma_xfer_wrap_around(struct spdk_mlx5_qp *qp, struct mlx5_wqe_data_seg *klm
 	uint32_t i, to_end, pi;
 
 	fm_ce_se = flags | qp->tx_flags;
+	fm_ce_se &= qp->tx_revert_flags;
 
 	/* absolute PI value */
-	pi = hw_qp->sq.pi & (hw_qp->sq.wqe_cnt - 1);
+	pi = hw_qp->sq_pi & (hw_qp->sq_wqe_cnt - 1);
 	SPDK_DEBUGLOG(mlx5, "opc %d, sge_count %u, bb_count %u, orig pi %u, fm_ce_se %x\n", op, klm_count,
 		      bb_count, pi, fm_ce_se);
 
-	to_end = (hw_qp->sq.wqe_cnt - pi) * MLX5_SEND_WQE_BB;
+	to_end = (hw_qp->sq_wqe_cnt - pi) * MLX5_SEND_WQE_BB;
 	ctrl = (struct mlx5_wqe_ctrl_seg *) mlx5_qp_get_wqe_bb(hw_qp);
 	/* WQE size in octowords (16-byte units). DS accounts for all the segments in the WQE as summarized in WQE construction */
-	mlx5_set_ctrl_seg(ctrl, hw_qp->sq.pi, op, 0, hw_qp->qp_num, fm_ce_se, 2 + klm_count, 0, 0);
+	mlx5_set_ctrl_seg(ctrl, hw_qp->sq_pi, op, 0, hw_qp->qp_num, fm_ce_se, 2 + klm_count, 0, 0);
 	to_end -= sizeof(struct mlx5_wqe_ctrl_seg); /* 16 bytes */
 
 	rseg = (struct mlx5_wqe_raddr_seg *)(ctrl + 1);
@@ -215,12 +217,12 @@ mlx5_dma_xfer_wrap_around(struct spdk_mlx5_qp *qp, struct mlx5_wqe_data_seg *klm
 			dseg = dseg + 1;
 		} else {
 			/* Start from the beginning of SQ */
-			dseg = (struct mlx5_wqe_data_seg *)(hw_qp->sq.addr);
-			to_end = hw_qp->sq.wqe_cnt * MLX5_SEND_WQE_BB;
+			dseg = (struct mlx5_wqe_data_seg *)(hw_qp->sq_addr);
+			to_end = hw_qp->sq_wqe_cnt * MLX5_SEND_WQE_BB;
 		}
 	}
 
-	mlx5_qp_wqe_submit(qp, ctrl, bb_count);
+	mlx5_qp_wqe_submit(qp, ctrl, bb_count, pi);
 
 	mlx5_qp_set_comp(qp, pi, wr_id, fm_ce_se, bb_count);
 	assert(qp->tx_available >= bb_count);
@@ -246,8 +248,8 @@ spdk_mlx5_dma_qp_rdma_write(struct spdk_mlx5_dma_qp *dma_qp, struct mlx5_wqe_dat
 	if (spdk_unlikely(klm_count > qp->max_sge)) {
 		return -E2BIG;
 	}
-	pi = hw_qp->sq.pi & (hw_qp->sq.wqe_cnt - 1);
-	to_end = (hw_qp->sq.wqe_cnt - pi) * MLX5_SEND_WQE_BB;
+	pi = hw_qp->sq_pi & (hw_qp->sq_wqe_cnt - 1);
+	to_end = (hw_qp->sq_wqe_cnt - pi) * MLX5_SEND_WQE_BB;
 
 	if (spdk_likely(to_end >= bb_count * MLX5_SEND_WQE_BB)) {
 		mlx5_dma_xfer_full(qp, klm, klm_count, dstaddr, rkey, MLX5_OPCODE_RDMA_WRITE, flags, wrid, bb_count);
@@ -277,8 +279,8 @@ spdk_mlx5_dma_qp_rdma_read(struct spdk_mlx5_dma_qp *dma_qp, struct mlx5_wqe_data
 	if (spdk_unlikely(klm_count > qp->max_sge)) {
 		return -E2BIG;
 	}
-	pi = hw_qp->sq.pi & (hw_qp->sq.wqe_cnt - 1);
-	to_end = (hw_qp->sq.wqe_cnt - pi) * MLX5_SEND_WQE_BB;
+	pi = hw_qp->sq_pi & (hw_qp->sq_wqe_cnt - 1);
+	to_end = (hw_qp->sq_wqe_cnt - pi) * MLX5_SEND_WQE_BB;
 
 	if (spdk_likely(to_end >= bb_count * MLX5_SEND_WQE_BB)) {
 		mlx5_dma_xfer_full(qp, klm, klm_count, dstaddr, rkey, MLX5_OPCODE_RDMA_READ, flags, wrid, bb_count);
@@ -289,14 +291,24 @@ spdk_mlx5_dma_qp_rdma_read(struct spdk_mlx5_dma_qp *dma_qp, struct mlx5_wqe_data
 	return 0;
 }
 
-
 // polling start
+
+static inline void
+mlx5_qp_update_comp(struct spdk_mlx5_qp *qp)
+{
+	qp->completions[qp->last_pi].completions = qp->nonsignaled_outstanding;
+	qp->nonsignaled_outstanding = 0;
+}
 
 static inline void
 mlx5_qp_tx_complete(struct spdk_mlx5_qp *qp)
 {
 	if (qp->tx_need_ring_db) {
 		qp->tx_need_ring_db = false;
+		qp->ctrl->fm_ce_se |= ~qp->tx_revert_flags;
+		if (qp->tx_revert_flags != (uint16_t)-1) {
+			mlx5_qp_update_comp(qp);
+		}
 		mlx5_ring_tx_db(qp, qp->ctrl);
 	}
 }
@@ -352,7 +364,7 @@ mlx5_qp_get_comp_wr_id(struct spdk_mlx5_qp *qp, struct mlx5_cqe64 *cqe)
 	uint16_t comp_idx;
 	uint32_t sq_mask;
 
-	sq_mask = qp->hw.sq.wqe_cnt - 1;
+	sq_mask = qp->hw.sq_wqe_cnt - 1;
 	comp_idx = be16toh(cqe->wqe_counter) & sq_mask;
 	SPDK_DEBUGLOG(mlx5, "got cpl, wqe_counter %u, comp_idx %u; wrid %"PRIx64", cpls %u\n",
 		      cqe->wqe_counter, comp_idx, qp->completions[comp_idx].wr_id, qp->completions[comp_idx].completions);
@@ -407,8 +419,8 @@ mlx5_qp_dump_wqe(struct spdk_mlx5_qp *qp, int n_wqe_bb)
 		return;
 	}
 
-	pi = hw->sq.pi & (hw->sq.wqe_cnt - 1);
-	to_end = (hw->sq.wqe_cnt - pi) * MLX5_SEND_WQE_BB;
+	pi = hw->sq_pi & (hw->sq_wqe_cnt - 1);
+	to_end = (hw->sq_wqe_cnt - pi) * MLX5_SEND_WQE_BB;
 	wqe = mlx5_qp_get_wqe_bb(hw);
 
 	SPDK_DEBUGLOG(mlx5_sq, "QP: qpn 0x%" PRIx32 ", wqe_index 0x%" PRIx32 ", addr %p\n",

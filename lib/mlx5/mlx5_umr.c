@@ -13,7 +13,7 @@
 #include "spdk_internal/mlx5.h"
 #include "mlx5_priv.h"
 
-static inline
+static inline void
 set_umr_ctrl_seg_mtt(struct mlx5_wqe_umr_ctrl_seg *ctrl, uint32_t klms_octowords)
 {
 	uint64_t mkey_mask;
@@ -145,14 +145,15 @@ mlx5_umr_configure_full_crypto(struct spdk_mlx5_qp *dv_qp, struct spdk_mlx5_umr_
 	uint32_t i;
 
 	fm_ce_se = flags | dv_qp->tx_flags;
+	fm_ce_se &= dv_qp->tx_revert_flags;
 
 	ctrl = (struct mlx5_wqe_ctrl_seg *)mlx5_qp_get_wqe_bb(hw);
-	pi = hw->sq.pi & (hw->sq.wqe_cnt - 1);
+	pi = hw->sq_pi & (hw->sq_wqe_cnt - 1);
 	gen_ctrl = ctrl;
-	mlx5_set_ctrl_seg(gen_ctrl, hw->sq.pi, MLX5_OPCODE_UMR, 0,
+	mlx5_set_ctrl_seg(gen_ctrl, hw->sq_pi, MLX5_OPCODE_UMR, 0,
 			  hw->qp_num, fm_ce_se,
 			  SPDK_CEIL_DIV(wqe_size, 16), 0,
-			  htobe32(umr_attr->dv_mkey->mkey));
+			  htobe32(umr_attr->dv_mkey));
 
 	/* build umr ctrl segment */
 	umr_ctrl = (struct mlx5_wqe_umr_ctrl_seg *)(gen_ctrl + 1);
@@ -183,7 +184,7 @@ mlx5_umr_configure_full_crypto(struct spdk_mlx5_qp *dv_qp, struct spdk_mlx5_umr_
 	set_umr_crypto_bsf_seg(bsf, crypto_attr, umr_attr->umr_len,
 			       dv_qp->aes_xts_inc_64, dv_qp->aes_xts_tweak_be);
 
-	mlx5_qp_wqe_submit(dv_qp, ctrl, umr_wqe_n_bb);
+	mlx5_qp_wqe_submit(dv_qp, ctrl, umr_wqe_n_bb, pi);
 
 	mlx5_qp_set_comp(dv_qp, pi, wr_id, fm_ce_se, umr_wqe_n_bb);
 	assert(dv_qp->tx_available >= umr_wqe_n_bb);
@@ -206,15 +207,16 @@ mlx5_umr_configure_full(struct spdk_mlx5_qp *dv_qp, struct spdk_mlx5_umr_attr *u
 	uint32_t i;
 
 	fm_ce_se = flags | dv_qp->tx_flags;
+	fm_ce_se &= dv_qp->tx_revert_flags;
 
 	ctrl = (struct mlx5_wqe_ctrl_seg *)mlx5_qp_get_wqe_bb(hw);
-	pi = hw->sq.pi & (hw->sq.wqe_cnt - 1);
+	pi = hw->sq_pi & (hw->sq_wqe_cnt - 1);
 
 	gen_ctrl = ctrl;
-	mlx5_set_ctrl_seg(gen_ctrl, hw->sq.pi, MLX5_OPCODE_UMR, 0,
+	mlx5_set_ctrl_seg(gen_ctrl, hw->sq_pi, MLX5_OPCODE_UMR, 0,
 			  hw->qp_num, fm_ce_se,
 			  SPDK_CEIL_DIV(wqe_size, 16), 0,
-			  htobe32(umr_attr->dv_mkey->mkey));
+			  htobe32(umr_attr->dv_mkey));
 
 	/* build umr ctrl segment */
 	umr_ctrl = (struct mlx5_wqe_umr_ctrl_seg *)(gen_ctrl + 1);
@@ -239,7 +241,7 @@ mlx5_umr_configure_full(struct spdk_mlx5_qp *dv_qp, struct spdk_mlx5_umr_attr *u
 		klm = klm + 1;
 	}
 
-	mlx5_qp_wqe_submit(dv_qp, ctrl, umr_wqe_n_bb);
+	mlx5_qp_wqe_submit(dv_qp, ctrl, umr_wqe_n_bb, pi);
 
 	mlx5_qp_set_comp(dv_qp, pi, wr_id, fm_ce_se, umr_wqe_n_bb);
 	assert(dv_qp->tx_available >= umr_wqe_n_bb);
@@ -262,10 +264,11 @@ mlx5_umr_configure_with_wrap_around_crypto(struct spdk_mlx5_qp *dv_qp, struct sp
 	uint32_t pi, to_end;
 
 	fm_ce_se = flags | dv_qp->tx_flags;
+	fm_ce_se &= dv_qp->tx_revert_flags;
 
 	ctrl = (struct mlx5_wqe_ctrl_seg *)mlx5_qp_get_wqe_bb(hw);
-	pi = hw->sq.pi & (hw->sq.wqe_cnt - 1);
-	to_end = (hw->sq.wqe_cnt - pi) * MLX5_SEND_WQE_BB;
+	pi = hw->sq_pi & (hw->sq_wqe_cnt - 1);
+	to_end = (hw->sq_wqe_cnt - pi) * MLX5_SEND_WQE_BB;
 
 	/*
 	 * sizeof(gen_ctrl) + sizeof(umr_ctrl) == MLX5_SEND_WQE_BB,
@@ -274,10 +277,10 @@ mlx5_umr_configure_with_wrap_around_crypto(struct spdk_mlx5_qp *dv_qp, struct sp
 	 * build genenal ctrl segment
 	 */
 	gen_ctrl = ctrl;
-	mlx5_set_ctrl_seg(gen_ctrl, hw->sq.pi, MLX5_OPCODE_UMR, 0,
+	mlx5_set_ctrl_seg(gen_ctrl, hw->sq_pi, MLX5_OPCODE_UMR, 0,
 			  hw->qp_num, fm_ce_se,
 			  SPDK_CEIL_DIV(wqe_size, 16), 0,
-			  htobe32(umr_attr->dv_mkey->mkey));
+			  htobe32(umr_attr->dv_mkey));
 
 	/* build umr ctrl segment */
 	umr_ctrl = (struct mlx5_wqe_umr_ctrl_seg *)(gen_ctrl + 1);
@@ -295,7 +298,7 @@ mlx5_umr_configure_with_wrap_around_crypto(struct spdk_mlx5_qp *dv_qp, struct sp
 	set_umr_crypto_bsf_seg(bsf, crypto_attr, umr_attr->umr_len,
 			       dv_qp->aes_xts_inc_64, dv_qp->aes_xts_tweak_be);
 
-	mlx5_qp_wqe_submit(dv_qp, ctrl, umr_wqe_n_bb);
+	mlx5_qp_wqe_submit(dv_qp, ctrl, umr_wqe_n_bb, pi);
 
 	mlx5_qp_set_comp(dv_qp, pi, wr_id, fm_ce_se, umr_wqe_n_bb);
 	assert(dv_qp->tx_available >= umr_wqe_n_bb);
@@ -317,10 +320,11 @@ mlx5_umr_configure_with_wrap_around(struct spdk_mlx5_qp *dv_qp, struct spdk_mlx5
 	uint32_t pi, to_end;
 
 	fm_ce_se = flags | dv_qp->tx_flags;
+	fm_ce_se &= dv_qp->tx_revert_flags;
 
 	ctrl = (struct mlx5_wqe_ctrl_seg *)mlx5_qp_get_wqe_bb(hw);
-	pi = hw->sq.pi & (hw->sq.wqe_cnt - 1);
-	to_end = (hw->sq.wqe_cnt - pi) * MLX5_SEND_WQE_BB;
+	pi = hw->sq_pi & (hw->sq_wqe_cnt - 1);
+	to_end = (hw->sq_wqe_cnt - pi) * MLX5_SEND_WQE_BB;
 	/*
 	 * sizeof(gen_ctrl) + sizeof(umr_ctrl) == MLX5_SEND_WQE_BB,
 	 * so do not need to worry about wqe buffer wrap around.
@@ -328,10 +332,10 @@ mlx5_umr_configure_with_wrap_around(struct spdk_mlx5_qp *dv_qp, struct spdk_mlx5
 	 * build genenal ctrl segment
 	 */
 	gen_ctrl = ctrl;
-	mlx5_set_ctrl_seg(gen_ctrl, hw->sq.pi, MLX5_OPCODE_UMR, 0,
+	mlx5_set_ctrl_seg(gen_ctrl, hw->sq_pi, MLX5_OPCODE_UMR, 0,
 			  hw->qp_num, fm_ce_se,
 			  SPDK_CEIL_DIV(wqe_size, 16), 0,
-			  htobe32(umr_attr->dv_mkey->mkey));
+			  htobe32(umr_attr->dv_mkey));
 
 	/* build umr ctrl segment */
 	umr_ctrl = (struct mlx5_wqe_umr_ctrl_seg *)(gen_ctrl + 1);
@@ -345,7 +349,7 @@ mlx5_umr_configure_with_wrap_around(struct spdk_mlx5_qp *dv_qp, struct spdk_mlx5
 	klm = mlx5_qp_get_next_wqbb(hw, &to_end, mkey);
 	mlx5_build_inline_mtt(hw, &to_end, klm, umr_attr);
 
-	mlx5_qp_wqe_submit(dv_qp, ctrl, umr_wqe_n_bb);
+	mlx5_qp_wqe_submit(dv_qp, ctrl, umr_wqe_n_bb, pi);
 
 	mlx5_qp_set_comp(dv_qp, pi, wr_id, fm_ce_se, umr_wqe_n_bb);
 	assert(dv_qp->tx_available >= umr_wqe_n_bb);
@@ -366,8 +370,8 @@ spdk_mlx5_umr_configure_crypto(struct spdk_mlx5_dma_qp *dma_qp, struct spdk_mlx5
 		return -EINVAL;
 	}
 
-	pi = hw->sq.pi & (hw->sq.wqe_cnt - 1);
-	to_end = (hw->sq.wqe_cnt - pi) * MLX5_SEND_WQE_BB;
+	pi = hw->sq_pi & (hw->sq_wqe_cnt - 1);
+	to_end = (hw->sq_wqe_cnt - pi) * MLX5_SEND_WQE_BB;
 
 	/*
 	 * UMR WQE LAYOUT:
@@ -416,8 +420,8 @@ spdk_mlx5_umr_configure(struct spdk_mlx5_dma_qp *dma_qp, struct spdk_mlx5_umr_at
 		return -EINVAL;
 	}
 
-	pi = hw->sq.pi & (hw->sq.wqe_cnt - 1);
-	to_end = (hw->sq.wqe_cnt - pi) * MLX5_SEND_WQE_BB;
+	pi = hw->sq_pi & (hw->sq_wqe_cnt - 1);
+	to_end = (hw->sq_wqe_cnt - pi) * MLX5_SEND_WQE_BB;
 
 	/*
 	 * UMR WQE LAYOUT:
