@@ -93,6 +93,7 @@ struct spdk_accel_task {
 		uint32_t		*output_size;
 		uint32_t		block_size; /* for crypto op */
 	};
+	uint32_t                        *cached_lkey;
 	uint64_t			iv; /* Initialization vector (tweak) for crypto op */
 	int8_t				op_code;
 	int16_t				status;
@@ -240,6 +241,15 @@ bool spdk_accel_alloc_sequence_buf(struct spdk_accel_sequence *seq, void *buf,
  * \return the first remaining task or NULL if all tasks are already completed.
  */
 struct spdk_accel_task *spdk_accel_sequence_first_task(struct spdk_accel_sequence *seq);
+
+/**
+ * Returns the last task remaining to be executed in a given sequence.
+ *
+ * \param seq Sequence object.
+ *
+ * \return the first remaining task or NULL if all tasks are already completed.
+ */
+struct spdk_accel_task *spdk_accel_sequence_last_task(struct spdk_accel_sequence *seq);
 
 /**
  * Returns the next remaining task that follows a given task in a sequence.

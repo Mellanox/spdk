@@ -30,6 +30,7 @@
 
 #include "spdk_internal/usdt.h"
 #include "spdk_internal/trace_defs.h"
+#include "spdk_internal/accel_module.h"
 
 #define SPDK_BDEV_NVME_DEFAULT_DELAY_CMD_SUBMIT true
 #define SPDK_BDEV_NVME_DEFAULT_KEEP_ALIVE_TIMEOUT_IN_MS	(10000)
@@ -4858,6 +4859,7 @@ nvme_bdev_alloc(void)
 		return NULL;
 	}
 
+	bdev->cached_lkey = 0;
 	bdev->ref = 1;
 	bdev->mp_policy = BDEV_NVME_MP_POLICY_ACTIVE_PASSIVE;
 	bdev->mp_selector = BDEV_NVME_MP_SELECTOR_ROUND_ROBIN;
@@ -8629,7 +8631,7 @@ bdev_nvme_readv(struct nvme_bdev_io *bio, struct iovec *iov, int iovcnt,
 					       domain, domain_ctx,
 					       iov, iovcnt,
 					       domain, domain_ctx,
-					       lba, nbdev->disk.blocklen, 0, NULL, NULL);
+					       lba, nbdev->disk.blocklen, 0, NULL, NULL, &nbdev->cached_lkey);
 		if (spdk_unlikely(rc)) {
 			return rc;
 		}
@@ -8679,13 +8681,12 @@ bdev_nvme_writev_crypto(struct nvme_bdev_io *bio, struct iovec *iov, int iovcnt,
 				       iov, iovcnt,
 				       domain, domain_ctx,
 				       lba, nbdev->disk.blocklen, 0,
-				       NULL, NULL);
+				       NULL, NULL, &nbdev->cached_lkey);
 	if (spdk_unlikely(rc)) {
 		spdk_accel_put_buf(accel_channel, bio->crypto.aux_buf_raw,
 				   bio->crypto.aux_domain, bio->crypto.aux_domain_ctx);
 		return rc;
 	}
-
 
 	bio->ext_opts.accel_seq = bio->crypto.seq;
 	rc = spdk_nvme_ns_cmd_writev_ext(ns, qpair, lba, lba_count,

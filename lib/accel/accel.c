@@ -270,6 +270,7 @@ _get_task(struct accel_io_channel *accel_ch, spdk_accel_completion_cb cb_fn, voi
 	accel_task->link.tqe_next = NULL;
 	accel_task->link.tqe_prev = NULL;
 
+	accel_task->cached_lkey = NULL;
 	accel_task->cb_fn = cb_fn;
 	accel_task->cb_arg = cb_arg;
 	accel_task->accel_ch = accel_ch;
@@ -943,7 +944,7 @@ spdk_accel_append_encrypt(struct spdk_accel_sequence **pseq, struct spdk_io_chan
 			  struct iovec *src_iovs, uint32_t src_iovcnt,
 			  struct spdk_memory_domain *src_domain, void *src_domain_ctx,
 			  uint64_t iv, uint32_t block_size, int flags,
-			  spdk_accel_step_cb cb_fn, void *cb_arg)
+			  spdk_accel_step_cb cb_fn, void *cb_arg, uint32_t *cached_lkey)
 {
 	struct accel_io_channel *accel_ch = spdk_io_channel_get_ctx(ch);
 	struct spdk_accel_task *task;
@@ -971,6 +972,7 @@ spdk_accel_append_encrypt(struct spdk_accel_sequence **pseq, struct spdk_io_chan
 		return -ENOMEM;
 	}
 
+	task->cached_lkey = cached_lkey;
 	task->crypto_key = key;
 	task->src_domain = src_domain;
 	task->src_domain_ctx = src_domain_ctx;
@@ -999,7 +1001,7 @@ spdk_accel_append_decrypt(struct spdk_accel_sequence **pseq, struct spdk_io_chan
 			  struct iovec *src_iovs, uint32_t src_iovcnt,
 			  struct spdk_memory_domain *src_domain, void *src_domain_ctx,
 			  uint64_t iv, uint32_t block_size, int flags,
-			  spdk_accel_step_cb cb_fn, void *cb_arg)
+			  spdk_accel_step_cb cb_fn, void *cb_arg, uint32_t *cached_lkey)
 {
 	struct accel_io_channel *accel_ch = spdk_io_channel_get_ctx(ch);
 	struct spdk_accel_task *task;
@@ -1027,6 +1029,7 @@ spdk_accel_append_decrypt(struct spdk_accel_sequence **pseq, struct spdk_io_chan
 		return -ENOMEM;
 	}
 
+	task->cached_lkey = cached_lkey;
 	task->crypto_key = key;
 	task->src_domain = src_domain;
 	task->src_domain_ctx = src_domain_ctx;
@@ -1266,6 +1269,12 @@ struct spdk_accel_task *
 spdk_accel_sequence_first_task(struct spdk_accel_sequence *seq)
 {
 	return TAILQ_FIRST(&seq->tasks);
+}
+
+struct spdk_accel_task *
+spdk_accel_sequence_last_task(struct spdk_accel_sequence *seq)
+{
+	return TAILQ_LAST(&seq->tasks, accel_sequence_tasks);
 }
 
 struct spdk_accel_task *

@@ -61,14 +61,14 @@ DEFINE_STUB(spdk_accel_append_decrypt, int,
 	     uint32_t dst_iovcnt, struct spdk_memory_domain *dst_domain, void *dst_domain_ctx,
 	     struct iovec *src_iovs, uint32_t src_iovcnt, struct spdk_memory_domain *src_domain,
 	     void *src_domain_ctx, uint64_t iv, uint32_t block_size, int flags,
-	     spdk_accel_step_cb cb_fn, void *cb_arg), 0);
+	     spdk_accel_step_cb cb_fn, void *cb_arg, uint32_t *cached_lkey), 0);
 DEFINE_STUB(spdk_accel_append_encrypt, int,
 	    (struct spdk_accel_sequence **seq, struct spdk_io_channel *ch,
 	     struct spdk_accel_crypto_key *key, struct iovec *dst_iovs,
 	     uint32_t dst_iovcnt, struct spdk_memory_domain *dst_domain, void *dst_domain_ctx,
 	     struct iovec *src_iovs, uint32_t src_iovcnt, struct spdk_memory_domain *src_domain,
 	     void *src_domain_ctx, uint64_t iv, uint32_t block_size, int flags,
-	     spdk_accel_step_cb cb_fn, void *cb_arg), 0);
+	     spdk_accel_step_cb cb_fn, void *cb_arg, uint32_t *cached_lkey), 0);
 DEFINE_STUB_V(spdk_accel_sequence_abort, (struct spdk_accel_sequence *seq));
 DEFINE_STUB_V(spdk_accel_put_buf, (struct spdk_io_channel *ch, void *buf,
 				   struct spdk_memory_domain *domain, void *domain_ctx));

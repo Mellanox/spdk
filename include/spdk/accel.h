@@ -418,7 +418,7 @@ int spdk_accel_append_encrypt(struct spdk_accel_sequence **seq, struct spdk_io_c
 			      struct iovec *src_iovs, uint32_t src_iovcnt,
 			      struct spdk_memory_domain *src_domain, void *src_domain_ctx,
 			      uint64_t iv, uint32_t block_size, int flags,
-			      spdk_accel_step_cb cb_fn, void *cb_arg);
+			      spdk_accel_step_cb cb_fn, void *cb_arg, uint32_t *cached_lkey);
 
 /**
  * Append a decrypt operation to a sequence.
@@ -456,7 +456,7 @@ int spdk_accel_append_decrypt(struct spdk_accel_sequence **seq, struct spdk_io_c
 			      struct iovec *src_iovs, uint32_t src_iovcnt,
 			      struct spdk_memory_domain *src_domain, void *src_domain_ctx,
 			      uint64_t iv, uint32_t block_size, int flags,
-			      spdk_accel_step_cb cb_fn, void *cb_arg);
+			      spdk_accel_step_cb cb_fn, void *cb_arg, uint32_t *cached_lkey);
 
 /**
  * Finish a sequence and execute all its operations. After the completion callback is executed, the

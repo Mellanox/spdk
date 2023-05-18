@@ -97,7 +97,7 @@ struct accel_mlx5_task {
 	 * Last 2 cache lines in base structure are occupied by bounce buffer structure
 	 * which are only used when the module doesn't support memory domains - that is not
 	 * our case */
-	uint8_t padding[16];
+	uint8_t padding[8];
 	struct accel_mlx5_dev *dev;
 	uint16_t num_reqs;
 	uint16_t num_completed_reqs;
@@ -230,6 +230,9 @@ accel_mlx5_translate_addr(void *addr, size_t size, struct spdk_memory_domain *do
 		klm->lkey = domain_translation.rdma.lkey;
 		klm->addr = (uint64_t) domain_translation.iov.iov_base;
 		klm->byte_count = domain_translation.iov.iov_len;
+		/*SPDK_NOTICELOG("Translation addr=%p, klm->lkey=%lu, klm->addr=%p, klm-byte_count=%lu, "
+				"domain=%p, domain_ctx=%p\n", addr, domain_translation.rdma.lkey,
+				(void *)klm->addr, klm->byte_count, domain, domain_ctx);*/
 	} else {
 		rc = spdk_rdma_utils_get_translation(dev->mmap, addr, size,
 						     &map_translation);
@@ -528,20 +531,38 @@ accel_mlx5_crypto_task_process(struct accel_mlx5_task *mlx5_task)
 	dev->stats.tasks++;
 
 	if (ops_len <= mlx5_task->src.iov->iov_len - mlx5_task->src.iov_offset || task->s.iovcnt == 1) {
-		rc = accel_mlx5_translate_addr(task->s.iovs[0].iov_base, task->s.iovs[0].iov_len, task->src_domain,
-					       task->src_domain_ctx, dev, klms[0].src_klm);
-		if (spdk_unlikely(rc)) {
-			return rc;
+		if (task->cached_lkey == NULL || *task->cached_lkey == 0 || !task->src_domain) {
+			rc = accel_mlx5_translate_addr(task->s.iovs[0].iov_base, task->s.iovs[0].iov_len, task->src_domain,
+						       task->src_domain_ctx, dev, klms[0].src_klm);
+			if (spdk_unlikely(rc)) {
+				return rc;
+			}
+			src_lkey = klms[0].src_klm->lkey;
+			if (task->cached_lkey && task->src_domain) {
+				//SPDK_ERRLOG("src updated task->cached_lkey=%lu -> src_lkey=%lu\n", *task->cached_lkey, src_lkey);
+				*task->cached_lkey = src_lkey;
+			}
+		} else {
+			src_lkey = *task->cached_lkey;
+			//SPDK_ERRLOG("src using cached task->cached_lkey %lu\n", src_lkey);
 		}
-		src_lkey = klms[0].src_klm->lkey;
 	}
 	if (!mlx5_task->inplace && (ops_len <= mlx5_task->dst.iov->iov_len - mlx5_task->dst.iov_offset || task->d.iovcnt == 1)) {
-		rc = accel_mlx5_translate_addr(task->d.iovs[0].iov_base, task->d.iovs[0].iov_len, task->dst_domain,
-					       task->dst_domain_ctx, dev, klms[0].dst_klm);
-		if (spdk_unlikely(rc)) {
-			return rc;
+		if (task->cached_lkey == NULL || *task->cached_lkey == 0 || !task->dst_domain) {
+			rc = accel_mlx5_translate_addr(task->d.iovs[0].iov_base, task->d.iovs[0].iov_len, task->dst_domain,
+						       task->dst_domain_ctx, dev, klms[0].dst_klm);
+			if (spdk_unlikely(rc)) {
+				return rc;
+			}
+			dst_lkey = klms[0].dst_klm->lkey;
+			if (task->cached_lkey && task->dst_domain) {
+				//SPDK_ERRLOG("dst updated task->cached_lkey=%lu -> dst_lkey=%lu\n", *task->cached_lkey, dst_lkey);
+				*task->cached_lkey = dst_lkey;
+			}
+		} else {
+			dst_lkey = *task->cached_lkey;
+			//SPDK_ERRLOG("dst using cached task->cached_lkey %lu\n", dst_lkey);
 		}
-		dst_lkey = klms[0].dst_klm->lkey;
 	}
 	blocks_processed = mlx5_task->num_submitted_reqs * mlx5_task->blocks_per_req;
 	iv = task->iv + blocks_processed;

@@ -1780,7 +1780,7 @@ test_sequence_copy_elision(void)
 	src_iovs[1].iov_len = sizeof(tmp[1]);
 	rc = spdk_accel_append_encrypt(&seq, ioch, &key, &dst_iovs[1], 1, NULL, NULL,
 				       &src_iovs[1], 1, NULL, NULL, 0, sizeof(tmp[2]), 0,
-				       ut_sequence_step_cb, &completed);
+				       ut_sequence_step_cb, &completed, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 
 	dst_iovs[2].iov_base = buf;
@@ -1833,7 +1833,7 @@ test_sequence_copy_elision(void)
 	src_iovs[1].iov_len = sizeof(tmp[1]);
 	rc = spdk_accel_append_decrypt(&seq, ioch, &key, &dst_iovs[1], 1, NULL, NULL,
 				       &src_iovs[1], 1, NULL, NULL, 0, sizeof(tmp[2]), 0,
-				       ut_sequence_step_cb, &completed);
+				       ut_sequence_step_cb, &completed, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 
 	dst_iovs[2].iov_base = buf;
@@ -2967,7 +2967,7 @@ test_sequence_crypto(void)
 	src_iovs[1].iov_len = sizeof(tmp[0]);
 	rc = spdk_accel_append_encrypt(&seq, ioch, key, &dst_iovs[1], 1, NULL, NULL,
 				       &src_iovs[1], 1, NULL, NULL, 0, 4096, 0,
-				       ut_sequence_step_cb, &completed);
+				       ut_sequence_step_cb, &completed, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 
 	dst_iovs[2].iov_base = buf;
@@ -3010,7 +3010,7 @@ test_sequence_crypto(void)
 	src_iovs[1].iov_len = sizeof(tmp[0]);
 	rc = spdk_accel_append_decrypt(&seq, ioch, key, &dst_iovs[1], 1, NULL, NULL,
 				       &src_iovs[1], 1, NULL, NULL, 0, 4096, 0,
-				       ut_sequence_step_cb, &completed);
+				       ut_sequence_step_cb, &completed, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 
 	dst_iovs[2].iov_base = buf;
@@ -3053,7 +3053,7 @@ test_sequence_crypto(void)
 	src_iovs[1].iov_len = sizeof(tmp[0]);
 	rc = spdk_accel_append_encrypt(&seq, ioch, key, &dst_iovs[1], 1, NULL, NULL,
 				       &src_iovs[1], 1, NULL, NULL, 0, 4096, 0,
-				       ut_sequence_step_cb, &completed);
+				       ut_sequence_step_cb, &completed, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 
 
@@ -3063,7 +3063,7 @@ test_sequence_crypto(void)
 	src_iovs[2].iov_len = sizeof(tmp[1]);
 	rc = spdk_accel_append_decrypt(&seq, ioch, key, &dst_iovs[2], 1, NULL, NULL,
 				       &src_iovs[2], 1, NULL, NULL, 0, 4096, 0,
-				       ut_sequence_step_cb, &completed);
+				       ut_sequence_step_cb, &completed, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 
 	dst_iovs[3].iov_base = buf;
@@ -3279,7 +3279,7 @@ test_sequence_driver(void)
 	src_iovs[1].iov_len = sizeof(tmp[1]);
 	rc = spdk_accel_append_encrypt(&seq, ioch, &key, &dst_iovs[1], 1, NULL, NULL,
 				       &src_iovs[1], 1, NULL, NULL, 0, 4096, 0,
-				       ut_sequence_step_cb, &completed);
+				       ut_sequence_step_cb, &completed, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 
 	dst_iovs[2].iov_base = buf;
@@ -3288,7 +3288,7 @@ test_sequence_driver(void)
 	src_iovs[2].iov_len = sizeof(tmp[2]);
 	rc = spdk_accel_append_decrypt(&seq, ioch, &key, &dst_iovs[2], 1, NULL, NULL,
 				       &src_iovs[2], 1, NULL, NULL, 0, 4096, 0,
-				       ut_sequence_step_cb, &completed);
+				       ut_sequence_step_cb, &completed, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 
 	ut_seq.complete = false;
@@ -3330,7 +3330,7 @@ test_sequence_driver(void)
 	src_iovs[0].iov_len = sizeof(tmp[0]);
 	rc = spdk_accel_append_encrypt(&seq, ioch, &key, &dst_iovs[0], 1, NULL, NULL,
 				       &src_iovs[0], 1, NULL, NULL, 0, 4096, 0,
-				       ut_sequence_step_cb, &completed);
+				       ut_sequence_step_cb, &completed, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 
 	rc = spdk_accel_append_fill(&seq, ioch, tmp[1], 2048, NULL, NULL, 0xfe, 0,
@@ -3352,7 +3352,7 @@ test_sequence_driver(void)
 	src_iovs[2].iov_len = sizeof(tmp[2]);
 	rc = spdk_accel_append_decrypt(&seq, ioch, &key, &dst_iovs[2], 1, NULL, NULL,
 				       &src_iovs[2], 1, NULL, NULL, 0, 4096, 0,
-				       ut_sequence_step_cb, &completed);
+				       ut_sequence_step_cb, &completed, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 
 	ut_seq.complete = false;
@@ -3393,7 +3393,7 @@ test_sequence_driver(void)
 	src_iovs[0].iov_len = sizeof(tmp[0]);
 	rc = spdk_accel_append_encrypt(&seq, ioch, &key, &dst_iovs[0], 1, NULL, NULL,
 				       &src_iovs[0], 1, NULL, NULL, 0, 4096, 0,
-				       ut_sequence_step_cb, &completed);
+				       ut_sequence_step_cb, &completed, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 
 	rc = spdk_accel_append_fill(&seq, ioch, tmp[1], 2048, NULL, NULL, 0xef, 0,
@@ -3406,7 +3406,7 @@ test_sequence_driver(void)
 	src_iovs[1].iov_len = sizeof(tmp[1]);
 	rc = spdk_accel_append_decrypt(&seq, ioch, &key, &dst_iovs[1], 1, NULL, NULL,
 				       &src_iovs[1], 1, NULL, NULL, 0, 4096, 0,
-				       ut_sequence_step_cb, &completed);
+				       ut_sequence_step_cb, &completed, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 
 	dst_iovs[2].iov_base = buf;
@@ -3455,7 +3455,7 @@ test_sequence_driver(void)
 	src_iovs[0].iov_len = sizeof(tmp[0]);
 	rc = spdk_accel_append_encrypt(&seq, ioch, &key, &dst_iovs[0], 1, NULL, NULL,
 				       &src_iovs[0], 1, NULL, NULL, 0, 4096, 0,
-				       ut_sequence_step_cb, &completed);
+				       ut_sequence_step_cb, &completed, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 
 	rc = spdk_accel_append_fill(&seq, ioch, tmp[1], 2048, NULL, NULL, 0xef, 0,
@@ -3468,7 +3468,7 @@ test_sequence_driver(void)
 	src_iovs[1].iov_len = sizeof(tmp[1]);
 	rc = spdk_accel_append_decrypt(&seq, ioch, &key, &dst_iovs[1], 1, NULL, NULL,
 				       &src_iovs[1], 1, NULL, NULL, 0, 4096, 0,
-				       ut_sequence_step_cb, &completed);
+				       ut_sequence_step_cb, &completed, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 
 	ut_seq.complete = false;
@@ -3505,7 +3505,7 @@ test_sequence_driver(void)
 	src_iovs[0].iov_len = sizeof(tmp[0]);
 	rc = spdk_accel_append_encrypt(&seq, ioch, &key, &dst_iovs[0], 1, NULL, NULL,
 				       &src_iovs[0], 1, NULL, NULL, 0, 4096, 0,
-				       ut_sequence_step_cb, &completed);
+				       ut_sequence_step_cb, &completed, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 
 	rc = spdk_accel_append_fill(&seq, ioch, tmp[1], 2048, NULL, NULL, 0xef, 0,
@@ -3518,7 +3518,7 @@ test_sequence_driver(void)
 	src_iovs[1].iov_len = sizeof(tmp[1]);
 	rc = spdk_accel_append_decrypt(&seq, ioch, &key, &dst_iovs[1], 1, NULL, NULL,
 				       &src_iovs[1], 1, NULL, NULL, 0, 4096, 0,
-				       ut_sequence_step_cb, &completed);
+				       ut_sequence_step_cb, &completed, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 
 	ut_seq.complete = false;
@@ -3613,14 +3613,14 @@ test_sequence_same_iovs(void)
 	iovs[1].iov_len = sizeof(tmp);
 	rc = spdk_accel_append_encrypt(&seq, ioch, &key, &iovs[1], 1, NULL, NULL,
 				       &iovs[0], 1, NULL, NULL, 0, 4096, 0,
-				       ut_sequence_step_cb, &completed);
+				       ut_sequence_step_cb, &completed, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 	/* Reuse iov[1] as src */
 	iovs[2].iov_base = buf;
 	iovs[2].iov_len = sizeof(buf);
 	rc = spdk_accel_append_decrypt(&seq, ioch, &key, &iovs[2], 1, NULL, NULL,
 				       &iovs[1], 1, NULL, NULL, 0, 4096, 0,
-				       ut_sequence_step_cb, &completed);
+				       ut_sequence_step_cb, &completed, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 
 	ut_seq.complete = false;
@@ -3669,14 +3669,14 @@ test_sequence_same_iovs(void)
 	iovs[1].iov_len = sizeof(buf);
 	rc = spdk_accel_append_encrypt(&seq, ioch, &key, &iovs[1], 1, domain, domain_ctx,
 				       &iovs[0], 1, NULL, NULL, 0, 4096, 0,
-				       ut_sequence_step_cb, &completed);
+				       ut_sequence_step_cb, &completed, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 	/* Reuse iov[1] as src */
 	iovs[2].iov_base = buf;
 	iovs[2].iov_len = sizeof(buf);
 	rc = spdk_accel_append_decrypt(&seq, ioch, &key, &iovs[2], 1, NULL, NULL,
 				       &iovs[1], 1, domain, domain_ctx, 0, 4096, 0,
-				       ut_sequence_step_cb, &completed);
+				       ut_sequence_step_cb, &completed, NULL);
 	CU_ASSERT_EQUAL(rc, 0);
 
 	ut_seq.complete = false;

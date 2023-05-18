@@ -212,6 +212,7 @@ struct nvme_bdev {
 	struct spdk_accel_crypto_key	*crypto_key;
 	pthread_mutex_t			mutex;
 	int				ref;
+	uint32_t                        cached_lkey;
 	enum bdev_nvme_multipath_policy	mp_policy;
 	enum bdev_nvme_multipath_selector mp_selector;
 	uint32_t			rr_min_io;
