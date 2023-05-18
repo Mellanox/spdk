@@ -1,4 +1,4 @@
-%define scm_version 23.01.1
+%define scm_version 23.01.2
 %define unmangled_version %{scm_version}
 %define scm_rev %{_rev}
 Epoch: 0
@@ -222,6 +222,9 @@ esac
 %changelog
 * %{_date} Andrii Holovchenko <andriih@nvidia.com>
 - build from %{_branch} (sha1 %{_sha1})
+
+* Thu May 18 2023 Andrii Holovchenko <andriih@nvidia.com>
+- Ported to v23.01.2 release
 
 * Tue May 2 2023 Andrii Holovchenko <andriih@nvidia.com>
 - Ported to v23.01.1 release
