@@ -3010,6 +3010,8 @@ static void
 bdev_nvme_reset_io(struct nvme_bdev_channel *nbdev_ch, struct nvme_bdev_io *bio)
 {
 	struct nvme_io_path *io_path;
+	struct spdk_bdev *bdev;
+	struct nvme_bdev *nbdev;
 	int rc;
 
 	bio->cpl.cdw0 = 0;
@@ -3020,7 +3022,19 @@ bdev_nvme_reset_io(struct nvme_bdev_channel *nbdev_ch, struct nvme_bdev_io *bio)
 	 * This will be done in the following patches.
 	 */
 	io_path = STAILQ_FIRST(&nbdev_ch->io_path_list);
-	assert(io_path != NULL);
+	if (!io_path) {
+		bdev = (spdk_bdev_io_from_ctx(bio))->bdev;
+		nbdev = bdev->ctxt;
+		if (nbdev->connected) {
+			SPDK_ERRLOG("non-lazy bdev with empty io_path list!\n");
+			bio->cpl.cdw0 = 1;
+		} else {
+			SPDK_NOTICELOG("lazy bdev, reject reset\n");
+			bio->cpl.cdw0 = 0;
+		}
+		bdev_nvme_reset_io_complete(bio);
+		return;
+	}
 
 	rc = _bdev_nvme_reset_io(io_path, bio);
 	if (rc != 0) {
