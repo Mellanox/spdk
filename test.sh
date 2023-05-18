@@ -1431,6 +1431,29 @@ function test_perf_snap4_crypto() {
 		 basic_test_fio_snap
 }
 
+function test_perf_snap4_crypto_nvme() {
+    local EXTRA_SNAP_OPTS="SPDK_XLIO_PATH=$LIBXLIO \
+	  SNAP4_RDMA_ZCOPY_ENABLE=1 \
+	  SNAP4_TCP_XLIO_ENABLE=1 \
+	  MLX5_SHUT_UP_BF=1"
+    local FIO_SPDK_CONF="$PWD/fio_spdk_conf.json"
+    local FIO_BDEV_JOBS_CONF="$PWD/fio_bdev_jobs"
+    local SNAP_CONFIG=config_snap_crypto
+    local BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS="--crypto-key Key0"
+    local ACCEL_OPTS="--qp-size 512 --num-requests 4096 --allowed-crypto-devs mlx5_2 --split-mb-blocks 8"
+    if [ -n "$VERIFY" ]; then
+	local FIO_EXTRA_OPTS="--verify=crc32c --verify_backlog=1"
+	local RW=randwrite
+	local FIO_JOBS=1
+	local QUEUE_DEPTHS=1
+    fi
+
+    SNAP_ENV_OPTS="$SNAP_ENV_OPTS $EXTRA_SNAP_OPTS" \
+		 SOCK_IMPL=xlio \
+		 SOCK_EXTRA_OPTS="--enable-zerocopy-recv --enable-zerocopy-send-client" \
+		 basic_test_fio_snap
+}
+
 function test_perf_snap4_delay_crypto() {
     local EXTRA_SNAP_OPTS="SPDK_XLIO_PATH=$LIBXLIO \
 	  SNAP4_RDMA_ZCOPY_ENABLE=1 \
