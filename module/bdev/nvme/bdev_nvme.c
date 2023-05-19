@@ -145,6 +145,9 @@ struct nvme_io_redirect {
 
 typedef void (*nvme_io_redirect_process_fn)(struct nvme_bdev_io *bio);
 
+static bool
+nvme_path_should_delete(struct nvme_path_id *p, const struct nvme_path_id *path_id);
+
 static inline void
 nvme_io_redirect_add(struct _nvme_io_redirect *redirect, struct nvme_bdev_io *bio)
 {
@@ -6832,7 +6835,7 @@ nvme_bdev_create_lazy(struct nvme_async_probe_ctx *ctx, struct bdev_nvme_lazy_op
 static int
 nvme_bdev_ctrlr_add_trid_lazy(struct spdk_nvme_transport_id **_existing_trids,
 			      struct spdk_nvme_transport_id *new_trid,
-			      uint32_t *_num_estisting_trids)
+			      uint32_t *_num_existing_trids)
 {
 	struct spdk_nvme_transport_id *trids_tmp;
 	struct spdk_nvme_transport_id *existing_trids;
@@ -6840,9 +6843,9 @@ nvme_bdev_ctrlr_add_trid_lazy(struct spdk_nvme_transport_id **_existing_trids,
 	uint32_t i;
 
 	assert(_existing_trids);
-	assert(_num_estisting_trids);
+	assert(_num_existing_trids);
 
-	num_existing_trids = *_num_estisting_trids;
+	num_existing_trids = *_num_existing_trids;
 	existing_trids = *_existing_trids;
 
 	if (existing_trids) {
@@ -6862,9 +6865,64 @@ nvme_bdev_ctrlr_add_trid_lazy(struct spdk_nvme_transport_id **_existing_trids,
 
 	memcpy(&trids_tmp[num_existing_trids], new_trid, sizeof(*new_trid));
 	*_existing_trids = trids_tmp;
-	(*_num_estisting_trids)++;
+	(*_num_existing_trids)++;
 
 	return 0;
+}
+
+static int
+nvme_bdev_ctrlr_remove_trid_lazy(struct spdk_nvme_transport_id **_existing_trids,
+			      const struct spdk_nvme_transport_id *removed_trid,
+			      uint32_t *_num_existing_trids)
+{
+	struct nvme_path_id lazy_path, removed_path;
+	struct spdk_nvme_transport_id *existing_trids;
+	uint32_t num_existing_trids;
+	uint32_t i;
+	int rc = -ENXIO;
+
+	assert(_existing_trids);
+	assert(_num_existing_trids);
+
+	num_existing_trids = *_num_existing_trids;
+	existing_trids = *_existing_trids;
+
+	if (spdk_mem_all_zero(removed_trid, sizeof(*removed_trid))) {
+		free(existing_trids);
+		*_existing_trids = NULL;
+		*_num_existing_trids = 0;
+		return 0;
+	}
+
+	for (i = 0; i < num_existing_trids;) {
+		memset(&lazy_path, 0, sizeof(lazy_path));
+		lazy_path.trid = existing_trids[i];
+		memset(&removed_path, 0, sizeof(removed_path));
+		removed_path.trid = *removed_trid;
+
+		if (nvme_path_should_delete(&lazy_path, &removed_path)) {
+			rc = 0;
+			if (i + 1 == num_existing_trids) {
+				/* if the last entry then just decrement num of trids */
+				num_existing_trids--;
+				break;
+			} else {
+				num_existing_trids--;
+				memmove(&existing_trids[i], &existing_trids[i + 1],
+					sizeof(existing_trids[i]) * (num_existing_trids - i));
+				continue;
+			}
+		}
+		i++;
+	}
+	if (num_existing_trids == 0) {
+		free(existing_trids);
+		existing_trids = NULL;
+	}
+	*_existing_trids = existing_trids;
+	*_num_existing_trids = num_existing_trids;
+
+	return rc;
 }
 
 static int
@@ -7148,7 +7206,9 @@ bdev_nvme_delete(const char *name, const struct nvme_path_id *path_id)
 {
 	struct nvme_bdev_ctrlr	*nbdev_ctrlr;
 	struct nvme_ctrlr	*nvme_ctrlr, *tmp_nvme_ctrlr;
+	struct nvme_bdev	*nbdev, *tmp_nbdev;
 	int			rc = -ENXIO, _rc;
+	bool			delete_empty = false;
 
 	if (name == NULL || path_id == NULL) {
 		return -EINVAL;
@@ -7164,10 +7224,13 @@ bdev_nvme_delete(const char *name, const struct nvme_path_id *path_id)
 		return -ENODEV;
 	}
 
+	spdk_spin_lock(&nbdev_ctrlr->connect_lock);
+
 	TAILQ_FOREACH_SAFE(nvme_ctrlr, &nbdev_ctrlr->ctrlrs, tailq, tmp_nvme_ctrlr) {
 		_rc = _bdev_nvme_delete(nvme_ctrlr, path_id);
 		if (_rc < 0 && _rc != -ENXIO) {
 			pthread_mutex_unlock(&g_bdev_nvme_mutex);
+			spdk_spin_unlock(&nbdev_ctrlr->connect_lock);
 
 			return _rc;
 		} else if (_rc == 0) {
@@ -7177,6 +7240,48 @@ bdev_nvme_delete(const char *name, const struct nvme_path_id *path_id)
 			 */
 			rc = 0;
 		}
+	}
+
+	if (rc == -ENXIO) {
+		struct nvme_path_id lazy_path;
+
+		/* No controllers were found, check lazy connections. Start with failover/multipath */
+
+		_rc = nvme_bdev_ctrlr_remove_trid_lazy(&nbdev_ctrlr->failover_trids, &path_id->trid,
+						 &nbdev_ctrlr->num_failover_trids);
+		if (_rc == 0 && rc != 0) {
+			rc = 0;
+		}
+		_rc = nvme_bdev_ctrlr_remove_trid_lazy(&nbdev_ctrlr->multipath_trids, &path_id->trid,
+						 &nbdev_ctrlr->num_multipath_trids);
+		if (_rc == 0 && rc != 0) {
+			rc = 0;
+		}
+
+		TAILQ_FOREACH_SAFE(nbdev, &nbdev_ctrlr->bdevs, tailq, tmp_nbdev) {
+			if (nbdev->connected) {
+				/* Connected bdevs should have already been handled */
+				continue;
+			}
+			if (nbdev->ctrlr_lazy_param) {
+				memset(&lazy_path, 0, sizeof(lazy_path));
+				lazy_path.trid = nbdev->ctrlr_lazy_param->trid;
+				if (nvme_path_should_delete(&lazy_path, path_id)) {
+					SPDK_NOTICELOG("Unregister lazy bdev %s\n", nbdev->disk.name);
+					TAILQ_REMOVE(&nbdev_ctrlr->bdevs, nbdev, tailq);
+					spdk_bdev_unregister(&nbdev->disk, NULL, &nbdev->disk);
+					rc = 0;
+				}
+			}
+		}
+
+		delete_empty = TAILQ_EMPTY(&nbdev_ctrlr->bdevs);
+	}
+
+	spdk_spin_unlock(&nbdev_ctrlr->connect_lock);
+
+	if (delete_empty) {
+		nvme_bdev_ctrlr_delete_empty(nbdev_ctrlr);
 	}
 
 	pthread_mutex_unlock(&g_bdev_nvme_mutex);
