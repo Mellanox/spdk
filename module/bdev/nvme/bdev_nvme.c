@@ -30,7 +30,6 @@
 
 #include "spdk_internal/usdt.h"
 #include "spdk_internal/trace_defs.h"
-#include "spdk_internal/accel_module.h"
 
 #define SPDK_BDEV_NVME_DEFAULT_DELAY_CMD_SUBMIT true
 #define SPDK_BDEV_NVME_DEFAULT_KEEP_ALIVE_TIMEOUT_IN_MS	(10000)
@@ -38,6 +37,8 @@
 #define BDEV_NVME_IOBUF_LARGE_CACHE_SIZE		128
 
 #define NSID_STR_LEN 10
+
+static bool enable_mlx5_translate_addr_cache = false;
 
 static int bdev_nvme_config_json(struct spdk_json_write_ctx *w);
 
@@ -7930,6 +7931,10 @@ bdev_nvme_library_init(void)
 	spdk_io_device_register(&g_nvme_bdev_ctrlrs, bdev_nvme_create_poll_group_cb,
 				bdev_nvme_destroy_poll_group_cb,
 				sizeof(struct nvme_poll_group),  "nvme_poll_groups");
+	enable_mlx5_translate_addr_cache =
+		(getenv("SPDK_ACCEL_MLX5_TRANSLATE_ADDR_CACHE_ENABLE") != NULL);
+	SPDK_NOTICELOG("Setting enable_mlx5_translate_addr_cache = %s\n",
+			enable_mlx5_translate_addr_cache ? "yes" : "no");
 
 	return 0;
 }
@@ -8631,7 +8636,8 @@ bdev_nvme_readv(struct nvme_bdev_io *bio, struct iovec *iov, int iovcnt,
 					       domain, domain_ctx,
 					       iov, iovcnt,
 					       domain, domain_ctx,
-					       lba, nbdev->disk.blocklen, 0, NULL, NULL, &nbdev->cached_lkey);
+					       lba, nbdev->disk.blocklen, 0, NULL, NULL,
+					       enable_mlx5_translate_addr_cache ? &nbdev->cached_lkey : NULL);
 		if (spdk_unlikely(rc)) {
 			return rc;
 		}
@@ -8681,7 +8687,8 @@ bdev_nvme_writev_crypto(struct nvme_bdev_io *bio, struct iovec *iov, int iovcnt,
 				       iov, iovcnt,
 				       domain, domain_ctx,
 				       lba, nbdev->disk.blocklen, 0,
-				       NULL, NULL, &nbdev->cached_lkey);
+				       NULL, NULL,
+				       enable_mlx5_translate_addr_cache ? &nbdev->cached_lkey : NULL);
 	if (spdk_unlikely(rc)) {
 		spdk_accel_put_buf(accel_channel, bio->crypto.aux_buf_raw,
 				   bio->crypto.aux_domain, bio->crypto.aux_domain_ctx);
