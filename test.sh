@@ -1274,7 +1274,7 @@ function test_perf_snap4() {
 	  MLX5_SHUT_UP_BF=1"
     local FIO_SPDK_CONF="$PWD/fio_spdk_conf.json"
     local FIO_BDEV_JOBS_CONF="$PWD/fio_bdev_jobs"
-    local ACCEL_OPTS="--qp-size 256 --num-requests 4096"
+    local ACCEL_OPTS="--qp-size 256 --num-requests 4096 --allowed-crypto-devs mlx5_2"
     #local FIO_EXTRA_OPTS="--log_flags=all"
     if [ -n "$VERIFY" ]; then
 	local FIO_EXTRA_OPTS="--verify=crc32c --verify_backlog=1"
@@ -1296,7 +1296,7 @@ function test_perf_snap4_delay() {
 	  MLX5_SHUT_UP_BF=1"
     local FIO_SPDK_CONF="$PWD/fio_spdk_conf.json"
     local FIO_BDEV_JOBS_CONF="$PWD/fio_bdev_jobs"
-    local ACCEL_OPTS="--qp-size 256 --num-requests 512"
+    local ACCEL_OPTS="--qp-size 256 --num-requests 512 --allowed-crypto-devs mlx5_2"
     local TGT_CONFIG=config_tgt_delay
     #local FIO_EXTRA_OPTS="--log_flags=all"
 
@@ -1312,7 +1312,7 @@ function test_perf_snap4_digest() {
     local BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS="--hdgst --ddgst"
     local FIO_SPDK_CONF="$PWD/fio_spdk_conf.json"
     local FIO_BDEV_JOBS_CONF="$PWD/fio_bdev_jobs"
-    local ACCEL_OPTS="--qp-size 64 --num-requests 512"
+    local ACCEL_OPTS="--qp-size 64 --num-requests 512 --allowed-crypto-devs mlx5_2"
     #local FIO_EXTRA_OPTS="--verify=crc32c --verify_backlog=1"
     #local FIO_EXTRA_OPTS="--log_flags=all"
 
@@ -1659,7 +1659,7 @@ function test_perf_snap4_vfs() {
 	  MLX5_SHUT_UP_BF=1"
     local FIO_SPDK_CONF="$PWD/fio_spdk_conf.json"
     local FIO_BDEV_JOBS_CONF="$PWD/fio_bdev_jobs"
-    local ACCEL_OPTS="--qp-size 256 --num-requests 4096"
+    local ACCEL_OPTS="--qp-size 256 --num-requests 4096 --allowed-crypto-devs mlx5_2"
     local SNAP_CONFIG=config_snap_vfs
     local FIO_CONF_GENERATOR=generate_fio_config_nvme_pci_vfs
     local FIO_JOB_GENERATOR=generate_fio_job_vfs
@@ -1718,7 +1718,7 @@ function test_perf_snap4_vfs_qos_demo() {
 	  SNAP4_RDMA_ZCOPY_ENABLE=1 \
 	  SNAP4_TCP_XLIO_ENABLE=1 \
 	  MLX5_SHUT_UP_BF=1"
-    local ACCEL_OPTS="--qp-size 256 --num-requests 4096"
+    local ACCEL_OPTS="--qp-size 256 --num-requests 4096 --allowed-crypto-devs mlx5_2"
     local SNAP_CONFIG=config_snap_vfs_qos_demo
     local FIO_CONF_GENERATOR=generate_fio_config_nvme_pci_vfs_qos_demo
     local FIO_JOB_GENERATOR=generate_fio_job_vfs_qos_demo
