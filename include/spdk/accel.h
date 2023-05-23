@@ -591,6 +591,22 @@ int spdk_accel_submit_decrypt(struct spdk_io_channel *ch, struct spdk_accel_cryp
 int spdk_accel_get_opc_module_name(enum accel_opcode opcode, const char **module_name);
 
 /**
+ * Return the memory domain used by specific opcode.
+ *
+ * The returned memory domain depends on the accel module which implements the \b opcode
+ *
+ * \param opcode Accel Framework Opcode enum value.
+ * \param domains Pointer to an array of memory domains to be filled by this function. The user should allocate big enough
+  * array to keep all memory domains.
+ * \param array_size size of \b domains array
+ * \return the number of entries in \b domains array or negated errno. If returned value is bigger than \b array_size passed by the user
+  * then the user should increase the size of \b domains array and call this function again. There is no guarantees that
+  * the content of \b domains array is valid in that case.
+ */
+int spdk_accel_get_opc_memory_domain(enum accel_opcode opcode, struct spdk_memory_domain **domains,
+				     int array_size);
+
+/**
  * Override the assignment of an opcode to an module.
  *
  * \param opcode Accel Framework Opcode enum value. Valid codes can be retrieved using

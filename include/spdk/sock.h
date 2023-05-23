@@ -138,6 +138,16 @@ struct spdk_sock_impl_opts {
 	uint32_t zerocopy_threshold;
 
 	/**
+	 * Number of times to skip flushing requests.
+	 */
+	uint32_t flush_skip_count;
+
+	/**
+	 * Skip flushing requests if request batch is smaller than this threshold.
+	 */
+	int flush_batch_threshold;
+
+	/**
 	 * TLS protocol version. Used by ssl socket module.
 	 */
 	uint32_t tls_version;

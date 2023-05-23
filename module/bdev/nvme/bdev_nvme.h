@@ -138,6 +138,8 @@ struct nvme_ctrlr {
 
 	uint32_t				resetting : 1;
 	uint32_t				reconnect_is_delayed : 1;
+	uint32_t				in_failover : 1;
+	uint32_t				pending_failover : 1;
 	uint32_t				fast_io_fail_timedout : 1;
 	uint32_t				destruct : 1;
 	uint32_t				ana_log_page_updating : 1;
@@ -230,6 +232,7 @@ struct nvme_ctrlr_channel {
 	TAILQ_HEAD(, spdk_bdev_io)	pending_resets;
 
 	struct spdk_io_channel_iter	*reset_iter;
+	struct spdk_poller		*connect_poller;
 };
 
 struct nvme_io_path {

@@ -730,15 +730,27 @@ static int
 vbdev_crypto_get_memory_domains(void *ctx, struct spdk_memory_domain **domains, int array_size)
 {
 	struct vbdev_crypto *crypto_bdev = ctx;
-	int num_domains;
+	struct spdk_memory_domain **accel_domains = NULL;
+	int num_domains, accel_rc, accel_array_size = 0;
 
 	/* Report base bdev's memory domains plus accel memory domain */
 	num_domains = spdk_bdev_get_memory_domains(crypto_bdev->base_bdev, domains, array_size);
 	if (domains != NULL && num_domains < array_size) {
 		domains[num_domains] = spdk_accel_get_memory_domain();
 	}
+	num_domains++;
+	if (domains) {
+		if (num_domains < array_size) {
+			accel_domains = domains + num_domains;
+			accel_array_size = array_size - num_domains;
+		}
+	}
+	accel_rc = spdk_accel_get_opc_memory_domain(ACCEL_OPC_ENCRYPT, accel_domains, accel_array_size);
+	if (accel_rc > 0) {
+		num_domains += accel_rc;
+	}
 
-	return num_domains + 1;
+	return num_domains;
 }
 
 static bool

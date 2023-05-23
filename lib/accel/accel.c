@@ -185,6 +185,19 @@ spdk_accel_get_opc_module_name(enum accel_opcode opcode, const char **module_nam
 	return 0;
 }
 
+int
+spdk_accel_get_opc_memory_domain(enum accel_opcode opcode, struct spdk_memory_domain **domains,
+				 int array_size)
+{
+	assert(opcode < ACCEL_OPC_LAST);
+
+	if (g_modules_opc[opcode].module->get_memory_domains) {
+		return g_modules_opc[opcode].module->get_memory_domains(domains, array_size);
+	}
+
+	return 0;
+}
+
 void
 _accel_for_each_module(struct module_info *info, _accel_for_each_module_fn fn)
 {

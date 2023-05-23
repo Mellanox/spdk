@@ -713,7 +713,7 @@ nvme_pcie_qpair_complete_tracker(struct spdk_nvme_qpair *qpair, struct nvme_trac
 		}
 
 		if (req_from_current_proc == true) {
-			nvme_qpair_free_request(qpair, req);
+			nvme_free_request(req);
 		}
 
 		tr->req = NULL;

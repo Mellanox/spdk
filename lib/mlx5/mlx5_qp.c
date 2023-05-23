@@ -273,8 +273,9 @@ mlx5_check_port(struct ibv_context *ctx, int port_num, bool *roce_en,
 		*roce_en = true;
 	}
 
-	/* When active mtu is invalid, default to 1K MTU. */
-	*mtu = port_attr.active_mtu ? port_attr.active_mtu : IBV_MTU_1024;
+	/* Always use 4K MTU */
+	*mtu = IBV_MTU_4096;
+
 	return 0;
 }
 

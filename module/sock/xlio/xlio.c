@@ -102,6 +102,7 @@ struct spdk_xlio_sock {
 	size_t			cur_offset;
 	struct xlio_sock_buf	*buffers;
 	struct spdk_sock_buf	*free_buffers;
+	uint32_t		skip_flush;
 
 	TAILQ_ENTRY(spdk_xlio_sock)	link;
 	TAILQ_ENTRY(spdk_xlio_sock)	link_send;
@@ -1457,6 +1458,16 @@ _sock_flush_ext(struct spdk_sock *sock)
 	uint32_t zerocopy_threshold;
 	uint32_t total;
 
+	if (spdk_unlikely(g_spdk_xlio_sock_impl_opts.flush_batch_threshold
+			  && g_spdk_xlio_sock_impl_opts.flush_skip_count)) {
+		if (sock->queued_iovcnt < g_spdk_xlio_sock_impl_opts.flush_batch_threshold
+		    && vsock->skip_flush < g_spdk_xlio_sock_impl_opts.flush_skip_count) {
+			vsock->skip_flush++;
+			return 0;
+		}
+		vsock->skip_flush = 0;
+	}
+
 	/* Can't flush from within a callback or we end up with recursive calls */
 	if (sock->cb_cnt > 0) {
 		return 0;
@@ -1907,6 +1918,8 @@ xlio_sock_impl_get_opts(struct spdk_sock_impl_opts *opts, size_t *len)
 	GET_FIELD(zerocopy_threshold);
 	GET_FIELD(enable_tcp_nodelay);
 	GET_FIELD(buffers_pool_size);
+	GET_FIELD(flush_skip_count);
+	GET_FIELD(flush_batch_threshold);
 
 #undef GET_FIELD
 #undef FIELD_OK
@@ -1943,6 +1956,8 @@ xlio_sock_impl_set_opts(const struct spdk_sock_impl_opts *opts, size_t len)
 	SET_FIELD(zerocopy_threshold);
 	SET_FIELD(enable_tcp_nodelay);
 	SET_FIELD(buffers_pool_size);
+	SET_FIELD(flush_skip_count);
+	SET_FIELD(flush_batch_threshold);
 
 #undef SET_FIELD
 #undef FIELD_OK
