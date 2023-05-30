@@ -451,6 +451,7 @@ function snap_enable_debug() {
 
 function config_snap() {
     local CONFIG=""
+    local CRYPTO_OPTS=""
 
     snap_enable_debug
     CONFIG="$CONFIG\nsock_set_default_impl -i $SOCK_IMPL"
@@ -465,14 +466,20 @@ function config_snap() {
     CONFIG="$CONFIG\naccel_get_opc_assignments"
     CONFIG="$CONFIG\nbdev_nvme_set_options -k 0"
 
+    if [ -n "$WITH_CRYPTO" ]; then
+	CONFIG="$CONFIG\naccel_crypto_key_create --name Key0 --cipher AES_XTS \
+		  --key 00112233445566778899001122334455 \
+		  --key2 11223344556677889900112233445500 --tweak-offset 0"
+	CRYPTO_OPTS="--crypto-key Key0"
+    fi
     for ((i=0;i<$SUBSYS;i++))
     do
 	for ((j=0; j<PATHS; j++)); do
 	    CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme$i -t $TCP -f ipv4 \
-		    -a $TGT_ADDR -s $((TGT_PORT + j)) -n nqn.2016-06.io.spdk:cnode$i -x multipath $DATA_DGST --fabrics-timeout $CONNECT_TIMEOUT"
+		    -a $TGT_ADDR -s $((TGT_PORT + j)) -n nqn.2016-06.io.spdk:cnode$i -x multipath $DATA_DGST --fabrics-timeout $CONNECT_TIMEOUT $CRYPTO_OPTS"
 	    if [ -n "$TGT_SECOND_PORT" ]; then
 		    CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme$i -t $TCP -f ipv4 \
-			    -a $TGT_SECOND_ADDR -s $((TGT_SECOND_PORT + j)) -n nqn.2016-06.io.spdk:cnode$i -x multipath $DATA_DGST --fabrics-timeout $CONNECT_TIMEOUT"
+			    -a $TGT_SECOND_ADDR -s $((TGT_SECOND_PORT + j)) -n nqn.2016-06.io.spdk:cnode$i -x multipath $DATA_DGST --fabrics-timeout $CONNECT_TIMEOUT $CRYPTO_OPTS"
 	    fi
 	done
 	if [ -n "$MULTIPATH_OPTS" ]; then
@@ -1438,8 +1445,8 @@ function test_perf_snap4_crypto_nvme() {
 	  MLX5_SHUT_UP_BF=1"
     local FIO_SPDK_CONF="$PWD/fio_spdk_conf.json"
     local FIO_BDEV_JOBS_CONF="$PWD/fio_bdev_jobs"
-    local SNAP_CONFIG=config_snap_crypto
-    local BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS="--crypto-key Key0"
+    local SNAP_CONFIG=config_snap
+    local WITH_CRYPTO=1
     local ACCEL_OPTS="--qp-size 512 --num-requests 4096 --allowed-crypto-devs mlx5_2 --split-mb-blocks 8"
     if [ -n "$VERIFY" ]; then
 	local FIO_EXTRA_OPTS="--verify=crc32c --verify_backlog=1"
@@ -1455,43 +1462,6 @@ function test_perf_snap4_crypto_nvme() {
 }
 
 function test_perf_snap4_delay_crypto() {
-    local EXTRA_SNAP_OPTS="SPDK_XLIO_PATH=$LIBXLIO \
-	  SNAP4_RDMA_ZCOPY_ENABLE=1 \
-	  SNAP4_TCP_XLIO_ENABLE=1 \
-	  MLX5_SHUT_UP_BF=1"
-    local FIO_SPDK_CONF="$PWD/fio_spdk_conf.json"
-    local FIO_BDEV_JOBS_CONF="$PWD/fio_bdev_jobs"
-    local SNAP_CONFIG=config_snap_crypto
-    local ACCEL_OPTS="--qp-size 512 --num-requests 4096 --allowed-crypto-devs mlx5_2"
-    local TGT_CONFIG=config_tgt_delay
-
-    SNAP_ENV_OPTS="$SNAP_ENV_OPTS $EXTRA_SNAP_OPTS" \
-		 basic_test_fio_snap
-}
-
-function test_perf_snap4_crypto_multiblock() {
-    local EXTRA_SNAP_OPTS="SPDK_XLIO_PATH=$LIBXLIO \
-	  SNAP4_RDMA_ZCOPY_ENABLE=1 \
-	  SNAP4_TCP_XLIO_ENABLE=1 \
-	  MLX5_SHUT_UP_BF=1"
-    local FIO_SPDK_CONF="$PWD/fio_spdk_conf.json"
-    local FIO_BDEV_JOBS_CONF="$PWD/fio_bdev_jobs"
-    local SNAP_CONFIG=config_snap_crypto
-    local ACCEL_OPTS="--qp-size 512 --num-requests 4096 --allowed-crypto-devs mlx5_2"
-    if [ -n "$VERIFY" ]; then
-	local FIO_EXTRA_OPTS="--verify=crc32c --verify_backlog=1"
-	local RW=randwrite
-	local FIO_JOBS=1
-	local QUEUE_DEPTHS=1
-    fi
-
-    SNAP_ENV_OPTS="$SNAP_ENV_OPTS $EXTRA_SNAP_OPTS" \
-		 SOCK_IMPL=xlio \
-		 SOCK_EXTRA_OPTS="--enable-zerocopy-recv --enable-zerocopy-send-client" \
-		 basic_test_fio_snap
-}
-
-function test_perf_snap4_delay_crypto_multiblock() {
     local EXTRA_SNAP_OPTS="SPDK_XLIO_PATH=$LIBXLIO \
 	  SNAP4_RDMA_ZCOPY_ENABLE=1 \
 	  SNAP4_TCP_XLIO_ENABLE=1 \
