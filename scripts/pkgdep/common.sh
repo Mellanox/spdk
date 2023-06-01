@@ -112,7 +112,7 @@ install_markdownlint() {
 if [[ $INSTALL_DEV_TOOLS == true ]]; then
 	install_shfmt
 	install_spdk_bash_completion
-	if [[ $ID != centos && $ID != rocky && $ID != sles ]]; then
+	if [[ $ID != centos && $ID != rocky && $ID != sles && $ID != ol ]]; then
 		install_markdownlint
 	else
 		echo "mdl not supported on $ID, disabling"

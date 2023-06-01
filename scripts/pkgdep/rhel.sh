@@ -107,6 +107,8 @@ if echo "$ID $VERSION_ID" | grep -E -q 'centos 8|rhel 8|rocky 8'; then
 	# binary.
 	pip3 install --upgrade pip
 	pip3() { /usr/local/bin/pip "$@"; }
+elif [[ $ID == ol ]]; then
+	yum install -y python3 python3-devel
 else
 	yum install -y python python3-devel
 fi
@@ -130,8 +132,10 @@ fi
 yum install -y autoconf automake libtool help2man
 # Additional dependencies for DPDK
 yum install -y numactl-devel nasm
-# Additional dependencies for USDT
-yum install -y systemtap-sdt-devel
+if [[ $ID != ol ]]; then
+	# Additional dependencies for USDT
+	yum install -y systemtap-sdt-devel
+fi
 if [[ $INSTALL_DEV_TOOLS == "true" ]]; then
 	# Tools for developers
 	devtool_pkgs=(git sg3_utils pciutils libabigail bash-completion ruby-devel)
@@ -142,6 +146,8 @@ if [[ $INSTALL_DEV_TOOLS == "true" ]]; then
 	elif [[ $ID == openeuler ]]; then
 		devtool_pkgs+=(python3-pycodestyle)
 		echo "openEuler does not have astyle, lcov and ShellCheck dependencies"
+	elif [[ $ID == ol ]]; then
+		devtool_pkgs+=(python3-pycodestyle astyle)
 	else
 		devtool_pkgs+=(python-pycodestyle astyle lcov ShellCheck)
 	fi
