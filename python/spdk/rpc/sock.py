@@ -27,7 +27,8 @@ def sock_impl_set_options(client,
                           enable_zerocopy_send_client=None,
                           zerocopy_threshold=None,
                           flush_skip_count=None,
-                          flush_batch_threshold=None,
+                          flush_batch_iovcnt_threshold=None,
+                          flush_batch_bytes_threshold=None,
                           tls_version=None,
                           enable_ktls=None,
                           psk_key=None,
@@ -49,7 +50,8 @@ def sock_impl_set_options(client,
         enable_zerocopy_send_client: enable or disable zerocopy on send for client sockets(optional)
         zerocopy_threshold: set zerocopy_threshold in bytes(optional)
         flush_skip_count: set flush_skip_count(optional)
-        flush_batch_threshold: set flush_batch_threshold(optional)
+        flush_batch_iovcnt_threshold: set flush_batch_iovcnt_threshold(optional)
+        flush_batch_bytes_threshold: set flush_batch_bytes_threshold(optional)
         tls_version: set TLS protocol version (optional)
         enable_ktls: enable or disable Kernel TLS (optional)
         psk_key: set psk_key (optional)
@@ -80,8 +82,10 @@ def sock_impl_set_options(client,
         params['zerocopy_threshold'] = zerocopy_threshold
     if flush_skip_count is not None:
         params['flush_skip_count'] = flush_skip_count
-    if flush_batch_threshold is not None:
-        params['flush_batch_threshold'] = flush_batch_threshold
+    if flush_batch_iovcnt_threshold is not None:
+        params['flush_batch_iovcnt_threshold'] = flush_batch_iovcnt_threshold
+    if flush_batch_bytes_threshold is not None:
+        params['flush_batch_bytes_threshold'] = flush_batch_bytes_threshold
     if tls_version is not None:
         params['tls_version'] = tls_version
     if enable_ktls is not None:

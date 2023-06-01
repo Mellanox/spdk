@@ -54,7 +54,8 @@ rpc_sock_impl_get_options(struct spdk_jsonrpc_request *request,
 	spdk_json_write_named_bool(w, "enable_zerocopy_send_client", sock_opts.enable_zerocopy_send_client);
 	spdk_json_write_named_uint32(w, "zerocopy_threshold", sock_opts.zerocopy_threshold);
 	spdk_json_write_named_uint32(w, "flush_skip_count", sock_opts.flush_skip_count);
-	spdk_json_write_named_int32(w, "flush_batch_threshold", sock_opts.flush_batch_threshold);
+	spdk_json_write_named_int32(w, "flush_batch_iovcnt_threshold", sock_opts.flush_batch_iovcnt_threshold);
+	spdk_json_write_named_uint32(w, "flush_batch_bytes_threshold", sock_opts.flush_batch_bytes_threshold);
 	spdk_json_write_named_uint32(w, "tls_version", sock_opts.tls_version);
 	spdk_json_write_named_bool(w, "enable_ktls", sock_opts.enable_ktls);
 	if (sock_opts.psk_key) {
@@ -121,8 +122,12 @@ static const struct spdk_json_object_decoder rpc_sock_impl_set_opts_decoders[] =
 		spdk_json_decode_uint32, true
 	},
 	{
-		"flush_batch_threshold", offsetof(struct spdk_rpc_sock_impl_set_opts, sock_opts.flush_batch_threshold),
+		"flush_batch_iovcnt_threshold", offsetof(struct spdk_rpc_sock_impl_set_opts, sock_opts.flush_batch_iovcnt_threshold),
 		spdk_json_decode_int32, true
+	},
+	{
+		"flush_batch_bytes_threshold", offsetof(struct spdk_rpc_sock_impl_set_opts, sock_opts.flush_batch_bytes_threshold),
+		spdk_json_decode_uint32, true
 	},
 	{
 		"tls_version", offsetof(struct spdk_rpc_sock_impl_set_opts, sock_opts.tls_version),

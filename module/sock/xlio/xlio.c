@@ -1458,16 +1458,6 @@ _sock_flush_ext(struct spdk_sock *sock)
 	uint32_t zerocopy_threshold;
 	uint32_t total;
 
-	if (spdk_unlikely(g_spdk_xlio_sock_impl_opts.flush_batch_threshold
-			  && g_spdk_xlio_sock_impl_opts.flush_skip_count)) {
-		if (sock->queued_iovcnt < g_spdk_xlio_sock_impl_opts.flush_batch_threshold
-		    && vsock->skip_flush < g_spdk_xlio_sock_impl_opts.flush_skip_count) {
-			vsock->skip_flush++;
-			return 0;
-		}
-		vsock->skip_flush = 0;
-	}
-
 	/* Can't flush from within a callback or we end up with recursive calls */
 	if (sock->cb_cnt > 0) {
 		return 0;
@@ -1485,6 +1475,19 @@ _sock_flush_ext(struct spdk_sock *sock)
 	assert(!(!vsock->zcopy && msg.msg_controllen > 0));
 
 	zerocopy_threshold = g_spdk_xlio_sock_impl_opts.zerocopy_threshold;
+
+	if (spdk_unlikely(g_spdk_xlio_sock_impl_opts.flush_batch_iovcnt_threshold
+			  && g_spdk_xlio_sock_impl_opts.flush_skip_count
+			  && g_spdk_xlio_sock_impl_opts.flush_batch_bytes_threshold)) {
+		if (sock->queued_iovcnt >= g_spdk_xlio_sock_impl_opts.flush_batch_iovcnt_threshold
+		    || total >= g_spdk_xlio_sock_impl_opts.flush_batch_bytes_threshold
+		    || vsock->skip_flush >= g_spdk_xlio_sock_impl_opts.flush_skip_count) {
+			vsock->skip_flush = 0;
+		} else {
+			vsock->skip_flush++;
+			return 0;
+		}
+	}
 
 	/* Allow zcopy if enabled on socket and either the data needs to be sent,
 	 * which is reported by xlio_sock_prep_reqs() with setting msg.msg_controllen
@@ -1919,7 +1922,8 @@ xlio_sock_impl_get_opts(struct spdk_sock_impl_opts *opts, size_t *len)
 	GET_FIELD(enable_tcp_nodelay);
 	GET_FIELD(buffers_pool_size);
 	GET_FIELD(flush_skip_count);
-	GET_FIELD(flush_batch_threshold);
+	GET_FIELD(flush_batch_iovcnt_threshold);
+	GET_FIELD(flush_batch_bytes_threshold);
 
 #undef GET_FIELD
 #undef FIELD_OK
@@ -1957,7 +1961,8 @@ xlio_sock_impl_set_opts(const struct spdk_sock_impl_opts *opts, size_t len)
 	SET_FIELD(enable_tcp_nodelay);
 	SET_FIELD(buffers_pool_size);
 	SET_FIELD(flush_skip_count);
-	SET_FIELD(flush_batch_threshold);
+	SET_FIELD(flush_batch_iovcnt_threshold);
+	SET_FIELD(flush_batch_bytes_threshold);
 
 #undef SET_FIELD
 #undef FIELD_OK

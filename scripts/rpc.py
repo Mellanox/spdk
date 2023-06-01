@@ -3253,7 +3253,8 @@ Format: 'user:u1 secret:s1 muser:mu1 msecret:ms1,user:u2 secret:s2 muser:mu2 mse
                                        enable_zerocopy_send_client=args.enable_zerocopy_send_client,
                                        zerocopy_threshold=args.zerocopy_threshold,
                                        flush_skip_count=args.flush_skip_count,
-                                       flush_batch_threshold=args.flush_batch_threshold,
+                                       flush_batch_iovcnt_threshold=args.flush_batch_iovcnt_threshold,
+                                       flush_batch_bytes_threshold=args.flush_batch_bytes_threshold,
                                        tls_version=args.tls_version,
                                        enable_ktls=args.enable_ktls,
                                        psk_key=args.psk_key,
@@ -3286,7 +3287,8 @@ Format: 'user:u1 secret:s1 muser:mu1 msecret:ms1,user:u2 secret:s2 muser:mu2 mse
                    action='store_false', dest='enable_zerocopy_send_client')
     p.add_argument('--zerocopy-threshold', help='Set zerocopy_threshold in bytes', type=int)
     p.add_argument('--flush-skip-count', help='Set flush_skip_count for queuing more requests in a batch', type=int)
-    p.add_argument('--flush-batch-threshold', help='Set flush_batch_threshold for flushing requests', type=int)
+    p.add_argument('--flush-batch-iovcnt-threshold', help='Set flush_batch_iovcnt_threshold for flushing requests', type=int)
+    p.add_argument('--flush-batch-bytes-threshold', help='Set flush_batch_bytes_threshold for flushing requests', type=int)
     p.add_argument('--tls-version', help='TLS protocol version', type=int)
     p.add_argument('--enable-ktls', help='Enable Kernel TLS',
                    action='store_true', dest='enable_ktls')
@@ -3306,7 +3308,7 @@ Format: 'user:u1 secret:s1 muser:mu1 msecret:ms1,user:u2 secret:s2 muser:mu2 mse
     p.add_argument('--packets-pool-size', help='Set per poll group packets pool size', type=int)
     p.set_defaults(func=sock_impl_set_options, enable_recv_pipe=None, enable_quickack=None,
                    enable_placement_id=None, enable_zerocopy_send_server=None, enable_zerocopy_send_client=None,
-                   flush_skip_count=None, flush_batch_threshold=None,
+                   flush_skip_count=None, flush_batch_iovcnt_threshold=None, flush_batch_bytes_threshold=None,
                    zerocopy_threshold=None, tls_version=None, enable_ktls=None, psk_key=None, psk_identity=None,
                    enable_zerocopy_recv=None, enable_tcp_nodelay=None, buffers_pool_size=None, packets_pool_size=None)
 

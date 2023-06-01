@@ -893,7 +893,8 @@ spdk_sock_write_config_json(struct spdk_json_write_ctx *w)
 			spdk_json_write_named_bool(w, "enable_zerocopy_send_client", opts.enable_zerocopy_send_client);
 			spdk_json_write_named_uint32(w, "zerocopy_threshold", opts.zerocopy_threshold);
 			spdk_json_write_named_uint32(w, "flush_skip_count", opts.flush_skip_count);
-			spdk_json_write_named_int32(w, "flush_batch_threshold", opts.flush_batch_threshold);
+			spdk_json_write_named_int32(w, "flush_batch_iovcnt_threshold", opts.flush_batch_iovcnt_threshold);
+			spdk_json_write_named_uint32(w, "flush_batch_bytes_threshold", opts.flush_batch_bytes_threshold);
 			spdk_json_write_named_uint32(w, "tls_version", opts.tls_version);
 			spdk_json_write_named_bool(w, "enable_ktls", opts.enable_ktls);
 			if (opts.psk_key) {

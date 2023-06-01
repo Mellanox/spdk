@@ -143,9 +143,14 @@ struct spdk_sock_impl_opts {
 	uint32_t flush_skip_count;
 
 	/**
-	 * Skip flushing requests if request batch is smaller than this threshold.
+	 * Skip flushing requests if queued iovcnt is smaller than this threshold.
 	 */
-	int flush_batch_threshold;
+	int flush_batch_iovcnt_threshold;
+
+	/**
+	 * Skip flushing requests if queued total Length is smaller than this threshold.
+	 */
+	uint32_t flush_batch_bytes_threshold;
 
 	/**
 	 * TLS protocol version. Used by ssl socket module.
