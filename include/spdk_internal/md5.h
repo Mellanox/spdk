@@ -18,8 +18,8 @@ struct spdk_md5ctx {
 	EVP_MD_CTX *md5ctx;
 };
 
-int md5init(struct spdk_md5ctx *md5ctx);
-int md5final(void *md5, struct spdk_md5ctx *md5ctx);
-int md5update(struct spdk_md5ctx *md5ctx, const void *data, size_t len);
+int spdk_md5init(struct spdk_md5ctx *md5ctx);
+int spdk_md5final(void *md5, struct spdk_md5ctx *md5ctx);
+int spdk_md5update(struct spdk_md5ctx *md5ctx, const void *data, size_t len);
 
 #endif /* SPDK_MD5_H */
