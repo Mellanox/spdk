@@ -24,12 +24,14 @@
 #include "spdk/trace.h"
 #include "spdk/string.h"
 #include "spdk/util.h"
+#include "spdk/assert.h"
 
 #include "spdk/bdev_module.h"
 #include "spdk/log.h"
 
 #include "spdk_internal/usdt.h"
 #include "spdk_internal/trace_defs.h"
+#include "spdk_internal/md5.h"
 
 #define SPDK_BDEV_NVME_DEFAULT_DELAY_CMD_SUBMIT true
 #define SPDK_BDEV_NVME_DEFAULT_KEEP_ALIVE_TIMEOUT_IN_MS	(10000)
@@ -4659,6 +4661,22 @@ merge_nsid_sn_strings(const char *sn, char *nsid, int8_t *out)
 	}
 }
 
+
+static struct spdk_uuid
+nvme_generate_lazy_uuid(const char *sn, struct nvme_ctrlr_lazy_param *ctrlr_lazy_param)
+{
+	struct spdk_md5ctx md5ctx;
+	struct spdk_uuid new_uuid;
+
+	spdk_md5init(&md5ctx);
+	spdk_md5update(&md5ctx, &ctrlr_lazy_param->lazy.nsid, sizeof(ctrlr_lazy_param->lazy.nsid));
+	spdk_md5update(&md5ctx, &ctrlr_lazy_param->base_name, strlen(ctrlr_lazy_param->base_name));
+	spdk_md5final(new_uuid.u.raw, &md5ctx);
+
+	return new_uuid;
+}
+SPDK_STATIC_ASSERT(sizeof(struct spdk_uuid) == SPDK_MD5DIGEST_LEN, "Incorrect size");
+
 /* Dictionary of characters for UUID generation. */
 static char dict[17] = "0123456789abcdef";
 
@@ -6802,7 +6820,7 @@ nvme_bdev_disk_set_lazy_opts(struct nvme_bdev *bdev, const char *base_name)
 	 * of NVMe internal requests data structure.
 	 */
 	disk->max_num_segments = 16;
-	disk->uuid = nvme_generate_uuid(sn_tmp, bdev->ctrlr_lazy_param->lazy.nsid);
+	disk->uuid = nvme_generate_lazy_uuid(sn_tmp, bdev->ctrlr_lazy_param);
 	disk->phys_blocklen = disk->blocklen;
 
 	disk->md_len = 0;
