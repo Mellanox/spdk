@@ -2272,6 +2272,16 @@ bdev_nvme_poll(void *arg)
 	return num_completions > 0 ? SPDK_POLLER_BUSY : SPDK_POLLER_IDLE;
 }
 
+static int
+bdev_nvme_poll_events(void *arg)
+{
+	struct nvme_poll_group *group = arg;
+
+	spdk_nvme_poll_group_process_events(group->group);
+
+	return SPDK_POLLER_BUSY;
+}
+
 static int bdev_nvme_poll_adminq(void *arg);
 
 static void
@@ -3957,6 +3967,9 @@ bdev_nvme_create_poll_group_cb(void *io_device, void *ctx_buf)
 		return -1;
 	}
 
+	group->event_poller = SPDK_POLLER_REGISTER(bdev_nvme_poll_events, group, 10000ULL);
+	assert(group->event_poller != NULL);
+
 	return 0;
 }
 
@@ -3974,6 +3987,7 @@ bdev_nvme_destroy_poll_group_cb(void *io_device, void *ctx_buf)
 	spdk_iobuf_channel_fini(&group->iobuf);
 
 	spdk_poller_unregister(&group->poller);
+	spdk_poller_unregister(&group->event_poller);
 	if (spdk_nvme_poll_group_destroy(group->group)) {
 		SPDK_ERRLOG("Unable to destroy a poll group for the NVMe bdev module.\n");
 		assert(false);
@@ -8002,6 +8016,8 @@ bdev_nvme_stop_discovery(const char *name, spdk_bdev_nvme_stop_discovery_fn cb_f
 static int
 bdev_nvme_library_init(void)
 {
+	struct spdk_nvme_transport_opts drv_opts;
+
 	g_bdev_nvme_init_thread = spdk_get_thread();
 
 	g_io_redirect_list = nvme_io_redirect_array_alloc();
@@ -8009,6 +8025,10 @@ bdev_nvme_library_init(void)
 		return -ENOMEM;
 	}
 	spdk_iobuf_register_module("nvme");
+
+	spdk_nvme_transport_get_opts(&drv_opts, sizeof(drv_opts));
+	drv_opts.use_poll_group_process_events = true;
+	spdk_nvme_transport_set_opts(&drv_opts, sizeof(drv_opts));
 
 	spdk_io_device_register(&g_nvme_bdev_ctrlrs, bdev_nvme_create_poll_group_cb,
 				bdev_nvme_destroy_poll_group_cb,

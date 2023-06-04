@@ -265,6 +265,7 @@ struct nvme_poll_group {
 	struct spdk_nvme_poll_group		*group;
 	struct spdk_io_channel			*accel_channel;
 	struct spdk_poller			*poller;
+	struct spdk_poller			*event_poller;
 	struct spdk_iobuf_channel		iobuf;
 	bool					collect_spin_stat;
 	uint64_t				spin_ticks;
