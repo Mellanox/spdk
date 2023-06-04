@@ -875,10 +875,11 @@ spdk_nvme_transport_get_opts(struct spdk_nvme_transport_opts *opts, size_t opts_
 
 	SET_FIELD(rdma_srq_size);
 	SET_FIELD(poll_group_requests);
+	SET_FIELD(use_poll_group_process_events);
 
 	/* Do not remove this statement, you should always update this statement when you adding a new field,
 	 * and do not forget to add the SET_FIELD statement for your added field. */
-	SPDK_STATIC_ASSERT(sizeof(struct spdk_nvme_transport_opts) == 16, "Incorrect size");
+	SPDK_STATIC_ASSERT(sizeof(struct spdk_nvme_transport_opts) == 17, "Incorrect size");
 
 #undef SET_FIELD
 }
@@ -903,6 +904,7 @@ spdk_nvme_transport_set_opts(const struct spdk_nvme_transport_opts *opts, size_t
 
 	SET_FIELD(rdma_srq_size);
 	SET_FIELD(poll_group_requests);
+	SET_FIELD(use_poll_group_process_events);
 
 	g_spdk_nvme_transport_opts.opts_size = opts->opts_size;
 

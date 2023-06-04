@@ -4242,13 +4242,18 @@ struct spdk_nvme_transport_opts {
 	uint32_t poll_group_requests;
 
 	/**
+	 * Use spdk_nvme_poll_group_process_events()
+	 */
+	bool use_poll_group_process_events;
+
+	/**
 	 * The size of spdk_nvme_transport_opts according to the caller of this library is used for ABI
 	 * compatibility.  The library uses this field to know how many fields in this
 	 * structure are valid. And the library will populate any remaining fields with default values.
 	 */
 	size_t opts_size;
 } __attribute__((packed));
-SPDK_STATIC_ASSERT(sizeof(struct spdk_nvme_transport_opts) == 16, "Incorrect size");
+SPDK_STATIC_ASSERT(sizeof(struct spdk_nvme_transport_opts) == 17, "Incorrect size");
 
 /**
  * Get the current NVMe transport options.
