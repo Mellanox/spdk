@@ -3081,9 +3081,6 @@ nvme_rdma_poll_group_process_completions(struct spdk_nvme_transport_poll_group *
 	nvme_rdma_poll_group_process_events(tgroup);
 
 	STAILQ_FOREACH_SAFE(qpair, &tgroup->connected_qpairs, poll_group_stailq, tmp_qpair) {
-		rqpair = nvme_rdma_qpair(qpair);
-		rqpair->num_completions = 0;
-
 		num_qpairs++;
 	}
 
@@ -3134,6 +3131,7 @@ nvme_rdma_poll_group_process_completions(struct spdk_nvme_transport_poll_group *
 		}
 		if (rqpair->num_completions > 0) {
 			nvme_qpair_resubmit_requests(qpair, rqpair->num_completions);
+			rqpair->num_completions = 0;
 		}
 	}
 
