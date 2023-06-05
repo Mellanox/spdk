@@ -2739,6 +2739,13 @@ int64_t spdk_nvme_poll_group_process_completions(struct spdk_nvme_poll_group *gr
 		uint32_t completions_per_qpair, spdk_nvme_disconnected_qpair_cb disconnected_qpair_cb);
 
 /**
+ * Poll for management events on all qpairs in this poll group.
+ *
+ * \param group The group on which to poll for events.
+ */
+void spdk_nvme_poll_group_process_events(struct spdk_nvme_poll_group *group);
+
+/**
  * Retrieve the user context for this specific poll group.
  *
  * \param group The poll group from which to retrieve the context.
@@ -4180,6 +4187,8 @@ struct spdk_nvme_transport_ops {
 
 	int64_t (*poll_group_process_completions)(struct spdk_nvme_transport_poll_group *tgroup,
 			uint32_t completions_per_qpair, spdk_nvme_disconnected_qpair_cb disconnected_qpair_cb);
+
+	void (*poll_group_process_events)(struct spdk_nvme_transport_poll_group *tgroup);
 
 	int (*poll_group_destroy)(struct spdk_nvme_transport_poll_group *tgroup);
 

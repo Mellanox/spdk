@@ -760,6 +760,14 @@ nvme_transport_poll_group_process_completions(struct spdk_nvme_transport_poll_gr
 			disconnected_qpair_cb);
 }
 
+void
+nvme_transport_poll_group_process_events(struct spdk_nvme_transport_poll_group *tgroup)
+{
+	if (tgroup->transport->ops.poll_group_process_events != NULL) {
+		tgroup->transport->ops.poll_group_process_events(tgroup);
+	}
+}
+
 int
 nvme_transport_poll_group_destroy(struct spdk_nvme_transport_poll_group *tgroup)
 {

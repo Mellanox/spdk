@@ -142,6 +142,16 @@ spdk_nvme_poll_group_process_completions(struct spdk_nvme_poll_group *group,
 	return error_reason ? error_reason : num_completions;
 }
 
+void
+spdk_nvme_poll_group_process_events(struct spdk_nvme_poll_group *group)
+{
+	struct spdk_nvme_transport_poll_group *tgroup;
+
+	STAILQ_FOREACH(tgroup, &group->tgroups, link) {
+		nvme_transport_poll_group_process_events(tgroup);
+	}
+}
+
 void *
 spdk_nvme_poll_group_get_ctx(struct spdk_nvme_poll_group *group)
 {

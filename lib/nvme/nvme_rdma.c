@@ -3277,6 +3277,7 @@ const struct spdk_nvme_transport_ops rdma_ops = {
 	.poll_group_add = nvme_rdma_poll_group_add,
 	.poll_group_remove = nvme_rdma_poll_group_remove,
 	.poll_group_process_completions = nvme_rdma_poll_group_process_completions,
+	.poll_group_process_events = nvme_rdma_poll_group_process_events,
 	.poll_group_destroy = nvme_rdma_poll_group_destroy,
 	.poll_group_get_stats = nvme_rdma_poll_group_get_stats,
 	.poll_group_free_stats = nvme_rdma_poll_group_free_stats,
