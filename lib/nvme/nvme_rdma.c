@@ -3043,7 +3043,7 @@ nvme_rdma_poll_group_process_completions(struct spdk_nvme_transport_poll_group *
 	struct nvme_rdma_qpair			*rqpair, *tmp_rqpair;
 	struct nvme_rdma_poll_group		*group;
 	struct nvme_rdma_poller			*poller;
-	int					num_qpairs = 0, batch_size, rc, rc2 = 0;
+	int					batch_size, rc, rc2 = 0;
 	int64_t					total_completions = 0;
 	uint64_t				completions_allowed = 0;
 	uint64_t				completions_per_poller = 0;
@@ -3082,11 +3082,7 @@ nvme_rdma_poll_group_process_completions(struct spdk_nvme_transport_poll_group *
 		nvme_rdma_poll_group_process_events(tgroup);
 	}
 
-	STAILQ_FOREACH_SAFE(qpair, &tgroup->connected_qpairs, poll_group_stailq, tmp_qpair) {
-		num_qpairs++;
-	}
-
-	completions_allowed = completions_per_qpair * num_qpairs;
+	completions_allowed = completions_per_qpair * tgroup->num_connected_qpairs;
 	if (group->num_pollers) {
 		completions_per_poller = spdk_max(completions_allowed / group->num_pollers, 1);
 	}
