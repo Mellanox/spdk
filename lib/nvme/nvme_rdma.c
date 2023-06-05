@@ -150,6 +150,7 @@ struct nvme_rdma_poll_group {
 	STAILQ_HEAD(, nvme_rdma_poller)			pollers;
 	uint32_t					num_pollers;
 	TAILQ_HEAD(, nvme_rdma_qpair)			connecting_qpairs;
+	TAILQ_HEAD(, nvme_rdma_qpair)			outstanding_qpairs;
 };
 
 enum nvme_rdma_qpair_state {
@@ -206,6 +207,7 @@ struct nvme_rdma_qpair {
 	bool					delay_cmd_submit;
 
 	uint32_t				num_completions;
+	uint32_t				num_outstanding_reqs;
 
 	struct nvme_rdma_rsps			*rsps;
 
@@ -225,6 +227,8 @@ struct nvme_rdma_qpair {
 	/* Count of outstanding send objects */
 	uint16_t				current_num_sends;
 
+	TAILQ_ENTRY(nvme_rdma_qpair)		link_outstanding;
+
 	/* Placed at the end of the struct since it is not used frequently */
 	struct rdma_cm_event			*evt;
 	struct nvme_rdma_poller			*poller;
@@ -239,7 +243,7 @@ struct nvme_rdma_qpair {
 
 	uint8_t					stale_conn_retry_count;
 
-	TAILQ_ENTRY(nvme_rdma_qpair)		link;
+	TAILQ_ENTRY(nvme_rdma_qpair)		link_connecting;
 };
 
 enum NVME_RDMA_COMPLETION_FLAGS {
@@ -349,11 +353,18 @@ static struct spdk_nvme_rdma_req *
 nvme_rdma_req_get(struct nvme_rdma_qpair *rqpair)
 {
 	struct spdk_nvme_rdma_req *rdma_req;
+	struct nvme_rdma_poll_group *group;
 
 	rdma_req = TAILQ_FIRST(&rqpair->free_reqs);
 	if (rdma_req) {
 		TAILQ_REMOVE(&rqpair->free_reqs, rdma_req, link);
 		TAILQ_INSERT_TAIL(&rqpair->outstanding_reqs, rdma_req, link);
+
+		rqpair->num_outstanding_reqs++;
+		if (rqpair->num_outstanding_reqs == 1 && rqpair->qpair.poll_group != NULL) {
+			group = nvme_rdma_poll_group(rqpair->qpair.poll_group);
+			TAILQ_INSERT_TAIL(&group->outstanding_qpairs, rqpair, link_outstanding);
+		}
 	}
 
 	return rdma_req;
@@ -375,6 +386,7 @@ nvme_rdma_req_complete(struct spdk_nvme_rdma_req *rdma_req,
 	struct nvme_request *req = rdma_req->req;
 	struct nvme_rdma_qpair *rqpair;
 	struct spdk_nvme_qpair *qpair;
+	struct nvme_rdma_poll_group *group;
 	bool error, print_error;
 
 	assert(req != NULL);
@@ -394,6 +406,13 @@ nvme_rdma_req_complete(struct spdk_nvme_rdma_req *rdma_req,
 	}
 
 	TAILQ_REMOVE(&rqpair->outstanding_reqs, rdma_req, link);
+
+	assert(rqpair->num_outstanding_reqs > 0);
+	rqpair->num_outstanding_reqs--;
+	if (rqpair->num_outstanding_reqs == 0 && qpair->poll_group != NULL) {
+		group = nvme_rdma_poll_group(qpair->poll_group);
+		TAILQ_REMOVE(&group->outstanding_qpairs, rqpair, link_outstanding);
+	}
 
 	nvme_complete_request(req->cb_fn, req->cb_arg, qpair, req, rsp);
 	nvme_free_request(req);
@@ -1276,7 +1295,7 @@ nvme_rdma_ctrlr_connect_qpair(struct spdk_nvme_ctrlr *ctrlr, struct spdk_nvme_qp
 	rqpair->state = NVME_RDMA_QPAIR_STATE_INITIALIZING;
 	if (qpair->poll_group != NULL) {
 		group = nvme_rdma_poll_group(qpair->poll_group);
-		TAILQ_INSERT_TAIL(&group->connecting_qpairs, rqpair, link);
+		TAILQ_INSERT_TAIL(&group->connecting_qpairs, rqpair, link_connecting);
 	}
 
 	return 0;
@@ -2975,6 +2994,7 @@ nvme_rdma_poll_group_create(void)
 
 	STAILQ_INIT(&group->pollers);
 	TAILQ_INIT(&group->connecting_qpairs);
+	TAILQ_INIT(&group->outstanding_qpairs);
 	return &group->group;
 }
 
@@ -3062,12 +3082,12 @@ nvme_rdma_poll_group_process_completions(struct spdk_nvme_transport_poll_group *
 		}
 	}
 
-	TAILQ_FOREACH_SAFE(rqpair, &group->connecting_qpairs, link, tmp_rqpair) {
+	TAILQ_FOREACH_SAFE(rqpair, &group->connecting_qpairs, link_connecting, tmp_rqpair) {
 		qpair = &rqpair->qpair;
 
 		rc = nvme_rdma_ctrlr_connect_qpair_poll(qpair->ctrlr, qpair);
 		if (rc == 0 || rc != -EAGAIN) {
-			TAILQ_REMOVE(&group->connecting_qpairs, rqpair, link);
+			TAILQ_REMOVE(&group->connecting_qpairs, rqpair, link_connecting);
 			if (rc == 0) {
 				/* Once the connection is completed, we can submit queued requests */
 				nvme_qpair_resubmit_requests(qpair, rqpair->num_entries);
@@ -3112,8 +3132,8 @@ nvme_rdma_poll_group_process_completions(struct spdk_nvme_transport_poll_group *
 		}
 	}
 
-	STAILQ_FOREACH_SAFE(qpair, &tgroup->connected_qpairs, poll_group_stailq, tmp_qpair) {
-		rqpair = nvme_rdma_qpair(qpair);
+	TAILQ_FOREACH_SAFE(rqpair, &group->outstanding_qpairs, link_outstanding, tmp_rqpair) {
+		qpair = &rqpair->qpair;
 
 		if (spdk_unlikely(rqpair->state <= NVME_RDMA_QPAIR_STATE_INITIALIZING)) {
 			continue;
