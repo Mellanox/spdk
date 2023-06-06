@@ -45,7 +45,7 @@ RUN set -eux; \
     if [ $(uname -m) == "aarch64" ]; then \
       echo -e "[swx-devops]\n\
 name=SWX-DEVOPS\n\
-baseurl=http://nbu-nfs.mellanox.com/auto/mtrswgwork/swx_devops/RPMS/7/aarch64/\n\
+baseurl=http://nbu-nfs.mellanox.com/auto/sw/work/swx_devops/RPMS/7/aarch64/\n\
 enabled=1\n\
 gpgcheck=0" > /etc/yum.repos.d/swx_devops.repo; \
     fi; \

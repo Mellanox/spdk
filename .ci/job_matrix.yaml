@@ -20,6 +20,7 @@ kubernetes:
 
 volumes:
   - {mountPath: /auto/mtrswgwork, hostPath: /auto/mtrswgwork}
+  - {mountPath: /auto/sw/work, hostPath: /auto/sw/work}
 
 env:
   MOFED_VER: 23.04-0.5.3.2
