@@ -149,6 +149,7 @@ struct nvme_rdma_poll_group {
 	struct spdk_nvme_transport_poll_group		group;
 	STAILQ_HEAD(, nvme_rdma_poller)			pollers;
 	uint32_t					num_pollers;
+	uint32_t					num_outstanding_qpairs;
 	TAILQ_HEAD(, nvme_rdma_qpair)			connecting_qpairs;
 	TAILQ_HEAD(, nvme_rdma_qpair)			outstanding_qpairs;
 };
@@ -364,6 +365,7 @@ nvme_rdma_req_get(struct nvme_rdma_qpair *rqpair)
 		if (rqpair->num_outstanding_reqs == 1 && rqpair->qpair.poll_group != NULL) {
 			group = nvme_rdma_poll_group(rqpair->qpair.poll_group);
 			TAILQ_INSERT_TAIL(&group->outstanding_qpairs, rqpair, link_outstanding);
+			group->num_outstanding_qpairs++;
 		}
 	}
 
@@ -412,6 +414,8 @@ nvme_rdma_req_complete(struct spdk_nvme_rdma_req *rdma_req,
 	if (rqpair->num_outstanding_reqs == 0 && qpair->poll_group != NULL) {
 		group = nvme_rdma_poll_group(qpair->poll_group);
 		TAILQ_REMOVE(&group->outstanding_qpairs, rqpair, link_outstanding);
+		assert(group->num_outstanding_qpairs > 0);
+		group->num_outstanding_qpairs--;
 	}
 
 	nvme_complete_request(req->cb_fn, req->cb_arg, qpair, req, rsp);
@@ -3102,7 +3106,7 @@ nvme_rdma_poll_group_process_completions(struct spdk_nvme_transport_poll_group *
 		nvme_rdma_poll_group_process_events(tgroup);
 	}
 
-	completions_allowed = completions_per_qpair * tgroup->num_connected_qpairs;
+	completions_allowed = completions_per_qpair * group->num_outstanding_qpairs;
 	if (group->num_pollers) {
 		completions_per_poller = spdk_max(completions_allowed / group->num_pollers, 1);
 	}
