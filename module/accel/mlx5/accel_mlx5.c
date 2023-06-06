@@ -1190,6 +1190,8 @@ accel_mlx5_allowed_crypto_devs_free(void)
 		free(g_accel_mlx5.allowed_crypto_devs[i]);
 	}
 	free(g_accel_mlx5.allowed_crypto_devs);
+	g_accel_mlx5.allowed_crypto_devs = NULL;
+	g_accel_mlx5.allowed_crypto_devs_count = 0;
 }
 
 static int
@@ -1202,6 +1204,9 @@ accel_mlx5_allowed_crypto_devs_parse(const char *allowed_crypto_devs)
 	if (!str) {
 		return -ENOMEM;
 	}
+
+	accel_mlx5_allowed_crypto_devs_free();
+
 	tmp = str;
 	while ((tmp = strchr(tmp, ',')) != NULL) {
 		tmp++;
