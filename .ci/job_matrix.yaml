@@ -12,6 +12,9 @@ failFast: false
 kubernetes:
   cloud: swx-k8s-spray
   namespace: snap-ci
+  runAsUser: "6213"
+  runAsGroup: "11429"
+  privileged: true
   arch_table:
     aarch64:
       nodeSelector: 'feature.node.kubernetes.io/cpu-vendor=ARM'
