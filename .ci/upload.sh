@@ -188,7 +188,7 @@ if command -v ofed_info >/dev/null 2>&1; then
 fi
 
 if test -n "$ghprbPullId" ; then
-    REV="pr${ghprbPullId}"
+    REV=${BUILD_NUMBER:-pr1}
     repo_name="${repo_name}-pr"
     STAGE="pr"
 else
@@ -229,7 +229,7 @@ elif [[ -f /etc/redhat-release || -f /etc/openEuler-release ]]; then
         upload_rpm_urm
     elif [ $1 == "nexus" ]; then
         repo_name="${repo_name}-yum"
-        yum install python3-requests -y || yum install python36-requests -y
+        sudo yum install python3-requests -y || sudo yum install python36-requests -y
         # Create YUM repository
         ${bd}/actions/nexus.py yum --name ${repo_name} \
             --url ${REPO_URL} --user ${REPO_USER} \
