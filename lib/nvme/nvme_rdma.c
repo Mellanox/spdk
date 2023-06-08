@@ -3089,15 +3089,17 @@ nvme_rdma_poll_group_process_completions(struct spdk_nvme_transport_poll_group *
 	TAILQ_FOREACH_SAFE(rqpair, &group->connecting_qpairs, link_connecting, tmp_rqpair) {
 		qpair = &rqpair->qpair;
 
-		rc = nvme_rdma_ctrlr_connect_qpair_poll(qpair->ctrlr, qpair);
-		if (rc == 0 || rc != -EAGAIN) {
-			TAILQ_REMOVE(&group->connecting_qpairs, rqpair, link_connecting);
-			if (rc == 0) {
-				/* Once the connection is completed, we can submit queued requests */
-				nvme_qpair_resubmit_requests(qpair, rqpair->num_entries);
-			} else {
-				SPDK_ERRLOG("Failed to conect rqpair=%p\n", rqpair);
-				nvme_rdma_fail_qpair(qpair, 0);
+		if (nvme_qpair_get_state(qpair) == NVME_QPAIR_CONNECTING) {
+			rc = nvme_rdma_ctrlr_connect_qpair_poll(qpair->ctrlr, qpair);
+			if (rc == 0 || rc != -EAGAIN) {
+				TAILQ_REMOVE(&group->connecting_qpairs, rqpair, link_connecting);
+				if (rc == 0) {
+					/* Once the connection is completed, we can submit queued requests */
+					nvme_qpair_resubmit_requests(qpair, rqpair->num_entries);
+				} else {
+					SPDK_ERRLOG("Failed to conect rqpair=%p\n", rqpair);
+					nvme_rdma_fail_qpair(qpair, 0);
+				}
 			}
 		}
 	}
