@@ -456,6 +456,7 @@ function config_snap() {
     snap_enable_debug
     CONFIG="$CONFIG\nsock_set_default_impl -i $SOCK_IMPL"
     CONFIG="$CONFIG\nsock_impl_set_options -i $SOCK_IMPL $SOCK_EXTRA_OPTS"
+    CONFIG="$CONFIG\nbdev_set_options --disable-auto-examine"
     CONFIG="$CONFIG\nmlx5_scan_accel_module $ACCEL_OPTS"
     rpc_snap_spdk_batch "$CONFIG"
 
@@ -509,6 +510,7 @@ function config_snap_crypto() {
     snap_enable_debug
     CONFIG="$CONFIG\nsock_set_default_impl -i $SOCK_IMPL"
     CONFIG="$CONFIG\nsock_impl_set_options -i $SOCK_IMPL $SOCK_EXTRA_OPTS"
+    CONFIG="$CONFIG\nbdev_set_options --disable-auto-examine"
     CONFIG="$CONFIG\nmlx5_scan_accel_module $ACCEL_OPTS"
     CONFIG="$CONFIG\nframework_start_init"
     rpc_snap_spdk_batch "$CONFIG"
@@ -556,6 +558,7 @@ function config_snap_crypto_sw() {
     snap_enable_debug
     CONFIG="$CONFIG\nsock_set_default_impl -i $SOCK_IMPL"
     CONFIG="$CONFIG\nsock_impl_set_options -i $SOCK_IMPL $SOCK_EXTRA_OPTS"
+    CONFIG="$CONFIG\nbdev_set_options --disable-auto-examine"
     CONFIG="$CONFIG\naccel_assign_opc -o encrypt -m software"
     CONFIG="$CONFIG\naccel_assign_opc -o decrypt -m software"
     CONFIG="$CONFIG\nframework_start_init"
@@ -605,6 +608,7 @@ function config_snap_vfs() {
     snap_enable_debug
     CONFIG="$CONFIG\nsock_set_default_impl -i $SOCK_IMPL"
     CONFIG="$CONFIG\nsock_impl_set_options -i $SOCK_IMPL $SOCK_EXTRA_OPTS"
+    CONFIG="$CONFIG\nbdev_set_options --disable-auto-examine"
     CONFIG="$CONFIG\nmlx5_scan_accel_module $ACCEL_OPTS"
     rpc_snap_spdk_batch "$CONFIG"
 
@@ -654,6 +658,7 @@ function config_snap_vfs_qos_demo() {
     snap_enable_debug
     CONFIG="$CONFIG\nsock_set_default_impl -i $SOCK_IMPL"
     CONFIG="$CONFIG\nsock_impl_set_options -i $SOCK_IMPL $SOCK_EXTRA_OPTS"
+    CONFIG="$CONFIG\nbdev_set_options --disable-auto-examine"
     CONFIG="$CONFIG\nmlx5_scan_accel_module $ACCEL_OPTS"
     rpc_snap_spdk_batch "$CONFIG"
 
@@ -714,6 +719,7 @@ function config_snap_nested_mp() {
     snap_enable_debug
     CONFIG="$CONFIG\nsock_set_default_impl -i $SOCK_IMPL"
     CONFIG="$CONFIG\nsock_impl_set_options -i $SOCK_IMPL $SOCK_EXTRA_OPTS"
+    CONFIG="$CONFIG\nbdev_set_options --disable-auto-examine"
     CONFIG="$CONFIG\nmlx5_scan_accel_module $ACCEL_OPTS"
     rpc_snap_spdk_batch "$CONFIG"
 
