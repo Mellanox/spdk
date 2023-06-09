@@ -119,7 +119,8 @@ XLIO_GRO_STREAMS_MAX=8192
 "
 
 SOCK_IMPL=${SOCK_IMPL:-xlio}
-TCP=${TCP:-NVDA_TCP}
+SNAP_TRANSPORT=${SNAP_TRANSPORT:-NVDA_TCP}
+TGT_TRANSPORT=${TGT_TRANSPORT:-tcp}
 DATA_DGST=${DATA_DGST:-}
 FIO_JOBS=${FIO_JOBS:-8}
 FIO_CPUS=${FIO_CPUS:-1-8}
@@ -228,29 +229,29 @@ function stop_tgt() {
 }
 
 function config_tgt_add_path1() {
-	rpc_tgt nvmf_subsystem_add_listener -t tcp -a $TGT_ADDR -f ipv4 -s $TGT_PORT nqn.2016-06.io.spdk:cnode1
+	rpc_tgt nvmf_subsystem_add_listener -t $TGT_TRANSPORT -a $TGT_ADDR -f ipv4 -s $TGT_PORT nqn.2016-06.io.spdk:cnode1
 }
 
 function config_tgt_rm_path1() {
-	rpc_tgt nvmf_subsystem_remove_listener -t tcp -a $TGT_ADDR -f ipv4 -s $TGT_PORT nqn.2016-06.io.spdk:cnode1
+	rpc_tgt nvmf_subsystem_remove_listener -t $TGT_TRANSPORT -a $TGT_ADDR -f ipv4 -s $TGT_PORT nqn.2016-06.io.spdk:cnode1
 }
 
 function config_tgt_add_path2() {
-	rpc_tgt nvmf_subsystem_add_listener -t tcp -a $TGT_SECOND_ADDR -f ipv4 -s $TGT_SECOND_PORT nqn.2016-06.io.spdk:cnode1
+	rpc_tgt nvmf_subsystem_add_listener -t $TGT_TRANSPORT -a $TGT_SECOND_ADDR -f ipv4 -s $TGT_SECOND_PORT nqn.2016-06.io.spdk:cnode1
 }
 
 function config_tgt_rm_path2() {
-	rpc_tgt nvmf_subsystem_remove_listener -t tcp -a $TGT_SECOND_ADDR -f ipv4 -s $TGT_SECOND_PORT nqn.2016-06.io.spdk:cnode1
+	rpc_tgt nvmf_subsystem_remove_listener -t $TGT_TRANSPORT -a $TGT_SECOND_ADDR -f ipv4 -s $TGT_SECOND_PORT nqn.2016-06.io.spdk:cnode1
 }
 
 function config_tgt_multipath() {
     #rpc_tgt sock_impl_set_options -i posix --enable-zerocopy-send
     rpc_tgt framework_start_init
-    rpc_tgt nvmf_create_transport -t tcp -n 2048 -b 128
+    rpc_tgt nvmf_create_transport -t $TGT_TRANSPORT -n 2048 -b 128
     rpc_tgt nvmf_create_subsystem -a nqn.2016-06.io.spdk:cnode1
-    rpc_tgt nvmf_subsystem_add_listener -t tcp -a $TGT_ADDR -f ipv4 -s $TGT_PORT nqn.2016-06.io.spdk:cnode1
+    rpc_tgt nvmf_subsystem_add_listener -t $TGT_TRANSPORT -a $TGT_ADDR -f ipv4 -s $TGT_PORT nqn.2016-06.io.spdk:cnode1
     if [ -n "$TGT_SECOND_PORT" ]; then
-	rpc_tgt nvmf_subsystem_add_listener -t tcp -a $TGT_SECOND_ADDR -f ipv4 -s $TGT_SECOND_PORT nqn.2016-06.io.spdk:cnode1
+	rpc_tgt nvmf_subsystem_add_listener -t $TGT_TRANSPORT -a $TGT_SECOND_ADDR -f ipv4 -s $TGT_SECOND_PORT nqn.2016-06.io.spdk:cnode1
     fi
     rpc_tgt bdev_null_create Null0 $BDEV_NULL_OPTS
     rpc_tgt nvmf_subsystem_add_ns -n 1 nqn.2016-06.io.spdk:cnode1 Null0
@@ -261,14 +262,14 @@ function config_tgt() {
     local CONFIG=""
 
     rpc_tgt framework_start_init
-    CONFIG="$CONFIG\nnvmf_create_transport -t tcp -n 8192 -b 128"
+    CONFIG="$CONFIG\nnvmf_create_transport -t $TGT_TRANSPORT -n 8192 -b 128"
     for ((i=0;i<$SUBSYS;i++))
     do
 	CONFIG="$CONFIG\nnvmf_create_subsystem -a nqn.2016-06.io.spdk:cnode$i"
 	for ((j=0; j<PATHS; j++)); do
-	    CONFIG="$CONFIG\nnvmf_subsystem_add_listener -t tcp -a $TGT_ADDR -f ipv4 -s $((TGT_PORT+j)) nqn.2016-06.io.spdk:cnode$i"
+	    CONFIG="$CONFIG\nnvmf_subsystem_add_listener -t $TGT_TRANSPORT -a $TGT_ADDR -f ipv4 -s $((TGT_PORT+j)) nqn.2016-06.io.spdk:cnode$i"
 	    if [ -n "$TGT_SECOND_PORT" ]; then
-		CONFIG="$CONFIG\nnvmf_subsystem_add_listener -t tcp -a $TGT_SECOND_ADDR -f ipv4 -s $((TGT_SECOND_PORT+j)) nqn.2016-06.io.spdk:cnode$i"
+		CONFIG="$CONFIG\nnvmf_subsystem_add_listener -t $TGT_TRANSPORT -a $TGT_SECOND_ADDR -f ipv4 -s $((TGT_SECOND_PORT+j)) nqn.2016-06.io.spdk:cnode$i"
 	    fi
 	done
 	if [ -n "$VERIFY" ]; then
@@ -285,13 +286,13 @@ function config_tgt() {
 function config_tgt_delay() {
     #rpc_tgt sock_impl_set_options -i posix #--disable-zerocopy-send-server --enable-quickack --disable-recv-pipe
     rpc_tgt framework_start_init
-    rpc_tgt nvmf_create_transport -t tcp -n 8192 -b 512 --max-queue-depth 512
+    rpc_tgt nvmf_create_transport -t $TGT_TRANSPORT -n 8192 -b 512 --max-queue-depth 512
     for ((i=0;i<$SUBSYS;i++))
     do
 	rpc_tgt nvmf_create_subsystem -a nqn.2016-06.io.spdk:cnode$i
-	rpc_tgt nvmf_subsystem_add_listener -t tcp -a $TGT_ADDR -f ipv4 -s $TGT_PORT nqn.2016-06.io.spdk:cnode$i
+	rpc_tgt nvmf_subsystem_add_listener -t $TGT_TRANSPORT -a $TGT_ADDR -f ipv4 -s $TGT_PORT nqn.2016-06.io.spdk:cnode$i
 	if [ -n "$TGT_SECOND_PORT" ]; then
-		rpc_tgt nvmf_subsystem_add_listener -t tcp -a $TGT_SECOND_ADDR -f ipv4 -s $TGT_SECOND_PORT nqn.2016-06.io.spdk:cnode$i
+		rpc_tgt nvmf_subsystem_add_listener -t $TGT_TRANSPORT -a $TGT_SECOND_ADDR -f ipv4 -s $TGT_SECOND_PORT nqn.2016-06.io.spdk:cnode$i
 	fi
 	rpc_tgt bdev_null_create Null0 $BDEV_NULL_OPTS
 	rpc_tgt bdev_delay_create -b Null0 -d Delay$i -r 300 -t 300 -w 300 -n 300
@@ -304,7 +305,7 @@ function config_tgt_nested_mp() {
     local CONFIG=""
 
     rpc_tgt framework_start_init
-    CONFIG="$CONFIG\nnvmf_create_transport -t tcp -n 8192 -b 128"
+    CONFIG="$CONFIG\nnvmf_create_transport -t $TGT_TRANSPORT -n 8192 -b 128"
     for ((i=0;i<SUBSYS;i++)); do
 	local UUID=$(uuidgen -r)
 	local NGUID=$(printf "%032X" $((i + 1)))
@@ -323,7 +324,7 @@ function config_tgt_nested_mp() {
 	    CONFIG="$CONFIG\nnvmf_create_subsystem -a $NQN"
 	    for ((k=0; k<PATHS; k++)); do
 		local PORT=$((TGT_PORT + k))
-		CONFIG="$CONFIG\nnvmf_subsystem_add_listener -t tcp -a $TGT_ADDR -f ipv4 -s $PORT $NQN"
+		CONFIG="$CONFIG\nnvmf_subsystem_add_listener -t $TGT_TRANSPORT -a $TGT_ADDR -f ipv4 -s $PORT $NQN"
 	    done
 	    CONFIG="$CONFIG\nnvmf_subsystem_add_ns -n 1 $NQN $BDEV --uuid $UUID --nguid $NGUID --eui64 $EUI64"
 	done
@@ -476,10 +477,10 @@ function config_snap() {
     for ((i=0;i<$SUBSYS;i++))
     do
 	for ((j=0; j<PATHS; j++)); do
-	    CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme$i -t $TCP -f ipv4 \
+	    CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme$i -t $SNAP_TRANSPORT -f ipv4 \
 		    -a $TGT_ADDR -s $((TGT_PORT + j)) -n nqn.2016-06.io.spdk:cnode$i -x multipath $DATA_DGST --fabrics-timeout $CONNECT_TIMEOUT $CRYPTO_OPTS"
 	    if [ -n "$TGT_SECOND_PORT" ]; then
-		    CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme$i -t $TCP -f ipv4 \
+		    CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme$i -t $SNAP_TRANSPORT -f ipv4 \
 			    -a $TGT_SECOND_ADDR -s $((TGT_SECOND_PORT + j)) -n nqn.2016-06.io.spdk:cnode$i -x multipath $DATA_DGST --fabrics-timeout $CONNECT_TIMEOUT $CRYPTO_OPTS"
 	    fi
 	done
@@ -525,10 +526,10 @@ function config_snap_crypto() {
     for ((i=0;i<$SUBSYS;i++))
     do
 	for ((j=0; j<PATHS; j++)); do
-	    CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme$i -t $TCP -f ipv4 \
+	    CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme$i -t $SNAP_TRANSPORT -f ipv4 \
 		    -a $TGT_ADDR -s $((TGT_PORT + j)) -n nqn.2016-06.io.spdk:cnode$i -x multipath $DATA_DGST --fabrics-timeout $CONNECT_TIMEOUT"
 	    if [ -n "$TGT_SECOND_PORT" ]; then
-		    CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme$i -t $TCP -f ipv4 \
+		    CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme$i -t $SNAP_TRANSPORT -f ipv4 \
 			    -a $TGT_SECOND_ADDR -s $((TGT_SECOND_PORT + j)) -n nqn.2016-06.io.spdk:cnode$i -x multipath $DATA_DGST --fabrics-timeout $CONNECT_TIMEOUT"
 	    fi
 	done
@@ -574,10 +575,10 @@ function config_snap_crypto_sw() {
     for ((i=0;i<$SUBSYS;i++))
     do
 	for ((j=0; j<PATHS; j++)); do
-	    CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme$i -t $TCP -f ipv4 \
+	    CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme$i -t $SNAP_TRANSPORT -f ipv4 \
 		    -a $TGT_ADDR -s $((TGT_PORT + j)) -n nqn.2016-06.io.spdk:cnode$i -x multipath $DATA_DGST --fabrics-timeout $CONNECT_TIMEOUT"
 	    if [ -n "$TGT_SECOND_PORT" ]; then
-		    CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme$i -t $TCP -f ipv4 \
+		    CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme$i -t $SNAP_TRANSPORT -f ipv4 \
 			    -a $TGT_SECOND_ADDR -s $((TGT_SECOND_PORT + j)) -n nqn.2016-06.io.spdk:cnode$i -x multipath $DATA_DGST --fabrics-timeout $CONNECT_TIMEOUT"
 	    fi
 	done
@@ -622,10 +623,10 @@ function config_snap_vfs() {
     for ((i=0;i<$SUBSYS;i++))
     do
 	for ((j=0; j<PATHS; j++)); do
-	    CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme$i -t $TCP -f ipv4 \
+	    CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme$i -t $SNAP_TRANSPORT -f ipv4 \
 		    -a $TGT_ADDR -s $((TGT_PORT + j)) -n nqn.2016-06.io.spdk:cnode$i -x multipath $DATA_DGST --fabrics-timeout $CONNECT_TIMEOUT"
 	    if [ -n "$TGT_SECOND_PORT" ]; then
-		    CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme$i -t $TCP -f ipv4 \
+		    CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme$i -t $SNAP_TRANSPORT -f ipv4 \
 			    -a $TGT_SECOND_ADDR -s $((TGT_SECOND_PORT + j)) -n nqn.2016-06.io.spdk:cnode$i -x multipath $DATA_DGST --fabrics-timeout $CONNECT_TIMEOUT"
 	    fi
 	done
@@ -670,7 +671,7 @@ function config_snap_vfs_qos_demo() {
     CONFIG="$CONFIG\nbdev_nvme_set_options -k 0"
 
     for ((i=0;i<4;i++)); do
-	CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme${i} -t $TCP -f ipv4 \
+	CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme${i} -t $SNAP_TRANSPORT -f ipv4 \
 		    -a $TGT_ADDR -s $TGT_PORT -n nqn.2016-06.io.spdk:cnode$i -x multipath $DATA_DGST --fabrics-timeout $CONNECT_TIMEOUT"
     done
 
@@ -740,7 +741,7 @@ function config_snap_nested_mp() {
 		local PORT=$((TGT_PORT + k))
 
 		CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS \
-			-b $NAME -t $TCP -f ipv4 -a $TGT_ADDR -s $PORT -n $NQN \
+			-b $NAME -t $SNAP_TRANSPORT -f ipv4 -a $TGT_ADDR -s $PORT -n $NQN \
 			$DATA_DGST --fabrics-timeout $CONNECT_TIMEOUT"
 	    done
 	done
@@ -772,12 +773,12 @@ function run_nvmeperf() {
 
     if [ -n "$PERF_SSH" ]; then
 	$(ssh_prefix $PERF_SSH) sudo $PERF_ENV_OPTS $XLIO_OPTS $PERF_BIN_PATH/spdk_nvme_perf \
-	     -S $SOCK_IMPL -r \"trtype:$TCP adrfam:ipv4 traddr:$ADDR trsvcid:$PORT\" \
+	     -S $SOCK_IMPL -r \"trtype:$SNAP_TRANSPORT adrfam:ipv4 traddr:$ADDR trsvcid:$PORT\" \
 	     -c $PERF_MASK -q $QUEUE_DEPTH -o $IO_SIZE -w $RW -M 50 -t $PERF_TIME \
 	     $NVME_PERF_EXTRA_OPTS 2>&1 | tee perf.log&
     else
 	sudo $PERF_ENV_OPTS $XLIO_OPTS $PERF_BIN_PATH/spdk_nvme_perf \
-	     -S $SOCK_IMPL -r "trtype:$TCP adrfam:ipv4 traddr:$ADDR trsvcid:$PORT" \
+	     -S $SOCK_IMPL -r "trtype:$SNAP_TRANSPORT adrfam:ipv4 traddr:$ADDR trsvcid:$PORT" \
 	     -c $PERF_MASK -q $QUEUE_DEPTH -o $IO_SIZE -w $RW -M 50 -t $PERF_TIME \
 	     $NVME_PERF_EXTRA_OPTS 2>&1 | tee perf.log&
     fi
@@ -1090,7 +1091,7 @@ function run_bdevperf() {
     for ((i=0;i<$SUBSYS;i++))
     do
 	for ((j=0; j<PATHS; j++)); do
-	    CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme$i -t $TCP -f ipv4 \
+	    CONFIG="$CONFIG\nbdev_nvme_attach_controller $BDEV_NVME_ATTACH_CONTROLLER_EXTRA_OPTS -b Nvme$i -t $SNAP_TRANSPORT -f ipv4 \
 		    -a $TGT_ADDR -s $((TGT_PORT + j)) -n nqn.2016-06.io.spdk:cnode$i -x multipath $DATA_DGST --fabrics-timeout $CONNECT_TIMEOUT"
 	done
 	if [ -n "$MULTIPATH_OPTS" ]; then
