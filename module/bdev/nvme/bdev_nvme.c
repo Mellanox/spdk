@@ -1339,10 +1339,6 @@ nvme_qpair_is_connected(struct nvme_qpair *nvme_qpair)
 		return true;
 	}
 
-	if (spdk_unlikely(!spdk_nvme_qpair_is_enabled(nvme_qpair->qpair))) {
-		return false;
-	}
-
 	if (spdk_unlikely(nvme_qpair->ctrlr_ch->reset_iter != NULL)) {
 		return false;
 	}
