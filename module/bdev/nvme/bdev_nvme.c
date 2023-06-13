@@ -466,8 +466,7 @@ static bool bdev_nvme_compare_ns(struct spdk_nvme_ns *ns1, struct spdk_nvme_ns *
 
 static void nvme_disk_configure(struct spdk_bdev *disk, struct spdk_nvme_ns *ns,
 				struct spdk_nvme_ctrlr *ctrlr,
-				const struct spdk_nvme_ctrlr_opts *opts,
-				uint32_t prchk_flags);
+				const struct spdk_nvme_ctrlr_opts *opts, uint32_t prchk_flags, bool with_crypto);
 
 static int bdev_nvme_check_secondary_trid(struct nvme_ctrlr *nvme_ctrlr,
 		struct spdk_nvme_transport_id *trid);
@@ -1164,7 +1163,7 @@ bdev_nvme_update_lazy_on_connect(struct nvme_bdev *nbdev)
 	}
 
 	nvme_disk_configure(disk, first->ns, nvme_ctrlr->ctrlr,
-			    &nbdev->ctrlr_lazy_param->drv_opts, nvme_ctrlr->opts.prchk_flags);
+			    &nbdev->ctrlr_lazy_param->drv_opts, nvme_ctrlr->opts.prchk_flags, nbdev->crypto_key != NULL);
 
 	for (i = 0; i < nbdev_ctrlr->num_failover_trids; i++) {
 		failover_trid = &nbdev_ctrlr->failover_trids[i];
@@ -4786,13 +4785,14 @@ static void
 nvme_disk_configure(struct spdk_bdev *disk, struct spdk_nvme_ns *ns,
 		    struct spdk_nvme_ctrlr *ctrlr,
 		    const struct spdk_nvme_ctrlr_opts *opts,
-		    uint32_t prchk_flags)
+		    uint32_t prchk_flags,
+		    bool with_crypto)
 {
 	const struct spdk_nvme_ctrlr_data *cdata;
 	const struct spdk_nvme_ns_data *nsdata;
 	const struct spdk_uuid *uuid;
 	const uint8_t *nguid;
-	uint32_t atomic_bs, phys_bs, bs;
+	uint32_t atomic_bs, phys_bs, bs, noiob;
 	char sn_tmp[SPDK_NVME_CTRLR_SN_LEN + 1] = {'\0'};
 
 	cdata = spdk_nvme_ctrlr_get_data(ctrlr);
@@ -4818,7 +4818,26 @@ nvme_disk_configure(struct spdk_bdev *disk, struct spdk_nvme_ns *ns,
 	if (opts && opts->io_queue_requests) {
 		disk->max_num_segments = opts->io_queue_requests / 2;
 	}
-	disk->optimal_io_boundary = spdk_nvme_ns_get_optimal_io_boundary(ns);
+
+	noiob = spdk_nvme_ns_get_optimal_io_boundary(ns);
+	if (with_crypto) {
+		struct spdk_iobuf_opts iobuf_opts;
+		uint32_t max_size;
+
+		/* Limit the max IO size by some reasonable value. Since in write operation we use aux buffer,
+		 * let's set the limit to the large_bufsize value */
+		spdk_iobuf_get_opts(&iobuf_opts);
+		max_size = spdk_min(iobuf_opts.large_bufsize, spdk_nvme_ns_get_max_io_xfer_size(ns));
+
+		if (noiob > 0) {
+			disk->optimal_io_boundary = spdk_min((max_size / disk->blocklen), noiob);
+		} else {
+			disk->optimal_io_boundary = (max_size / disk->blocklen);
+		}
+		disk->split_on_optimal_io_boundary = true;
+	} else {
+		disk->optimal_io_boundary = noiob;
+	}
 
 	nguid = spdk_nvme_ns_get_nguid(ns);
 	if (!nguid) {
@@ -4880,7 +4899,7 @@ nvme_disk_configure(struct spdk_bdev *disk, struct spdk_nvme_ns *ns,
 static int
 nvme_disk_create(struct spdk_bdev *disk, const char *base_name,
 		 struct spdk_nvme_ctrlr *ctrlr, struct spdk_nvme_ns *ns,
-		 uint32_t prchk_flags, void *ctx)
+		 uint32_t prchk_flags, void *ctx, bool with_crypto)
 {
 	const struct spdk_nvme_ctrlr_opts *opts;
 	enum spdk_nvme_csi csi;
@@ -4911,7 +4930,7 @@ nvme_disk_create(struct spdk_bdev *disk, const char *base_name,
 		return -ENOMEM;
 	}
 
-	nvme_disk_configure(disk, ns, ctrlr, opts, prchk_flags);
+	nvme_disk_configure(disk, ns, ctrlr, opts, prchk_flags, with_crypto);
 
 	disk->ctxt = ctx;
 	disk->fn_table = &nvmelib_fn_table;
@@ -4977,7 +4996,7 @@ nvme_bdev_create(struct nvme_ctrlr *nvme_ctrlr, struct nvme_ns *nvme_ns,
 	bdev->crypto_key = crypto_key;
 
 	rc = nvme_disk_create(&bdev->disk, nvme_ctrlr->nbdev_ctrlr->name, nvme_ctrlr->ctrlr,
-			      nvme_ns->ns, nvme_ctrlr->opts.prchk_flags, bdev);
+			      nvme_ns->ns, nvme_ctrlr->opts.prchk_flags, bdev, bdev->crypto_key != NULL);
 	if (rc != 0) {
 		SPDK_ERRLOG("Failed to create NVMe disk\n");
 		TAILQ_REMOVE(&bdev->nvme_ns_list, nvme_ns, tailq);
