@@ -978,12 +978,27 @@ delete_crypto_disk(const char *bdev_name, spdk_delete_crypto_complete cb_fn,
 	ctx->cb_fn = cb_fn;
 	/* Some cleanup happens in the destruct callback. */
 	rc = spdk_bdev_unregister_by_name(bdev_name, &crypto_if, delete_crypto_disk_bdev_name, ctx);
-	if (rc != 0) {
-		SPDK_ERRLOG("Encountered an error during bdev unregistration\n");
-		cb_fn(cb_arg, rc);
-		free(ctx->bdev_name);
-		free(ctx);
+	if (rc == 0) {
+		return;
 	}
+
+	if (rc == -ENODEV) {
+		struct bdev_names *name;
+
+		/* Try to find a name of a disk which is not created yet
+		 * e.g. it is waiting for base bdev to be created */
+		TAILQ_FOREACH(name, &g_bdev_names, link) {
+			if (strcmp(name->opts->vbdev_name, ctx->bdev_name) == 0) {
+				vbdev_crypto_delete_name(name);
+				rc = 0;
+				break;
+			}
+		}
+	}
+
+	cb_fn(cb_arg, rc);
+	free(ctx->bdev_name);
+	free(ctx);
 }
 
 /* Because we specified this function in our crypto bdev function table when we
