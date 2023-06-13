@@ -152,6 +152,7 @@ struct nvme_rdma_poll_group {
 	uint32_t					num_outstanding_qpairs;
 	TAILQ_HEAD(, nvme_rdma_qpair)			connecting_qpairs;
 	TAILQ_HEAD(, nvme_rdma_qpair)			outstanding_qpairs;
+	bool						in_connect_poll;
 };
 
 enum nvme_rdma_qpair_state {
@@ -3108,26 +3109,31 @@ nvme_rdma_poll_group_process_completions(struct spdk_nvme_transport_poll_group *
 		}
 	}
 
-	TAILQ_FOREACH_SAFE(rqpair, &group->connecting_qpairs, link_connecting, tmp_rqpair) {
-		qpair = &rqpair->qpair;
-		assert(nvme_qpair_get_state(qpair) == NVME_QPAIR_CONNECTING);
+	if (!group->in_connect_poll) {
+		group->in_connect_poll = true;
+		TAILQ_FOREACH_SAFE(rqpair, &group->connecting_qpairs, link_connecting, tmp_rqpair) {
+			qpair = &rqpair->qpair;
+			assert(nvme_qpair_get_state(qpair) == NVME_QPAIR_CONNECTING);
 
-		rc = nvme_rdma_ctrlr_connect_qpair_poll(qpair->ctrlr, qpair);
-		if (rc == 0 || rc != -EAGAIN) {
-			TAILQ_REMOVE(&group->connecting_qpairs, rqpair, link_connecting);
-			/* We use prev pointer to check if qpair is in connecting list or not .
-			 * TAILQ_REMOVE doesn't do it. So, we do it manually.
-			 */
-			rqpair->link_connecting.tqe_prev = NULL;
+			rc = nvme_rdma_ctrlr_connect_qpair_poll(qpair->ctrlr, qpair);
+			if (rc == 0 || rc != -EAGAIN) {
+				TAILQ_REMOVE(&group->connecting_qpairs, rqpair, link_connecting);
+				/* We use prev pointer to check if qpair is in connecting list or not .
+				 * TAILQ_REMOVE doesn't do it. So, we do it manually.
+				 */
+				rqpair->link_connecting.tqe_prev = NULL;
 
-			if (rc == 0) {
-				/* Once the connection is completed, we can submit queued requests */
-				nvme_qpair_resubmit_requests(qpair, rqpair->num_entries);
-			} else {
-				SPDK_ERRLOG("Failed to conect rqpair=%p\n", rqpair);
-				nvme_rdma_fail_qpair(qpair, 0);
+				if (rc == 0) {
+					/* Once the connection is completed, we can submit queued requests */
+					nvme_qpair_resubmit_requests(qpair, rqpair->num_entries);
+				} else {
+					SPDK_ERRLOG("Failed to conect rqpair=%p\n", rqpair);
+					nvme_rdma_fail_qpair(qpair, 0);
+				}
 			}
 		}
+
+		group->in_connect_poll = false;
 	}
 
 	if (!g_spdk_nvme_transport_opts.use_poll_group_process_events) {
