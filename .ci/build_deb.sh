@@ -27,14 +27,13 @@ function pack_dist()
     done
 
     git archive --format=tar --prefix=spdk-$VER/ -o $ODIR/spdk-$VER.tar  HEAD
-    mkdir -p spdk-$VER
-    cp -pvr debian .ci contrib spdk-$VER/ 
-    cp -pvr scripts/setup.py spdk-$VER/scripts
-    tar --append -f $ODIR/spdk-$VER.tar spdk-$VER/debian spdk-$VER/.ci spdk-$VER/scripts/setup.py spdk-$VER/contrib
+#    mkdir -p spdk-$VER
+#    cp -pvr debian .ci contrib spdk-$VER/ 
+#    cp -pvr scripts/setup.py spdk-$VER/scripts
+#    tar --append -f $ODIR/spdk-$VER.tar spdk-$VER/debian spdk-$VER/.ci spdk-$VER/scripts/setup.py spdk-$VER/contrib
     rm -f $ODIR/spdk-$VER.tar.gz
     gzip $ODIR/spdk-$VER.tar
     rm -rf spdk-$VER
-
 
     pushd scripts
     python3 setup.py sdist -d $ODIR/
@@ -53,9 +52,6 @@ function apply_dpdk_patch()
 {
     $BASEDIR/dpdk_patch.sh
     patch -p0 < $BASEDIR/dpdk_conf.patch
-    patch -p0 < $BASEDIR/nvmf-ctrlr-nullptr.patch
-    patch -p1 < $BASEDIR/spdk_top.patch
-    patch -p1 < $BASEDIR/nvmf-ctrlr-nullptr2.patch
 }
 
 
