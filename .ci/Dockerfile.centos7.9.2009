@@ -1,0 +1,85 @@
+FROM centos:7.9.2009
+ARG _UID=6213
+ARG _GID=11429
+ARG _LOGIN=swx-jenkins
+ARG _HOME=/var/home/$_LOGIN
+ARG MOFED_VER
+ENV LANG=en_US.utf-8
+ENV PATH=/opt/rh/devtoolset-8/root/usr/bin:$PATH
+USER root
+
+RUN yum install -y ca-certificates
+
+RUN yum install -y \
+    epel-release \
+    centos-release-scl
+
+RUN yum install -y \
+    sudo \
+    git \
+    vim \
+    wget \
+    fakeroot \
+    ncurses-devel \
+    rpm-build doxygen \
+    graphviz \
+    numactl-devel \
+    libiscsi-devel \
+    make \
+    gcc \
+    CUnit-devel \
+    libaio-devel \
+    openssl-devel \
+    libuuid-devel \
+    lcov \
+    gcc-c++ \
+    python36 \
+    python3-pip \
+    devtoolset-8-gcc \
+    devtoolset-8-gcc-c++ \
+    cmake3 \
+    pkgconfig autoconf automake libtool
+
+# INSTALL OPENSSL 1.1.1 (needed by SPDK >= 23.01)
+RUN set -eux; \
+    if [ $(uname -m) == "aarch64" ]; then \
+      echo -e "[swx-devops]\n\
+name=SWX-DEVOPS\n\
+baseurl=http://nbu-nfs.mellanox.com/auto/mtrswgwork/swx_devops/RPMS/7/aarch64/\n\
+enabled=1\n\
+gpgcheck=0" > /etc/yum.repos.d/swx_devops.repo; \
+    fi; \
+    yum install openssl11 openssl11-libs openssl11-devel -y
+
+RUN set -eux; \
+    if [ $(uname -m) == "aarch64" ]; then \
+      rhel_dist="rhel7.6alternate"; \
+    elif [ $(uname -m) == "x86_64" ]; then \
+      rhel_dist="rhel7.9"; \
+    fi; \
+    echo -e "[mlnx_ofed]\n\
+name=Mellanox Technologies \$basearch mlnx_ofed\n\
+baseurl=http://webrepo.mtr.labs.mlnx/mswg/release/MLNX_OFED/MLNX_OFED_LINUX-${MOFED_VER}/MLNX_OFED_LINUX-${MOFED_VER}-${rhel_dist}-\$basearch/RPMS/\n\
+enabled=1\n\
+gpgcheck=0" > /etc/yum.repos.d/mellanox_mlnx_ofed.repo; \
+    yum install -y mlnx-ofed-basic-user-only
+
+RUN pip3 install scikit-build
+RUN pip3 install --install-option="--prefix=/usr/" meson==0.59.2
+RUN pip3 install --install-option="--prefix=/usr/" pyelftools
+
+RUN mkdir -p /tmp/bin && \
+    ln -s /bin/cmake3 /tmp/bin/cmake && \
+    PATH="/tmp/bin:$PATH" pip3 install --install-option="--prefix=/usr/" ninja==1.10.2.1 && \
+    rm -rf /tmp/bin
+
+RUN echo "${_LOGIN} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+RUN mkdir -p $_HOME
+RUN groupadd -f -g "$_GID" "$_LOGIN"
+RUN useradd -u "$_UID" -g "$_GID" -s /bin/bash -m -d ${_HOME} "$_LOGIN"
+RUN chown $_LOGIN $_HOME
+RUN yum clean all
+
+SHELL ["/bin/bash"]
+USER "${_LOGIN}"
+ENTRYPOINT [ "/bin/bash", "--login", "--rcfile", "/etc/bashrc", "-c" ]

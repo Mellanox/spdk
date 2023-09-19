@@ -1,0 +1,60 @@
+FROM centos:8.2.2004
+ARG _UID=6213
+ARG _GID=11429
+ARG _LOGIN=swx-jenkins
+ARG _HOME=/var/home/$_LOGIN
+ARG MOFED_VER
+ENV LANG=en_US.utf-8
+USER root
+
+RUN sed -i 's/mirrorlist/#mirrorlist/;s!#baseurl=http://mirror.centos.org!baseurl=http://vault.centos.org!' /etc/yum.repos.d/*
+
+RUN yum install -y ca-certificates
+
+RUN yum install -y \
+    epel-release
+
+RUN yum install --enablerepo=PowerTools -y \
+    sudo \
+    git \
+    wget \
+    vim \
+    fakeroot \
+    ncurses-devel \
+    rpm-build doxygen \
+    graphviz \
+    numactl-devel \
+    libiscsi-devel \
+    make \
+    gcc \
+    CUnit-devel \
+    libaio-devel \
+    openssl-devel \
+    libuuid-devel \
+    gcc-c++ \
+    python36 \
+    meson \
+    python3-pip \
+    python3-configshell \
+    pkgconfig autoconf automake libtool
+
+RUN set -eux; \
+    echo -e "[mlnx_ofed]\n\
+name=Mellanox Technologies \$basearch mlnx_ofed\n\
+baseurl=http://webrepo.mtr.labs.mlnx/mswg/release/MLNX_OFED/MLNX_OFED_LINUX-${MOFED_VER}/MLNX_OFED_LINUX-${MOFED_VER}-rhel8.2-\$basearch/RPMS/\n\
+enabled=1\n\
+gpgcheck=0" > /etc/yum.repos.d/mellanox_mlnx_ofed.repo; \
+    yum install -y mlnx-ofed-basic-user-only 
+
+RUN pip3 install --install-option="--prefix=/usr/" pyelftools
+
+RUN echo "${_LOGIN} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+RUN mkdir -p $_HOME
+RUN groupadd -f -g "$_GID" "$_LOGIN"
+RUN useradd -u "$_UID" -g "$_GID" -s /bin/bash -m -d ${_HOME} "$_LOGIN"
+RUN chown $_LOGIN $_HOME
+RUN yum clean all
+
+SHELL ["/bin/bash"]
+USER "${_LOGIN}"
+ENTRYPOINT [ "/bin/bash", "--login", "--rcfile", "/etc/bashrc", "-c" ]

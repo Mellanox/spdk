@@ -1,0 +1,30 @@
+# /etc/default/spdk_tgt
+# not executable file
+# contains environment variables for /etc/systemd/system/spdk_tgt.service
+
+# run on first 2 CPU cores
+CPU_MASK=[0-1]
+
+# extra args like -r 0.0.0.0 to start RPC listener on
+EXTRA_ARGS=""
+
+# Size of hugepage memory to allocate (in MB). 
+# 2048 by default.
+HUGEMEM="2048"
+
+# Whitespace separated list of PCI devices (NVMe, I/OAT, VMD, Virtio).
+# Each device must be specified as a full PCI address.
+# E.g. PCI_ALLOWED="0000:01:00.0 0000:02:00.0"
+# To block all PCI devices use a non-valid address.
+# E.g. PCI_BLOCKED="none"
+# If PCI_ALLOWED and PCI_BLOCKED are empty or unset, all PCI devices
+# will be bound.
+# Each device in PCI_BLOCKED will be ignored (driver won't be changed).
+# PCI_BLOCKED has precedence over PCI_ALLOWED.
+PCI_ALLOWED="none"
+PCI_BLOCKED=""
+
+# Disable automatic vfio-pci/uio_pci_generic selection and forcefully
+# bind devices to the given driver.
+# E.g. DRIVER_OVERRIDE=uio_pci_generic or DRIVER_OVERRIDE=/home/public/dpdk/build/kmod/igb_uio.ko
+DRIVER_OVERRIDE=""

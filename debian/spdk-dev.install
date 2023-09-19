@@ -1,0 +1,2 @@
+opt/intel/spdk/lib/*.a opt/intel/spdk/lib
+opt/intel/spdk/include/* opt/intel/spdk/include

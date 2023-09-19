@@ -1,0 +1,87 @@
+job: spdk
+
+registry_host: harbor.mellanox.com
+registry_path: /swx-storage/spdk
+registry_auth: swx-storage
+
+credentials:
+  - {credentialsId: '311997c9-cc1c-4d5d-8ba2-6eb43ba0a06d', usernameVariable: 'REPO_USER', passwordVariable: 'REPO_PASS'}
+  - {credentialsId: '3a89fb85-f7aa-40f2-bd7a-32be80588d95', usernameVariable: 'REPO_USER', passwordVariable: 'REPO_PASS'}
+
+failFast: false
+kubernetes:
+  cloud: swx-k8s-spray
+  namespace: snap-ci
+  arch_table:
+    aarch64:
+      nodeSelector: 'feature.node.kubernetes.io/cpu-vendor=ARM'
+    x86_64:
+      nodeSelector: 'feature.node.kubernetes.io/cpu-vendor=AuthenticAMD'
+
+volumes:
+  - {mountPath: /auto/mtrswgwork, hostPath: /auto/mtrswgwork}
+
+env:
+  MOFED_VER: 5.9-1.1.1.0
+
+runs_on_dockers:
+  - {file: '.ci/Dockerfile.ubuntu20.04', name: 'ubuntu20_04', arch: 'x86_64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
+  - {file: '.ci/Dockerfile.ubuntu20.04', name: 'ubuntu20_04', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
+  - {file: '.ci/Dockerfile.ubuntu22.04', name: 'ubuntu22_04', arch: 'x86_64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
+  - {file: '.ci/Dockerfile.ubuntu22.04', name: 'ubuntu22_04', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
+  - {file: '.ci/Dockerfile.centos7.9.2009', name: 'centos7_9', arch: 'x86_64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
+  - {file: '.ci/Dockerfile.centos7.9.2009', name: 'centos7_9', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
+  - {file: '.ci/Dockerfile.centos8.2.2004', name: 'centos8_2', arch: 'x86_64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
+  - {file: '.ci/Dockerfile.centos8.2.2004', name: 'centos8_2', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
+  - {file: '.ci/Dockerfile.openeuler.20.03', name: 'openeuler20_03', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
+
+steps:
+  - name: Set correct rights
+    run: |
+      uid=$(id -u)
+      gid=$(id -g)
+      sudo chown -R $uid:$gid $WORKSPACE
+      git config --global --add safe.directory "*"
+
+  - name: Build distro package
+    run: |
+      if [[ -e /etc/redhat-release || -e /etc/openEuler-release ]]; then
+        .ci/build_rpm.sh
+      elif [ -e /etc/debian_version ]; then
+        .ci/build_deb.sh
+      else
+        echo "[ERROR]: Unsupported OS!"
+        exit 1
+      fi
+
+  - name: Upload distro package NEXUS
+    enable: true
+    credentialsId: '311997c9-cc1c-4d5d-8ba2-6eb43ba0a06d'
+    resource: actions/nexus.py
+    containerSelector:
+      - "{name: 'ubuntu20_04', variant:1}"
+      - "{name: 'ubuntu22_04', variant:1}"
+      - "{name: 'centos7_9', variant:1}"
+      - "{name: 'centos8_2', variant:1}"
+      - "{name: 'openeuler20_03', variant:1}"
+    run: |
+      .ci/upload.sh nexus
+
+  - name: Upload distro package URM
+    enable: true
+    credentialsId: '3a89fb85-f7aa-40f2-bd7a-32be80588d95'
+    resource: actions/nexus.py
+    containerSelector:
+      - "{name: 'ubuntu20_04', variant:1}"
+      - "{name: 'ubuntu22_04', variant:1}"
+      - "{name: 'centos7_9', variant:1}"
+      - "{name: 'centos8_2', variant:1}"
+      - "{name: 'openeuler20_03', variant:1}"
+    run: |
+      .ci/upload.sh urm
+
+pipeline_stop:
+  run: |
+    if [[ ! -n "$ghprbPullId" && "$pipeline_status" == "SUCCESS" ]]; then
+      .ci/git_tag.sh
+    fi

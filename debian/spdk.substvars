@@ -1,0 +1,3 @@
+shlibs:Depends=ibverbs-providers (>= 42), libaio1 (>= 0.3.93), libc6 (>= 2.34), libgcc-s1 (>= 3.4), libibverbs1 (>= 31), libiscsi7 (>= 1.17.0), libncurses6 (>= 6), librdmacm1 (>= 23), libssl3 (>= 3.0.0~~alpha1), libstdc++6 (>= 4.1.1), libtinfo6 (>= 6), liburing2 (>= 2.0), libuuid1 (>= 2.31.1), spdk
+misc:Depends=
+misc:Pre-Depends=

@@ -1,0 +1,10 @@
+--- dpdk/config/x86/meson.build.orig	2023-06-09 10:00:46.722238865 +0000
++++ dpdk/config/x86/meson.build	2023-06-09 10:02:26.273736793 +0000
+@@ -65,6 +65,7 @@
+ if dpdk_conf.get('RTE_ARCH_64')
+     dpdk_conf.set('RTE_ARCH_X86_64', 1)
+     dpdk_conf.set('RTE_ARCH', 'x86_64')
++    dpdk_conf.set('RTE_MAX_VFIO_GROUPS', 255)
+ else
+     dpdk_conf.set('RTE_ARCH_I686', 1)
+     dpdk_conf.set('RTE_ARCH', 'i686')

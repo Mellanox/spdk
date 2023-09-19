@@ -1,0 +1,36 @@
+Source: spdk
+Section: net
+Priority: optional
+Maintainer: Yurii Shestakov <yuriis@nvidia.com>
+Build-Depends: debhelper (>= 10), autotools-dev, dh-python, nasm, pkg-config, autoconf, automake, libtool, libiscsi-dev, meson, python3-pyelftools, libssl-dev, uuid-dev, libaio-dev, liburing-dev, libncurses-dev, libnuma-dev, patchelf
+Standards-Version: 4.1.2
+Homepage: https://spdk.io/
+X-Python3-Version: >= 3.6
+#Vcs-Git: https://anonscm.debian.org/git/collab-maint/spdk.git
+#Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/spdk.git
+
+Package: spdk
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libhugetlbfs-bin, numactl
+Description: Storage Performance Development Kit
+ The Storage Performance Development Kit (SPDK) provides a set of tools and
+ libraries for writing high performance, scalable, user-mode storage
+ applications.
+
+Package: spdk-dev
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Storage Performance Development Kit SDK
+ The Storage Performance Development Kit (SPDK) provides a set of tools and
+ libraries for writing high performance, scalable, user-mode storage
+ applications. The devel package provides headers and static libraries
+
+Package: spdk-rpc
+Architecture: all
+Multi-Arch: foreign
+Depends: ${misc:Depends}, ${python3:Depends}
+Description: RPC modules for Storage Performance Development Kit
+ The Storage Performance Development Kit (SPDK) provides a set of tools and
+ libraries for writing high performance, scalable, user-mode storage
+ applications. This package provides JSON-RPC modules and CLI to manage SPDK
+

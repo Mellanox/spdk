@@ -1,0 +1,15 @@
+usr/bin/iostat.py usr/bin
+usr/bin/spdk_lspci usr/bin
+usr/bin/spdk_trace usr/bin
+usr/bin/spdk_trace_record usr/bin
+usr/bin/spdk_top usr/bin
+usr/sbin/* usr/sbin
+etc/spdk/* etc/spdk
+etc/default/* etc/default
+usr/lib/systemd/system/* usr/lib/systemd/system
+opt/intel/spdk/lib/*.so* opt/intel/spdk/lib
+opt/intel/spdk/lib/dpdk/* opt/intel/spdk/lib/dpdk
+opt/intel/spdk/lib/pkgconfig/* opt/intel/spdk/lib/pkgconfig
+usr/share/spdk/*.py usr/share/spdk
+usr/share/spdk/scripts/* usr/share/spdk/scripts
+usr/share/spdk/include/spdk/* usr/share/spdk/include/spdk
