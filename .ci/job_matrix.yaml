@@ -26,7 +26,7 @@ volumes:
   - {mountPath: /auto/sw/work, hostPath: /auto/sw/work}
 
 env:
-  MOFED_VER: 23.07-0.4.5.0
+  MOFED_VER: 23.07-0.5.0.0
 
 runs_on_dockers:
   - {file: '.ci/Dockerfile.ubuntu20.04', name: 'ubuntu20_04', arch: 'x86_64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
