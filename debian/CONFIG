@@ -204,11 +204,18 @@ CONFIG_IDXD_KERNEL=n
 # arc4random is available in stdlib.h
 CONFIG_HAVE_ARC4RANDOM=n
 
+# uuid_generate_sha1 is available in uuid/uuid.h
+# CONFIG_HAVE_UUID_GENERATE_SHA1=n
+CONFIG_HAVE_UUID_GENERATE_SHA1=y
+
 # Is DPDK using libbsd?
 CONFIG_HAVE_LIBBSD=n
 
 # Is DPDK using libarchive?
 CONFIG_HAVE_LIBARCHIVE=n
+
+# execinfo.h is available
+CONFIG_HAVE_EXECINFO_H=n
 
 # Path to IPSEC_MB used by DPDK
 CONFIG_IPSEC_MB_DIR=
@@ -223,4 +230,8 @@ CONFIG_AVAHI=n
 CONFIG_XLIO=y
 CONFIG_XLIO_DIR=
 
-CONFIG_HAVE_UUID_GENERATE_SHA1=y
+# Setup DPDK's RTE_MAX_LCORES
+CONFIG_MAX_LCORES=
+
+# Build all Go components
+CONFIG_GOLANG=n
