@@ -133,7 +133,7 @@ endif
 
 EVENT_BDEV_SUBSYSTEM = event_bdev event_accel event_vmd event_sock event_iobuf
 
-FSDEV_MODULES_LIST = fsdev
+FSDEV_MODULES_LIST = fsdev fsdev_aio
 FSDEV_MODULES_PRIVATE_LIBS = $(shell pkg-config --libs glib-2.0)
 
 ALL_MODULES_LIST = $(BLOCKDEV_MODULES_LIST) $(ACCEL_MODULES_LIST) $(SCHEDULER_MODULES_LIST) $(SOCK_MODULES_LIST)

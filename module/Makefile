@@ -7,7 +7,7 @@ SPDK_ROOT_DIR := $(abspath $(CURDIR)/..)
 include $(SPDK_ROOT_DIR)/mk/spdk.common.mk
 include $(SPDK_ROOT_DIR)/mk/spdk.modules.mk
 
-DIRS-y = bdev blob blobfs accel event sock scheduler
+DIRS-y = bdev blob blobfs accel event sock scheduler fsdev
 ifeq ($(SPDK_ROOT_DIR)/lib/env_dpdk,$(CONFIG_ENV))
 DIRS-y += env_dpdk
 endif

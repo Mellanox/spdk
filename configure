@@ -136,6 +136,8 @@ function usage() {
 	echo "                           If path is given, it should contain 'include/mellanox/xlio_extra.h' file."
 	echo " --with-static-xlio        Link with static libxlio. Requires --with-xlio."
 	echo " --with-dpcp=DIR           DPCP library path. Only used with --with-static-xlio."
+	echo " --with-aio-fsdev          Build aio FSDEV component."
+	echo " --without-aio-fsdev       No path required."
 	echo ""
 	echo "Environment variables:"
 	echo ""
@@ -707,6 +709,12 @@ for i in "$@"; do
 		--with-dpcp=*)
 			check_dir "$i"
 			CONFIG[DPCP_DIR]=$(readlink -f ${i#*=})
+			;;
+		--with-aio-fsdev)
+			CONFIG[AIO_FSDEV]=y
+			;;
+		--without-aio-fsdev)
+			CONFIG[AIO_FSDEV]=n
 			;;
 		--)
 			break
@@ -1340,6 +1348,31 @@ if [[ -n ${CONFIG[MAX_LCORES]} ]]; then
 		exit 1
 	fi
 fi
+
+if [[ "${CONFIG[AIO_FSDEV]}" = "y" ]]; then
+	if echo -e '#define _GNU_SOURCE\n#include <unistd.h>\n' \
+		'int main(void) { return copy_file_range(0, 0, 0, 0, 0, 0); }\n' \
+		| "${BUILD_CMD[@]}" - 2> /dev/null; then
+		CONFIG[COPY_FILE_RANGE]=y
+	else
+		CONFIG[COPY_FILE_RANGE]=n
+	fi
+	if echo -e '#include <sys/stat.h>\n' \
+		'int main(void) { struct stat s; s.st_atime = s.st_atime; return 0 ;}\n' \
+		| "${BUILD_CMD[@]}" - 2> /dev/null; then
+		CONFIG[HAVE_STRUCT_STAT_ST_ATIM]=y
+		CONFIG[HAVE_STRUCT_STAT_ST_ATIMESPEC]=n
+	elif echo -e '#include <sys/stat.h>\n' \
+		'int main(void) { struct stat s; s.st_atimespec = s.st_atimespec; return 0; }\n' \
+		| "${BUILD_CMD[@]}" - 2> /dev/null; then
+		CONFIG[HAVE_STRUCT_STAT_ST_ATIM]=n
+		CONFIG[HAVE_STRUCT_STAT_ST_ATIMESPEC]=y
+	else
+		CONFIG[HAVE_STRUCT_STAT_ST_ATIM]=n
+		CONFIG[HAVE_STRUCT_STAT_ST_ATIMESPEC]=n
+	fi
+fi
+
 
 # For ARM Neoverse-N1 platform, debug build needs gcc version newer than 8.4
 if [[ "${CONFIG[DEBUG]}" = "y" && $arch = aarch64* && "$CC_TYPE" = "gcc" ]]; then
