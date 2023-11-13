@@ -1,0 +1,73 @@
+{
+	global:
+
+	# Public functions in fsdev.h
+	spdk_fsdev_initialize;
+	spdk_fsdev_finish;
+	spdk_fsdev_subsystem_config_json;
+	spdk_fsdev_get_by_name;
+	spdk_fsdev_get_module_name;
+	spdk_fsdev_open;
+	spdk_fsdev_close;
+	spdk_fsdev_get_name;
+	spdk_fsdev_desc_get_fsdev;
+	spdk_fsdev_get_io_channel;
+	spdk_fsdev_submit_fuse_request;
+	spdk_fsdev_free_io;
+	spdk_fsdev_set_opts;
+	spdk_fsdev_get_opts;
+	spdk_fsdev_set_instance_opts;
+	spdk_fsdev_get_instance_opts;
+	spdk_fsdev_get_device_opts;
+	spdk_fsdev_set_device_opts;
+	spdk_fsdev_get_memory_domains;
+	spdk_fsdev_op_init;
+	spdk_fsdev_op_cleanup;
+	spdk_fsdev_op_lookup;
+	spdk_fsdev_op_forget;
+	spdk_fsdev_op_getattr;
+	spdk_fsdev_op_setattr;
+	spdk_fsdev_op_readlink;
+	spdk_fsdev_op_symlink;
+	spdk_fsdev_op_mknod;
+	spdk_fsdev_op_mkdir;
+	spdk_fsdev_op_unlink;
+	spdk_fsdev_op_rmdir;
+	spdk_fsdev_op_rename;
+	spdk_fsdev_op_link;
+	spdk_fsdev_op_open;
+	spdk_fsdev_op_read;
+	spdk_fsdev_op_write;
+	spdk_fsdev_op_statfs;
+	spdk_fsdev_op_release;
+	spdk_fsdev_op_fsync;
+	spdk_fsdev_op_setxattr;
+	spdk_fsdev_op_getxattr;
+	spdk_fsdev_op_listxattr;
+	spdk_fsdev_op_removexattr;
+	spdk_fsdev_op_flush;
+	spdk_fsdev_op_opendir;
+	spdk_fsdev_op_readdir;
+	spdk_fsdev_op_releasedir;
+	spdk_fsdev_op_fsyncdir;
+	spdk_fsdev_op_flock;
+	spdk_fsdev_op_create;
+	spdk_fsdev_op_abort;
+	spdk_fsdev_op_fallocate;
+	spdk_fsdev_op_copy_file_range;
+
+	# Public functions in fsdev_module.h
+	spdk_fsdev_register;
+	spdk_fsdev_unregister;
+	spdk_fsdev_unregister_by_name;
+	spdk_fsdev_destruct_done;
+	spdk_fsdev_module_init_done;
+	spdk_fsdev_io_complete;
+	spdk_fsdev_io_get_thread;
+	spdk_fsdev_io_get_io_channel;
+	spdk_fsdev_module_list_add;
+	spdk_fsdev_module_list_find;
+
+	# Everything else
+	local: *;
+};
