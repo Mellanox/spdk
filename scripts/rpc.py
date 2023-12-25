@@ -3445,6 +3445,26 @@ Format: 'user:u1 secret:s1 muser:mu1 msecret:ms1,user:u2 secret:s2 muser:mu2 mse
     p.add_argument('-c', '--fsdev-io-cache-size', help='Size of fsdev IO objects cache per thread', type=int)
     p.set_defaults(func=fsdev_set_opts)
 
+    def fsdev_aio_create(args):
+        print(rpc.fsdev.fsdev_aio_create(args.client, name=args.name, root_path=args.root_path,
+                                         xattr_enabled=args.xattr_enabled, writeback_cache=args.writeback_cache,
+                                         max_write=args.max_write))
+
+    p = subparsers.add_parser('fsdev_aio_create', help='Create a aio filesystem')
+    p.add_argument('name', help='Filesystem name. Example: aio0.')
+    p.add_argument('root_path', help='Path on the system fs to expose as SPDK filesystem')
+    p.add_argument('-x', '--xattr-enabled', help='Enable the extended attributes', choices=[0, 1], type=int)
+    p.add_argument('-c', '--writeback-cache', help='Enable the writeback cache', choices=[0, 1], type=int)
+    p.add_argument('-w', '--max-write', help='Max write size', type=int)
+    p.set_defaults(func=fsdev_aio_create)
+
+    def fsdev_aio_delete(args):
+        print(rpc.fsdev.fsdev_aio_delete(args.client, name=args.name))
+
+    p = subparsers.add_parser('fsdev_aio_delete', help='Delete a aio filesystem')
+    p.add_argument('name', help='Filesystem name. Example: aio0.')
+    p.set_defaults(func=fsdev_aio_delete)
+
     # sock
     def sock_impl_get_options(args):
         print_json(rpc.sock.sock_impl_get_options(args.client,
