@@ -86,10 +86,13 @@ override_dh_auto_install:
 	install -p -m 755 build/bin/spdk_lspci debian/tmp/usr/bin
 	install -p -m 755 build/bin/spdk_trace_record debian/tmp/usr/bin
 	install -p -m 755 build/bin/spdk_top debian/tmp/usr/bin
-	install -p -m 755 build/examples/perf debian/tmp/usr/sbin/nvme-perf
-	install -p -m 755 build/examples/identify debian/tmp/usr/sbin/nvme-identify
+	install -p -m 755 build/bin/spdk_nvme_identify debian/tmp/usr/spdk_nvme_identify
+	ln -s spdk_nvme_identify debian/tmp/usr/bin/nvme-identify
+	install -p -m 755 build/bin/spdk_nvme_perf debian/tmp/usr/bin/spdk_nvme_perf
+	ln -s spdk_nvme_perf debian/tmp/usr/bin/nvme-perf
 	install -p -m 755 build/examples/nvme_manage debian/tmp/usr/sbin/
 	install -p -m 755 build/examples/blobcli debian/tmp/usr/sbin/
+	install -p -m 755 build/examples/bdevperf debian/tmp/usr/bin/
 	install -p -m 755 build/fio/spdk_bdev debian/tmp/usr/sbin/
 	install -p -m 755 build/fio/spdk_nvme debian/tmp/usr/sbin/
 	install -p -m 755 contrib/setup_nvmf_tgt.py debian/tmp/usr/sbin
@@ -98,8 +101,8 @@ override_dh_auto_install:
 	install -p -m 755 contrib/setup_hugepages.sh debian/tmp/usr/sbin
 	install -m 644 contrib/spdk_tgt.service debian/tmp$(SYSTEMD_DIR)/
 	install -m 644 contrib/vhost.service debian/tmp$(SYSTEMD_DIR)/
-	install -m 644  contrib/default/spdk_tgt debian/tmp$(DEFAULTS_DIR)/
-	install -m 644  contrib/default/vhost debian/tmp$(DEFAULTS_DIR)/
+	install -m 644 contrib/default/spdk_tgt debian/tmp$(DEFAULTS_DIR)/
+	install -m 644 contrib/default/vhost debian/tmp$(DEFAULTS_DIR)/
 	install -m 644 contrib/vhost.conf.example debian/tmp$(SPDK_CONF_DIR)/
 	install -p -m 755 scripts/setup.sh debian/tmp$(install_datadir)/scripts
 	install -m 644 scripts/common.sh debian/tmp$(install_datadir)/scripts
@@ -114,6 +117,7 @@ override_dh_auto_install:
 	#make -C dpdk install prefix=../debian/tmp$(pkg_prefix)
 	#chrpath -r $(pkg_prefix)/lib debian/tmp$(pkg_prefix)/lib/lib*so.*
 	patchelf --set-rpath $(pkg_prefix)/lib --force-rpath debian/tmp$(pkg_prefix)/lib/lib*so.*
+	patchelf --set-rpath $(pkg_prefix)/lib --force-rpath debian/tmp/usr/sbin/spdk_tgt
 	rm -rf debian/tmp$(pkg_prefix)/share/dpdk/examples
 	dh_auto_install -- prefix=$(pkg_prefix)
 	(cd scripts ; python3 setup.py install --install-layout=deb --root=../debian/tmp )

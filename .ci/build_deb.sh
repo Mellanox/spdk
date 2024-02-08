@@ -6,7 +6,7 @@
 # branch=$(git name-rev --name-only --refs *nvda* HEAD | awk -F/ '{print $NF}')
 branch=$(git name-rev --name-only HEAD | awk -F/ '{print $NF}')
 sha1=$(git rev-parse HEAD |cut -c -8)
-BASEDIR=$(dirname "$0")
+BASEDIR=$(dirname $(readlink -f $0))
 ODIR=$(readlink -f $BASEDIR/../)
 
 if [ -z "$VER" ] ; then
@@ -52,6 +52,7 @@ function apply_dpdk_patch()
 {
     $BASEDIR/dpdk_patch.sh
     patch -p0 < $BASEDIR/dpdk_conf.patch
+    # patch -p1 < $BASEDIR/0001-nvmf-Corrupt-ddigest-in-every-32-th-C2H-PDU.patch
 }
 
 
