@@ -144,6 +144,10 @@ function unittest_util() {
 	$valgrind $testdir/lib/util/xor.c/xor_ut
 }
 
+function unittest_fsdev() {
+	$valgrind $testdir/lib/fsdev/fsdev.c/fsdev_ut
+}
+
 function unittest_init() {
 	$valgrind $testdir/lib/init/subsystem.c/subsystem_ut
 }
@@ -282,6 +286,7 @@ fi
 run_test "unittest_thread" $valgrind $testdir/lib/thread/thread.c/thread_ut
 run_test "unittest_iobuf" $valgrind $testdir/lib/thread/iobuf.c/iobuf_ut
 run_test "unittest_util" unittest_util
+run_test "unittest_fsdev" unittest_fsdev
 if grep -q '#define SPDK_CONFIG_VHOST 1' $rootdir/include/spdk/config.h; then
 	run_test "unittest_vhost" $valgrind $testdir/lib/vhost/vhost.c/vhost_ut
 fi
