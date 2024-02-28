@@ -1238,7 +1238,7 @@ spdk_accel_append_copy_crc32c(struct spdk_accel_sequence **pseq, struct spdk_io_
 	}
 
 	task->dst_domain = dst_domain;
-	task->src_domain_ctx = dst_domain_ctx;
+	task->dst_domain_ctx = dst_domain_ctx;
 	task->d.iovs = dst_iovs;
 	task->d.iovcnt = dst_iovcnt;
 	task->src_domain = src_domain;
