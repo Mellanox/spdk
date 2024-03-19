@@ -24,6 +24,7 @@ struct malloc_bdev_opts {
 	bool md_interleave;
 	enum spdk_dif_type dif_type;
 	bool dif_is_head_of_md;
+	bool enable_io_channel_weight;
 };
 
 int create_malloc_disk(struct spdk_bdev **bdev, const struct malloc_bdev_opts *opts);

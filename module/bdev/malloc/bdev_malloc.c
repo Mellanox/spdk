@@ -20,6 +20,7 @@ struct malloc_disk {
 	struct spdk_bdev		disk;
 	void				*malloc_buf;
 	void				*malloc_md_buf;
+	bool				enable_io_channel_weight;
 	TAILQ_ENTRY(malloc_disk)	link;
 };
 
@@ -557,6 +558,12 @@ bdev_malloc_io_type_supported(void *ctx, enum spdk_bdev_io_type io_type)
 static struct spdk_io_channel *
 bdev_malloc_get_io_channel(void *ctx)
 {
+	struct malloc_disk *mdisk = ctx;
+
+	if (mdisk->enable_io_channel_weight) {
+		spdk_bdev_notify_io_channel_weight_change(&mdisk->disk);
+	}
+
 	return spdk_get_io_channel(&g_malloc_disks);
 }
 
@@ -621,6 +628,32 @@ bdev_malloc_accel_sequence_supported(void *ctx, enum spdk_bdev_io_type type)
 	}
 }
 
+
+static uint32_t
+bdev_malloc_io_channel_get_weight(struct spdk_io_channel *ch)
+{
+	return 1;
+}
+
+static bool
+bdev_malloc_event_type_supported(void *ctx, enum spdk_bdev_event_type event_type)
+{
+	struct malloc_disk *mdisk = ctx;
+
+	switch (event_type) {
+	case SPDK_BDEV_EVENT_REMOVE:
+		return true;
+	case SPDK_BDEV_EVENT_RESIZE:
+		return false;
+	case SPDK_BDEV_EVENT_MEDIA_MANAGEMENT:
+		return false;
+	case SPDK_BDEV_EVENT_IO_CHANNEL_WEIGHT_CHANGE:
+		return mdisk->enable_io_channel_weight;
+	default:
+		return false;
+	}
+}
+
 static const struct spdk_bdev_fn_table malloc_fn_table = {
 	.destruct			= bdev_malloc_destruct,
 	.submit_request			= bdev_malloc_submit_request,
@@ -629,6 +662,8 @@ static const struct spdk_bdev_fn_table malloc_fn_table = {
 	.write_config_json		= bdev_malloc_write_json_config,
 	.get_memory_domains		= bdev_malloc_get_memory_domains,
 	.accel_sequence_supported	= bdev_malloc_accel_sequence_supported,
+	.io_channel_get_weight		= bdev_malloc_io_channel_get_weight,
+	.event_type_supported		= bdev_malloc_event_type_supported,
 };
 
 static int
@@ -814,6 +849,8 @@ create_malloc_disk(struct spdk_bdev **bdev, const struct malloc_bdev_opts *opts)
 	if (!spdk_uuid_is_null(&opts->uuid)) {
 		spdk_uuid_copy(&mdisk->disk.uuid, &opts->uuid);
 	}
+
+	mdisk->enable_io_channel_weight = opts->enable_io_channel_weight;
 
 	mdisk->disk.max_copy = 0;
 	mdisk->disk.ctxt = mdisk;
