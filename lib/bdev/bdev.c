@@ -423,10 +423,6 @@ static void bdev_io_push_bounce_data(struct spdk_bdev_io *bdev_io);
 static void bdev_write_zero_buffer_done(struct spdk_bdev_io *bdev_io, bool success, void *cb_arg);
 static int bdev_write_zero_buffer(struct spdk_bdev_io *bdev_io);
 
-static void bdev_enable_qos_msg(struct spdk_bdev_channel_iter *i, struct spdk_bdev *bdev,
-				struct spdk_io_channel *ch, void *_ctx);
-static void bdev_enable_qos_done(struct spdk_bdev *bdev, void *_ctx, int status);
-
 static int bdev_readv_blocks_with_md(struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
 				     struct iovec *iov, int iovcnt, void *md_buf, uint64_t offset_blocks,
 				     uint64_t num_blocks,
@@ -7900,8 +7896,6 @@ spdk_bdev_unregister_by_name(const char *bdev_name, struct spdk_bdev_module *mod
 static int
 bdev_start_qos(struct spdk_bdev *bdev)
 {
-	struct set_qos_limit_ctx *ctx;
-
 	if (!bdev_qos_limits_check_disabled(bdev->internal.qos_limits)) {
 		SPDK_DEBUGLOG(bdev, "Starting QoS for %s\n", bdev->name);
 		/* Create QoS */
@@ -7913,17 +7907,6 @@ bdev_start_qos(struct spdk_bdev *bdev)
 
 			/* Setup QoS using the previously configured limits */
 			bdev_qos_limits_set(&bdev->internal.qos->limits, bdev->internal.qos_limits);
-		}
-
-		/* Enable QoS */
-		if (bdev->internal.qos->ch == NULL) {
-			ctx = calloc(1, sizeof(*ctx));
-			if (ctx == NULL) {
-				SPDK_ERRLOG("Failed to allocate memory for QoS context\n");
-				return -ENOMEM;
-			}
-			ctx->bdev = bdev;
-			spdk_bdev_for_each_channel(bdev, bdev_enable_qos_msg, ctx, bdev_enable_qos_done);
 		}
 	}
 
@@ -9175,16 +9158,6 @@ bdev_enable_qos_done(struct spdk_bdev *bdev, void *_ctx, int status)
 }
 
 static void
-bdev_update_qos_rate_limits(struct spdk_bdev *bdev, uint64_t *limits)
-{
-	assert(bdev->internal.qos != NULL);
-
-	memcpy(&bdev->internal.qos_limits, limits, sizeof(bdev->internal.qos_limits));
-
-	bdev_qos_limits_set(&bdev->internal.qos->limits, limits);
-}
-
-static void
 bdev_set_qos_rate_limits(struct spdk_bdev *bdev, uint64_t *new_limits,
 			 void (*cb_fn)(void *cb_arg, int status), void *cb_arg)
 {
@@ -9213,7 +9186,6 @@ bdev_set_qos_rate_limits(struct spdk_bdev *bdev, uint64_t *new_limits,
 	}
 	bdev->internal.qos_mod_in_progress = true;
 
-
 	disable_rate_limit = bdev_qos_limits_check_disabled(new_limits);
 
 	if (disable_rate_limit == false) {
@@ -9226,7 +9198,9 @@ bdev_set_qos_rate_limits(struct spdk_bdev *bdev, uint64_t *new_limits,
 			}
 		}
 
-		bdev_update_qos_rate_limits(bdev, new_limits);
+		memcpy(&bdev->internal.qos_limits, new_limits, sizeof(bdev->internal.qos_limits));
+
+		bdev_qos_limits_set(&bdev->internal.qos->limits, new_limits);
 
 		if (bdev->internal.qos->ch == NULL) {
 			/* Enabling */
