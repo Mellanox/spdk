@@ -3797,6 +3797,7 @@ static void
 bdev_channel_destroy_resource(struct spdk_bdev_channel *ch)
 {
 	struct spdk_bdev_shared_resource *shared_resource;
+	struct spdk_bdev *bdev;
 	struct lba_range *range;
 
 	bdev_free_io_stat(ch->stat);
@@ -3814,7 +3815,11 @@ bdev_channel_destroy_resource(struct spdk_bdev_channel *ch)
 	spdk_put_io_channel(ch->accel_channel);
 
 	if (ch->qos_cache != NULL) {
+		bdev = ch->bdev;
+
+		spdk_spin_lock(&bdev->internal.spinlock);
 		bdev_qos_cache_destroy(ch->qos_cache);
+		spdk_spin_unlock(&bdev->internal.spinlock);
 	}
 
 	bdev_ch_destroy_group_channel(ch);
@@ -10362,9 +10367,12 @@ static void
 bdev_group_channel_destroy(void *io_device, void *ctx_buf)
 {
 	struct spdk_bdev_group_channel *ch = ctx_buf;
+	struct spdk_bdev_group *group = io_device;
 
 	if (ch->qos_cache != NULL) {
+		spdk_spin_lock(&group->spinlock);
 		bdev_qos_cache_destroy(ch->qos_cache);
+		spdk_spin_unlock(&group->spinlock);
 	}
 }
 
@@ -10733,10 +10741,13 @@ bdev_group_disable_qos_msg(struct spdk_io_channel_iter *i)
 {
 	struct spdk_io_channel *_ch = spdk_io_channel_iter_get_channel(i);
 	struct spdk_bdev_group_channel *group_ch = spdk_io_channel_get_ctx(_ch);
+	struct spdk_bdev_group *group = group_ch->group;
 	struct spdk_bdev_channel *bdev_ch;
 
 	if (group_ch->qos_cache != NULL) {
+		spdk_spin_lock(&group->spinlock);
 		bdev_qos_cache_destroy(group_ch->qos_cache);
+		spdk_spin_unlock(&group->spinlock);
 		group_ch->qos_cache = NULL;
 	}
 
