@@ -10443,7 +10443,7 @@ spdk_for_each_bdev_group(void *cb_arg, int (*cb_fn)(void *cb_arg, struct spdk_bd
 	return rc;
 }
 
-struct bdev_group_add_set_qos_rate_limits_ctx {
+struct bdev_group_add_cb_ctx {
 	struct spdk_bdev_group *group;
 	struct spdk_bdev_node *node;
 	void (*cb_fn)(void *cb_arg, int status);
@@ -10453,7 +10453,7 @@ struct bdev_group_add_set_qos_rate_limits_ctx {
 static void
 bdev_group_add_bdev_msg_done(struct spdk_bdev *bdev, void *_ctx, int status)
 {
-	struct bdev_group_add_set_qos_rate_limits_ctx *ctx = _ctx;
+	struct bdev_group_add_cb_ctx *ctx = _ctx;
 	struct spdk_bdev_group *group = ctx->group;
 	struct spdk_bdev_node *node = ctx->node;
 
@@ -10479,7 +10479,7 @@ bdev_group_add_bdev_msg(struct spdk_bdev_channel_iter *i, struct spdk_bdev *bdev
 			struct spdk_io_channel *io_ch, void *_ctx)
 {
 	struct spdk_bdev_channel *bdev_ch = spdk_io_channel_get_ctx(io_ch);
-	struct bdev_group_add_set_qos_rate_limits_ctx *ctx = _ctx;
+	struct bdev_group_add_cb_ctx *ctx = _ctx;
 	struct spdk_bdev_group *group = ctx->group;
 
 	bdev_ch_create_group_channel(bdev_ch, group);
@@ -10517,7 +10517,7 @@ spdk_bdev_group_add_bdev(struct spdk_bdev_group *group, const char *bdev_name,
 	int rc;
 	struct spdk_bdev_desc *desc;
 	struct spdk_bdev *bdev;
-	struct bdev_group_add_set_qos_rate_limits_ctx *ctx;
+	struct bdev_group_add_cb_ctx *ctx;
 	bool qos_mod_in_progress;
 
 	rc = spdk_bdev_open_ext(bdev_name, false, bdev_group_bdev_event_cb, group, &desc);
@@ -10535,7 +10535,7 @@ spdk_bdev_group_add_bdev(struct spdk_bdev_group *group, const char *bdev_name,
 		return;
 	}
 
-	ctx = (struct bdev_group_add_set_qos_rate_limits_ctx *)calloc(1, sizeof(*ctx));
+	ctx = (struct bdev_group_add_cb_ctx *)calloc(1, sizeof(*ctx));
 	if (!ctx) {
 		spdk_bdev_close(desc);
 		cb_fn(cb_arg, -ENOMEM);
