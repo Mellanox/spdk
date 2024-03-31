@@ -10691,14 +10691,14 @@ spdk_bdev_group_get_qos_rate_limits(struct spdk_bdev_group *group, uint64_t *lim
 	spdk_spin_unlock(&group->spinlock);
 }
 
-struct bdev_group_set_qos_rate_limits_ctx {
+struct set_group_qos_limit_ctx {
 	struct spdk_bdev_group *group;
 	void (*cb_fn)(void *cb_arg, int status);
 	void *cb_arg;
 };
 
 static void
-bdev_group_set_qos_rate_limits_cb(struct bdev_group_set_qos_rate_limits_ctx *ctx, int status)
+bdev_group_set_qos_rate_limits_cb(struct set_group_qos_limit_ctx *ctx, int status)
 {
 	ctx->cb_fn(ctx->cb_arg, status);
 	__atomic_clear(&ctx->group->qos_mod_in_progress, __ATOMIC_RELAXED);
@@ -10731,7 +10731,7 @@ bdev_group_enable_qos_msg(struct spdk_io_channel_iter *i)
 static void
 bdev_group_enable_qos_msg_done(struct spdk_io_channel_iter *i, int status)
 {
-	struct bdev_group_set_qos_rate_limits_ctx *ctx = spdk_io_channel_iter_get_ctx(i);
+	struct set_group_qos_limit_ctx *ctx = spdk_io_channel_iter_get_ctx(i);
 
 	bdev_group_set_qos_rate_limits_cb(ctx, status);
 }
@@ -10761,7 +10761,7 @@ bdev_group_disable_qos_msg(struct spdk_io_channel_iter *i)
 static void
 bdev_group_disable_qos_msg_done(struct spdk_io_channel_iter *i, int status)
 {
-	struct bdev_group_set_qos_rate_limits_ctx *ctx = spdk_io_channel_iter_get_ctx(i);
+	struct set_group_qos_limit_ctx *ctx = spdk_io_channel_iter_get_ctx(i);
 	struct spdk_bdev_group *group = ctx->group;
 
 	bdev_group_disable_qos(group);
@@ -10772,7 +10772,7 @@ bdev_group_disable_qos_msg_done(struct spdk_io_channel_iter *i, int status)
 static void
 bdev_group_update_qos_rate_limit_msg(void *cb_arg)
 {
-	struct bdev_group_set_qos_rate_limits_ctx *ctx = cb_arg;
+	struct set_group_qos_limit_ctx *ctx = cb_arg;
 	struct spdk_bdev_group *group = ctx->group;
 
 	spdk_spin_lock(&group->spinlock);
@@ -10787,11 +10787,11 @@ spdk_bdev_group_set_qos_rate_limits(struct spdk_bdev_group *group, const uint64_
 				    void (*cb_fn)(void *cb_arg, int status),
 				    void *cb_arg)
 {
-	struct bdev_group_set_qos_rate_limits_ctx *ctx;
+	struct set_group_qos_limit_ctx *ctx;
 	bool qos_mod_in_progress;
 	bool disable_rate_limit;
 
-	ctx = (struct bdev_group_set_qos_rate_limits_ctx *)calloc(1, sizeof(*ctx));
+	ctx = (struct set_group_qos_limit_ctx *)calloc(1, sizeof(*ctx));
 	if (!ctx) {
 		cb_fn(cb_arg, -ENOMEM);
 		return;
