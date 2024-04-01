@@ -10869,6 +10869,14 @@ bdev_group_unregister_cb(void *io_device)
 	free(group);
 }
 
+static void
+bdev_group_unregister(struct spdk_bdev_group *group)
+{
+	bdev_group_disable_qos(group);
+
+	spdk_io_device_unregister(group, bdev_group_unregister_cb);
+}
+
 struct bdev_group_destroy_ctx {
 	void (*cb_fn)(void *cb_arg, int status);
 	void *cb_arg;
@@ -10876,23 +10884,34 @@ struct bdev_group_destroy_ctx {
 };
 
 static void
-bdev_group_destroy_cb(void *_ctx, int status)
+bdev_group_destroy_msg_done(struct spdk_io_channel_iter *i, int status)
 {
-	struct bdev_group_destroy_ctx *ctx = _ctx;
+	struct bdev_group_destroy_ctx *ctx = spdk_io_channel_iter_get_ctx(i);
 	struct spdk_bdev_group *group = ctx->group;
-	struct spdk_bdev_node *node;
-	struct spdk_bdev *bdev;
+	struct spdk_bdev_node *node, *tmp_node;
 
-	if (!TAILQ_EMPTY(&group->bdevs)) {
-		node = TAILQ_FIRST(&group->bdevs);
-		bdev = spdk_bdev_desc_get_bdev(node->desc);
-		spdk_bdev_group_remove_bdev(group, spdk_bdev_get_name(bdev), bdev_group_destroy_cb, ctx);
-	} else {
-		ctx->cb_fn(ctx->cb_arg, 0);
-		free(ctx);
-
-		spdk_io_device_unregister(group, bdev_group_unregister_cb);
+	TAILQ_FOREACH_SAFE(node, &group->bdevs, link, tmp_node) {
+		bdev_group_remove_node(group, node);
 	}
+
+	bdev_group_unregister(group);
+
+	ctx->cb_fn(ctx->cb_arg, 0);
+	free(ctx);
+}
+
+static void
+bdev_group_destroy_msg(struct spdk_io_channel_iter *i)
+{
+	struct spdk_io_channel *_ch = spdk_io_channel_iter_get_channel(i);
+	struct spdk_bdev_group_channel *group_ch = spdk_io_channel_get_ctx(_ch);
+	struct spdk_bdev_channel *bdev_ch, *tmp_bdev_ch;
+
+	TAILQ_FOREACH_SAFE(bdev_ch, &group_ch->bdev_ch_list, tailq, tmp_bdev_ch) {
+		bdev_ch_destroy_group_channel(bdev_ch);
+	}
+
+	spdk_for_each_channel_continue(i, 0);
 }
 
 void
@@ -10901,9 +10920,18 @@ spdk_bdev_group_destroy(struct spdk_bdev_group *group,
 			void *cb_arg)
 {
 	struct bdev_group_destroy_ctx *ctx;
+	bool qos_mod_in_progress;
+
+	qos_mod_in_progress = __atomic_test_and_set(&group->qos_mod_in_progress,
+			      __ATOMIC_RELAXED);
+	if (qos_mod_in_progress) {
+		cb_fn(cb_arg, -EAGAIN);
+		return;
+	}
 
 	ctx = calloc(1, sizeof(*ctx));
 	if (ctx == NULL) {
+		__atomic_clear(&group->qos_mod_in_progress, __ATOMIC_RELAXED);
 		cb_fn(cb_arg, -ENOMEM);
 		return;
 	}
@@ -10916,7 +10944,8 @@ spdk_bdev_group_destroy(struct spdk_bdev_group *group,
 	TAILQ_REMOVE(&g_bdev_mgr.groups, group, link);
 	spdk_spin_unlock(&g_bdev_mgr.spinlock);
 
-	bdev_group_destroy_cb(ctx, 0);
+	spdk_for_each_channel(group, bdev_group_destroy_msg, ctx,
+			      bdev_group_destroy_msg_done);
 }
 
 void
