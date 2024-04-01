@@ -10569,6 +10569,20 @@ spdk_bdev_group_add_bdev(struct spdk_bdev_group *group, const char *bdev_name,
 				   bdev_group_add_bdev_msg_done);
 }
 
+static void
+bdev_group_remove_node(struct spdk_bdev_group *group, struct spdk_bdev_node *node)
+{
+	struct spdk_bdev *bdev = spdk_bdev_desc_get_bdev(node->desc);
+
+	bdev->internal.group = NULL;
+
+	spdk_bdev_close(node->desc);
+
+	TAILQ_REMOVE(&group->bdevs, node, link);
+
+	free(node);
+}
+
 struct bdev_group_remove_cb_ctx {
 	void (*cb_fn)(void *cb_arg, int status);
 	void *cb_arg;
@@ -10583,14 +10597,12 @@ bdev_group_remove_bdev_msg_done(struct spdk_bdev *bdev, void *_ctx, int status)
 	struct spdk_bdev_group *group = ctx->group;
 	struct spdk_bdev_node *node = ctx->node;
 
-	/* Set bdev's group pointer to NULL */
-	bdev->internal.group = NULL;
+	bdev_group_remove_node(group, node);
+
 	/* Clear the in-progress flag, so QoS changes are allowed again */
 	__atomic_clear(&group->qos_mod_in_progress, __ATOMIC_RELAXED);
 
-	spdk_bdev_close(node->desc);
 	ctx->cb_fn(ctx->cb_arg, 0);
-	free(node);
 	free(ctx);
 }
 
@@ -10634,7 +10646,6 @@ spdk_bdev_group_remove_bdev(struct spdk_bdev_group *group,
 	TAILQ_FOREACH(node, &group->bdevs, link) {
 		bdev = spdk_bdev_desc_get_bdev(node->desc);
 		if (!strcmp(spdk_bdev_get_name(bdev), bdev_name)) {
-			TAILQ_REMOVE(&group->bdevs, node, link);
 			break;
 		}
 		bdev = NULL;
