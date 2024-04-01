@@ -2266,6 +2266,8 @@ bdev_module_fini_iter(void *arg)
 {
 	struct spdk_bdev_module *bdev_module;
 
+	assert(TAILQ_EMPTY(&g_bdev_mgr.bdevs));
+
 	/* FIXME: Handling initialization failures is broken now,
 	 * so we won't even try cleaning up after successfully
 	 * initialized modules. if module_init_complete is false,
@@ -2320,6 +2322,23 @@ spdk_bdev_module_fini_done(void)
 	}
 }
 
+static void bdev_group_unregister(struct spdk_bdev_group *group);
+
+static void
+bdev_group_fini(void *arg)
+{
+	struct spdk_bdev_group *group, *tmp_group;
+
+	assert(TAILQ_EMPTY(&g_bdev_mgr.bdevs));
+
+	TAILQ_FOREACH_SAFE(group, &g_bdev_mgr.groups, link, tmp_group) {
+		TAILQ_REMOVE(&g_bdev_mgr.groups, group, link);
+		bdev_group_unregister(group);
+	}
+
+	spdk_thread_send_msg(spdk_get_thread(), bdev_module_fini_iter, NULL);
+}
+
 static void
 bdev_finish_unregister_bdevs_iter(void *cb_arg, int bdeverrno)
 {
@@ -2340,11 +2359,11 @@ bdev_finish_unregister_bdevs_iter(void *cb_arg, int bdeverrno)
 	if (TAILQ_EMPTY(&g_bdev_mgr.bdevs)) {
 		SPDK_DEBUGLOG(bdev, "Done unregistering bdevs\n");
 		/*
-		 * Bdev module finish need to be deferred as we might be in the middle of some context
-		 * (like bdev part free) that will use this bdev (or private bdev driver ctx data)
-		 * after returning.
+		 * Bdev module and group finish need to be deferred as we might be in the middle of
+		 * some context (like bdev part free) that will use this bdev (or private bdev driver
+		 * ctx data) after returning.
 		 */
-		spdk_thread_send_msg(spdk_get_thread(), bdev_module_fini_iter, NULL);
+		spdk_thread_send_msg(spdk_get_thread(), bdev_group_fini, NULL);
 		return;
 	}
 
