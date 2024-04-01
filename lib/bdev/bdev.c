@@ -10859,6 +10859,16 @@ spdk_bdev_group_set_qos_rate_limits(struct spdk_bdev_group *group, const uint64_
 	spdk_spin_unlock(&group->spinlock);
 }
 
+static void
+bdev_group_unregister_cb(void *io_device)
+{
+	struct spdk_bdev_group *group = io_device;
+
+	spdk_spin_destroy(&group->spinlock);
+	free(group->name);
+	free(group);
+}
+
 struct bdev_group_destroy_ctx {
 	void (*cb_fn)(void *cb_arg, int status);
 	void *cb_arg;
@@ -10879,13 +10889,9 @@ bdev_group_destroy_cb(void *_ctx, int status)
 		spdk_bdev_group_remove_bdev(group, spdk_bdev_get_name(bdev), bdev_group_destroy_cb, ctx);
 	} else {
 		ctx->cb_fn(ctx->cb_arg, 0);
-		spdk_spin_destroy(&group->spinlock);
-
-		spdk_io_device_unregister(group, NULL);
-
-		free(group->name);
-		free(group);
 		free(ctx);
+
+		spdk_io_device_unregister(group, bdev_group_unregister_cb);
 	}
 }
 
