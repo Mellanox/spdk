@@ -4167,13 +4167,13 @@ accel_mlx5_psvs_create(struct accel_mlx5_dev_ctx *dev_ctx)
 		}
 	}
 
-	rc = snprintf(pool_name, sizeof(pool_name), "accel_mlx5_psv_%s", dev_ctx->context->device->name);
+	rc = snprintf(pool_name, sizeof(pool_name), "accel_psv_%s", dev_ctx->context->device->name);
 	if (rc < 0) {
 		assert(0);
 		return -EINVAL;
 	}
 	uint32_t cache_size = dev_ctx->num_mkeys / 4 * 3 / spdk_env_get_core_count();
-	SPDK_NOTICELOG("Total PSV pool size %u, cache size %u\n", num_psvs, cache_size);
+	SPDK_NOTICELOG("PSV pool name %s size %u cache size %u\n", pool_name, num_psvs, cache_size);
 	dev_ctx->psv_pool = spdk_mempool_create_ctor(pool_name, num_psvs,
 			    sizeof(struct accel_mlx5_psv_wrapper),
 			    cache_size, SPDK_ENV_SOCKET_ID_ANY,
