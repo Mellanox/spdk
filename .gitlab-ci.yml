@@ -36,7 +36,7 @@ build-job:
     - cd ../fio-fio-3.35
     - ./configure --prefix=/usr/local
     - cd $CI_PROJECT_DIR
-    - ./configure --with-fio=../fio-fio-3.35/ --with-rdma=mlx5_dv --target-arch=znver3 --with-crypto --enable-debug
+    - ./configure --with-fio=../fio-fio-3.35/ --with-rdma=mlx5_dv --target-arch=haswell --with-crypto --enable-debug
     - make -j4
     - find test -type f -perm 0755 |egrep -v '\.sh|\.py|\.pl|\/match' |tar cf .test.tar -T /dev/stdin
   artifacts:
@@ -49,7 +49,7 @@ build-job:
       - ./mk/cc.mk
       - ./include/spdk/config.h
 
-test-job:
+.test-job-tmplate:
   stage: test
   tags: [vm, linux, x86_64, f39]
   needs:
@@ -65,6 +65,10 @@ test-job:
   hooks:
     pre_get_sources_script:
       - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/Mellanox/spdk_team/dpdk.git".insteadOf https://github.com/spdk/dpdk.git
+
+test-job:
+  extends: .test-job-tmplate
+  tags: [not-crypto, vm, linux, x86_64, f39]
   script:
     - patch -p1 < $HOME/spdk-test-nvme.diff
     - patch -p1 < $HOME/spdk-autotest-on-vm.diff
@@ -77,6 +81,20 @@ test-job:
     # TODO: enable once crypto NIC is available
     # sudo ./test/accel/accel_mlx5_crypto.sh
     - sudo ./autotest.sh $HOME/autorun-spdk.conf
+    - sudo chown -R $USER $CI_PROJECT_DIR
+
+test-crypto-job:
+  extends: .test-job-tmplate
+  tags: [crypto, vm, linux, x86_64, f39]
+  script:
+    - patch -p1 < $HOME/spdk-test-nvme.diff
+    - patch -p1 < $HOME/spdk-autotest-on-vm.diff
+    - tar xf .test.tar
+    # clean up output of autotest from previous runs
+    - sudo rm -rf $CI_PROJECT_DIR/../output/
+    - sudo ./scripts/setup.sh
+    # TODO: enable once crypto NIC is available
+    - sudo ./test/accel/accel_mlx5_crypto.sh
     - sudo chown -R $USER $CI_PROJECT_DIR
 
 coverity-job:
