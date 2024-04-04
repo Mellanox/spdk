@@ -1674,10 +1674,14 @@ qos_dynamic_enable(void)
 	struct spdk_bdev *bdev;
 	enum spdk_bdev_io_status bdev_io_status[2];
 	uint64_t limits[SPDK_BDEV_QOS_NUM_RATE_LIMIT_TYPES] = {};
+	uint32_t qos_io_slice;
 	int status, second_status, rc, i;
 
 	setup_test();
 	MOCK_SET(spdk_get_ticks, 0);
+
+	qos_io_slice = g_bdev_opts.qos_io_slice;
+	g_bdev_opts.qos_io_slice = 1;
 
 	bdev = &g_bdev.bdev;
 
@@ -1840,6 +1844,8 @@ qos_dynamic_enable(void)
 
 	set_thread(0);
 	teardown_test();
+
+	g_bdev_opts.qos_io_slice = qos_io_slice;
 }
 
 static void

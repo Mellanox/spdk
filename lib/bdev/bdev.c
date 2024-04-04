@@ -44,7 +44,7 @@ int __itt_init_ittlib(const char *, __itt_group_id);
 #define BUF_SMALL_CACHE_SIZE			128
 #define BUF_LARGE_CACHE_SIZE			16
 #define NOMEM_THRESHOLD_COUNT			8
-#define SPDK_BDEV_QOS_IO_SLICE			10
+#define SPDK_BDEV_QOS_IO_SLICE			100
 #define SPDK_BDEV_QOS_BYTE_SLICE		512
 
 #define SPDK_BDEV_IO_POLL_INTERVAL_IN_MSEC	1000
