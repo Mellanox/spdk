@@ -377,6 +377,13 @@ const char *spdk_deprecation_get_remove_release(const struct spdk_deprecation *d
  */
 uint64_t spdk_deprecation_get_hits(const struct spdk_deprecation *deprecation);
 
+/**
+ * Print backtrace symbols with the given log level
+ *
+ * \param level log level
+ */
+void spdk_print_backtrace(enum spdk_log_level level);
+
 #ifdef __cplusplus
 }
 #endif

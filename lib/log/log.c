@@ -289,3 +289,34 @@ spdk_log_dump(FILE *fp, const char *label, const void *buf, size_t len)
 {
 	fdump(fp, label, buf, len);
 }
+
+#define MAX_DEPTH 128
+#define SPDK_PRINT_TRACE(level, ...) spdk_log((level), __FILE__, __LINE__, __func__, "[%d] %s\n", __VA_ARGS__);
+
+void
+spdk_print_backtrace(enum spdk_log_level level)
+{
+	void *traces[MAX_DEPTH];
+	char **trace_symbols;
+
+	int i, depth;
+
+	depth = backtrace(traces, MAX_DEPTH);
+	if (depth < 2) {
+		/* This function is part of backtrace */
+		SPDK_ERRLOG("no backtrace\n");
+		return;
+	}
+
+	trace_symbols = backtrace_symbols(traces, depth);
+	if (!trace_symbols) {
+		SPDK_ERRLOG("no backtrace symbols\n");
+		return;
+	}
+
+	for (i = 1; i < depth; i++) {
+		SPDK_PRINT_TRACE(level, i - 1, trace_symbols[i]);
+	}
+
+	free(trace_symbols);
+}

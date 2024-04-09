@@ -64,6 +64,8 @@ extern "C" {
 #include <sys/user.h>
 #include <sys/wait.h>
 #include <regex.h>
+#include <dlfcn.h>
+#include <execinfo.h>
 
 /* GNU extension */
 #include <getopt.h>

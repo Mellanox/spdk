@@ -26,6 +26,7 @@
 	spdk_deprecation_get_description;
 	spdk_deprecation_get_remove_release;
 	spdk_deprecation_get_hits;
+	spdk_print_backtrace;
 
 	# functions used by other SPDK libraries
 	spdk_log_register_flag;
