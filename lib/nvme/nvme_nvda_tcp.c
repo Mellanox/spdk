@@ -270,7 +270,7 @@ static struct spdk_mempool *g_xlio_buffers_pool;
 
 static int xlio_sock_poll_fd(int fd, uint32_t max_events_per_poll);
 static inline int xlio_sock_flush_ext(struct spdk_xlio_sock *vsock);
-static int xlio_sock_close(struct spdk_xlio_sock *sock);
+static void xlio_sock_close(struct spdk_xlio_sock *sock);
 static void _pdu_write_done(struct nvme_tcp_qpair *tqpair, struct nvme_tcp_pdu *pdu, int err);
 static inline int nvme_tcp_fill_data_mkeys(struct nvme_tcp_qpair *tqpair,
 		struct nvme_tcp_req *tcp_req, struct nvme_tcp_pdu *pdu);
@@ -368,37 +368,25 @@ xlio_sock_req_reset(struct nvme_tcp_pdu *pdu)
 	pdu->is_zcopy = false;
 }
 
-static inline int
+static inline void
 xlio_sock_request_complete(struct spdk_xlio_sock *sock, struct nvme_tcp_pdu *pdu, int err)
 {
 	struct nvme_tcp_qpair *tqpair;
 	bool in_complete_cb;
-	bool closed;
-	int rc = 0;
 
 	tqpair = SPDK_CONTAINEROF(sock, struct nvme_tcp_qpair, sock);
 
 	xlio_sock_req_reset(pdu);
 
-	closed = sock->flags.closed;
 	in_complete_cb = sock->flags.in_complete_cb;
 	sock->flags.in_complete_cb = 1;
 	_pdu_write_done(tqpair, pdu, err);
 	assert(sock->flags.in_complete_cb == 1);
 	sock->flags.in_complete_cb = in_complete_cb;
-
-	if (sock->flags.in_complete_cb == 0 && !closed && sock->flags.closed) {
-		/* The user closed the socket in response to a callback above. */
-		rc = -1;
-		/* TODO: something wrong here, sock->flags.closed == 1 means that we already closed the socket */
-		xlio_sock_close(sock);
-	}
-
-	return rc;
 }
 
 
-static inline int
+static inline void
 xlio_sock_request_put(struct spdk_xlio_sock *sock, struct nvme_tcp_pdu *pdu, int err)
 {
 	assert(pdu->curr_list == &sock->pending_pdus);
@@ -406,19 +394,16 @@ xlio_sock_request_put(struct spdk_xlio_sock *sock, struct nvme_tcp_pdu *pdu, int
 #ifdef DEBUG
 	pdu->curr_list = NULL;
 #endif
-	return xlio_sock_request_complete(sock, pdu, err);
+	xlio_sock_request_complete(sock, pdu, err);
 }
 
-static inline int
+static inline void
 xlio_sock_abort_requests(struct spdk_xlio_sock *sock)
 {
 	struct nvme_tcp_pdu *pdu;
 	struct nvme_tcp_qpair *tqpair;
 	bool in_complete_cb;
-	bool closed;
-	int rc = 0;
 
-	closed = sock->flags.closed;
 	in_complete_cb = sock->flags.in_complete_cb;
 	sock->flags.in_complete_cb = 1;
 	tqpair = SPDK_CONTAINEROF(sock, struct nvme_tcp_qpair, sock);
@@ -457,15 +442,6 @@ xlio_sock_abort_requests(struct spdk_xlio_sock *sock)
 
 	assert(TAILQ_EMPTY(&sock->queued_pdus));
 	assert(TAILQ_EMPTY(&sock->pending_pdus));
-
-	if (sock->flags.in_complete_cb == 0 && !closed && sock->flags.closed) {
-		/* The user closed the socket in response to a callback above. */
-		rc = -1;
-		/* TODO: something wrong here, sock->flags.closed == 1 means that we already closed the socket */
-		xlio_sock_close(sock);
-	}
-
-	return rc;
 }
 
 static inline void
@@ -910,11 +886,13 @@ xlio_sock_release_packets(struct spdk_xlio_sock *sock)
 	}
 }
 
-static int
+static void
 xlio_sock_close(struct spdk_xlio_sock *sock)
 {
 	assert(TAILQ_EMPTY(&sock->pending_pdus));
 	assert(sock->consumed_packets == 0);
+	assert(!sock->flags.pending_recv);
+	assert(!sock->flags.pending_send);
 
 	/* If the socket fails to close, the best choice is to
 	 * leak the fd but continue to free the rest of the sock
@@ -923,14 +901,12 @@ xlio_sock_close(struct spdk_xlio_sock *sock)
 
 	if (sock->ring_fd && --sock->ring_fd->refs == 0) {
 		free(sock->ring_fd);
-		sock->ring_fd = NULL;
 	}
 
+	sock->ring_fd = NULL;
 	sock->fd = 0;
 	sock->flags_raw = 0;
 	sock->flags.closed = 1;
-
-	return 0;
 }
 
 static int
@@ -990,18 +966,11 @@ _sock_check_zcopy(struct spdk_xlio_sock *vsock)
 			TAILQ_FOREACH_SAFE(pdu, &vsock->pending_pdus, link, treq) {
 				if (!pdu->is_zcopy) {
 					/* This wasn't a zcopy request. It was just waiting in line to complete */
-					rc = xlio_sock_request_put(vsock, pdu, 0);
-					if (rc < 0) {
-						return rc;
-					}
+					xlio_sock_request_put(vsock, pdu, 0);
 				} else if (pdu->rw_offset == idx) {
 					found = true;
 
-					rc = xlio_sock_request_put(vsock, pdu, 0);
-					if (rc < 0) {
-						return rc;
-					}
-
+					xlio_sock_request_put(vsock, pdu, 0);
 				} else if (found) {
 					break;
 				}
@@ -1010,6 +979,7 @@ _sock_check_zcopy(struct spdk_xlio_sock *vsock)
 			/* If we reaped buffer reclaim notification and sock is not in pending_recv list yet,
 			 * add it now. It allows to call socket callback and process completions */
 			if (found && !vsock->flags.pending_recv && group) {
+				assert(vsock->ring_fd);
 				vsock->flags.pending_recv = true;
 				TAILQ_INSERT_TAIL(&group->pending_recv, vsock, link);
 			}
@@ -1444,7 +1414,6 @@ xlio_sock_flush_ext(struct spdk_xlio_sock *vsock)
 	ssize_t rc;
 	size_t len;
 	int flags = 0;
-	int retval;
 	int i;
 	unsigned int offset;
 	uint32_t total;
@@ -1575,10 +1544,7 @@ full_req:
 		if (!pdu->is_zcopy && pdu == TAILQ_FIRST(&vsock->pending_pdus)) {
 			/* The sendmsg syscall above isn't currently asynchronous,
 			* so it's already done. */
-			retval = xlio_sock_request_put(vsock, pdu, 0);
-			if (spdk_unlikely(retval)) {
-				break;
-			}
+			xlio_sock_request_put(vsock, pdu, 0);
 		} else {
 			/* Re-use the offset field to hold the sendmsg call index. The
 			 * index is 0 based, so subtract one here because we've already
@@ -1795,6 +1761,7 @@ xlio_sock_poll_fd(int fd, uint32_t max_events_per_poll)
 		    spdk_likely(vsock->group_impl) && !vsock->flags.pending_recv) {
 			struct spdk_xlio_sock_group_impl *group = vsock->group_impl;
 
+			assert(vsock->ring_fd);
 			vsock->flags.pending_recv = true;
 			TAILQ_INSERT_TAIL(&group->pending_recv, vsock, link);
 		}
@@ -1862,7 +1829,7 @@ xlio_sock_group_impl_poll(struct spdk_xlio_sock_group_impl *group, int max_event
 	vsock = NULL;
 	while (vsock != ptmp && num_events < max_events) {
 		vsock = TAILQ_FIRST(&group->pending_recv);
-		/* If the socket's cb_fn is NULL, just remove it from the
+		/* If the socket is closed, just remove it from the
 		 * list and do not add it to socks array */
 		if (spdk_unlikely(vsock->flags.closed)) {
 			vsock->flags.pending_recv = false;
@@ -1942,6 +1909,7 @@ xlio_sock_recv_zcopy(struct spdk_xlio_sock *vsock, size_t len, struct spdk_sock_
 		if (spdk_unlikely(!buf)) {
 			SPDK_DEBUGLOG(nvme_xlio, "sock %p: no more buffers, total_len %d\n", vsock, ret);
 			if (spdk_unlikely(group && !vsock->flags.pending_recv)) {
+				assert(vsock->ring_fd);
 				vsock->flags.pending_recv = true;
 				SPDK_DEBUGLOG(nvme_xlio, "sock %p, insert to pending_recv\n", vsock);
 				TAILQ_INSERT_TAIL(&group->pending_recv, vsock, link);
@@ -2330,8 +2298,6 @@ nvme_tcp_ctrlr_disconnect_qpair(struct spdk_nvme_ctrlr *ctrlr, struct spdk_nvme_
 {
 	struct nvme_tcp_qpair *tqpair = nvme_tcp_qpair(qpair);
 	struct spdk_xlio_sock *sock = &tqpair->sock;
-	struct nvme_tcp_pdu *pdu;
-	int rc;
 	struct nvme_tcp_poll_group *group;
 
 	if (tqpair->flags.needs_poll) {
@@ -2344,26 +2310,14 @@ nvme_tcp_ctrlr_disconnect_qpair(struct spdk_nvme_ctrlr *ctrlr, struct spdk_nvme_
 	xlio_sock_release_packets(sock);
 
 	if (qpair->outstanding_zcopy_reqs == 0 && sock->consumed_packets == 0) {
-		rc = xlio_sock_close(sock);
-
-		if (sock->ring_fd != NULL) {
-			SPDK_ERRLOG("tqpair=%p, errno=%d, rc=%d\n", tqpair, errno, rc);
-			/* Set it to NULL manually */
-			sock->ring_fd = NULL;
-		}
+		xlio_sock_close(sock);
 	} else {
-		SPDK_NOTICELOG("qpair %p %u, sock %p: can't close, %u zcopy reqs, consumed_packets %u\n",
-			       tqpair, qpair->id, sock, qpair->outstanding_zcopy_reqs, sock->consumed_packets);
+		SPDK_WARNLOG("qpair %p %u, sock %p: can't close, %u zcopy reqs, consumed_packets %u\n",
+			     tqpair, qpair->id, sock, qpair->outstanding_zcopy_reqs, sock->consumed_packets);
 	}
 
 	/* clear the send_queue */
-	while (!TAILQ_EMPTY(&tqpair->send_queue)) {
-		pdu = TAILQ_FIRST(&tqpair->send_queue);
-		/* Remove the pdu from the send_queue to prevent the wrong sending out
-		 * in the next round connection
-		 */
-		TAILQ_REMOVE(&tqpair->send_queue, pdu, tailq);
-	}
+	TAILQ_INIT(&tqpair->send_queue);
 
 	nvme_tcp_qpair_set_recv_state(tqpair, NVME_TCP_PDU_RECV_STATE_QUIESCING);
 }
@@ -5966,6 +5920,8 @@ nvme_tcp_poll_group_remove(struct spdk_nvme_transport_poll_group *tgroup,
 		tqpair->flags.needs_poll = false;
 	}
 
+	assert(tqpair->sock.flags.closed);
+
 	return 0;
 }
 
@@ -5992,14 +5948,8 @@ nvme_tcp_poll_group_process_completions(struct spdk_nvme_transport_poll_group *t
 			continue;
 		}
 
-		if (tqpair->sock.ring_fd != NULL) {
-			int rc = xlio_sock_close(&tqpair->sock);
-
-			if (tqpair->sock.ring_fd != NULL) {
-				SPDK_ERRLOG("tqpair=%p, errno=%d, rc=%d\n", tqpair, errno, rc);
-				/* Set it to NULL manually */
-				tqpair->sock.ring_fd = NULL;
-			}
+		if (!tqpair->sock.flags.closed) {
+			xlio_sock_close(&tqpair->sock);
 		}
 		if (nvme_qpair_get_state(qpair) == NVME_QPAIR_DISCONNECTING) {
 			if (TAILQ_EMPTY(&tqpair->outstanding_reqs)) {
