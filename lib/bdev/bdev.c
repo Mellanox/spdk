@@ -1166,6 +1166,16 @@ bdev_io_pull_md_buf_done(void *ctx, int status)
 	bdev_io->internal.data_transfer_cpl(bdev_io, status);
 }
 
+static const char *
+bdev_io_memory_domain_id(struct spdk_bdev_io *bdev_io)
+{
+	const char *domain_id = spdk_memory_domain_get_dma_device_id(bdev_io->internal.memory_domain);
+	if (!domain_id) {
+		domain_id = "null";
+	}
+	return domain_id;
+}
+
 static void
 bdev_io_pull_md_buf(struct spdk_bdev_io *bdev_io)
 {
@@ -1189,8 +1199,7 @@ bdev_io_pull_md_buf(struct spdk_bdev_io *bdev_io)
 			TAILQ_REMOVE(&ch->io_memory_domain, bdev_io, internal.link);
 			if (rc != -ENOMEM) {
 				SPDK_ERRLOG("Failed to pull data from memory domain %s, rc %d\n",
-					    spdk_memory_domain_get_dma_device_id(
-						    bdev_io->internal.memory_domain), rc);
+					    bdev_io_memory_domain_id(bdev_io), rc);
 			}
 		} else {
 			memcpy(bdev_io->internal.bounce_md_iov.iov_base,
@@ -1332,8 +1341,7 @@ bdev_io_pull_data(struct spdk_bdev_io *bdev_io)
 			bdev_io_decrement_outstanding(ch, ch->shared_resource);
 			if (rc != -ENOMEM) {
 				SPDK_ERRLOG("Failed to pull data from memory domain %s\n",
-					    spdk_memory_domain_get_dma_device_id(
-						    bdev_io->internal.memory_domain));
+					    bdev_io_memory_domain_id(bdev_io));
 			}
 		} else {
 			assert(bdev_io->u.bdev.iovcnt == 1);
@@ -1659,8 +1667,7 @@ bdev_io_push_bounce_md_buf(struct spdk_bdev_io *bdev_io)
 				bdev_io_decrement_outstanding(ch, ch->shared_resource);
 				if (rc != -ENOMEM) {
 					SPDK_ERRLOG("Failed to push md to memory domain %s\n",
-						    spdk_memory_domain_get_dma_device_id(
-							    bdev_io->internal.memory_domain));
+						    bdev_io_memory_domain_id(bdev_io));
 				}
 			} else {
 				memcpy(bdev_io->internal.orig_md_iov.iov_base, bdev_io->u.bdev.md_buf,
@@ -1743,8 +1750,7 @@ bdev_io_push_bounce_data(struct spdk_bdev_io *bdev_io)
 			bdev_io_decrement_outstanding(ch, ch->shared_resource);
 			if (rc != -ENOMEM) {
 				SPDK_ERRLOG("Failed to push data to memory domain %s\n",
-					    spdk_memory_domain_get_dma_device_id(
-						    bdev_io->internal.memory_domain));
+					    bdev_io_memory_domain_id(bdev_io));
 			}
 		} else {
 			spdk_copy_buf_to_iovs(bdev_io->internal.orig_iovs,

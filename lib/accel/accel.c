@@ -1922,6 +1922,16 @@ accel_task_pull_data_cb(void *ctx, int status)
 	accel_process_sequence(seq);
 }
 
+static const char *
+accel_task_memory_domain_id(struct spdk_accel_task *task)
+{
+	const char *domain_id = spdk_memory_domain_get_dma_device_id(task->aux->bounce.s.orig_domain);
+	if (!domain_id) {
+		domain_id = "null";
+	}
+	return domain_id;
+}
+
 static void
 accel_task_pull_data(struct spdk_accel_sequence *seq, struct spdk_accel_task *task)
 {
@@ -1941,7 +1951,7 @@ accel_task_pull_data(struct spdk_accel_sequence *seq, struct spdk_accel_task *ta
 					  accel_task_pull_data_cb, seq);
 	if (spdk_unlikely(rc != 0)) {
 		SPDK_ERRLOG("Failed to pull data from memory domain: %s, rc: %d\n",
-			    spdk_memory_domain_get_dma_device_id(task->aux->bounce.s.orig_domain), rc);
+			    accel_task_memory_domain_id(task), rc);
 		accel_sequence_set_fail(seq, rc);
 	}
 }
@@ -1980,7 +1990,7 @@ accel_task_push_data(struct spdk_accel_sequence *seq, struct spdk_accel_task *ta
 					  accel_task_push_data_cb, seq);
 	if (spdk_unlikely(rc != 0)) {
 		SPDK_ERRLOG("Failed to push data to memory domain: %s, rc: %d\n",
-			    spdk_memory_domain_get_dma_device_id(task->aux->bounce.s.orig_domain), rc);
+			    accel_task_memory_domain_id(task), rc);
 		accel_sequence_set_fail(seq, rc);
 	}
 }

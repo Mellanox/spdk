@@ -725,8 +725,13 @@ rpc_dump_bdev_info(void *ctx, struct spdk_bdev *bdev)
 			if (i == rc) {
 				spdk_json_write_named_array_begin(w, "memory_domains");
 				for (i = 0; i < rc; i++) {
+					const char *domain_id = spdk_memory_domain_get_dma_device_id(domains[i]);
 					spdk_json_write_object_begin(w);
-					spdk_json_write_named_string(w, "dma_device_id", spdk_memory_domain_get_dma_device_id(domains[i]));
+					if (domain_id) {
+						spdk_json_write_named_string(w, "dma_device_id", domain_id);
+					} else {
+						spdk_json_write_named_null(w, "dma_device_id");
+					}
 					spdk_json_write_named_int32(w, "dma_device_type",
 								    spdk_memory_domain_get_dma_device_type(domains[i]));
 					spdk_json_write_object_end(w);
