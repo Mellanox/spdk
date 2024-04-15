@@ -292,11 +292,6 @@ spdk_nvme_request_get_zcopy_iovs(struct spdk_nvme_zcopy_io *zcopy)
 	} else if (zcopy->iovcnt <= g_zcopy_pool_opts.zcopy_large_iov_num) {
 		zcopy->iovs = spdk_mempool_get(g_spdk_nvme_driver->zcopy_iov_large_pool);
 		zcopy->iovs_from_pool = true;
-	} else if (zcopy->iovcnt > NVME_MAX_ZCOPY_IOVS) {
-		SPDK_ERRLOG("iovcnt %d is larger than %d\n",
-			    zcopy->iovcnt, NVME_MAX_ZCOPY_IOVS);
-		zcopy->iovcnt = 0;
-		return -EINVAL;
 	}
 
 	if (spdk_unlikely(!zcopy->iovs)) {
