@@ -4487,6 +4487,11 @@ nvme_tcp_send_h2c_data(struct nvme_tcp_req *tcp_req)
 				goto fail_req;
 			}
 
+			if (tqpair->flags.host_hdgst_enable) {
+				uint32_t crc32c = nvme_tcp_pdu_calc_header_digest(rsp_pdu);
+				MAKE_DIGEST_WORD((uint8_t *)rsp_pdu->hdr.raw + rsp_pdu->hdr.common.hlen, crc32c);
+			}
+
 			iobuf_ch = group->accel_fn_table.get_iobuf_channel(group->ctx);
 			assert(iobuf_ch);
 			rsp_pdu->data_len += SPDK_NVME_TCP_DIGEST_LEN;
@@ -4497,10 +4502,6 @@ nvme_tcp_send_h2c_data(struct nvme_tcp_req *tcp_req)
 				/* Finish accel sequence once buffer is allocated */
 				SPDK_DEBUGLOG(nvme, "no buffer, in progress\n");
 				return;
-			}
-			if (tqpair->flags.host_hdgst_enable) {
-				uint32_t crc32c = nvme_tcp_pdu_calc_header_digest(rsp_pdu);
-				MAKE_DIGEST_WORD((uint8_t *)rsp_pdu->hdr.raw + rsp_pdu->hdr.common.hlen, crc32c);
 			}
 
 			rc = nvme_tcp_apply_accel_sequence_h2c(tcp_req);
