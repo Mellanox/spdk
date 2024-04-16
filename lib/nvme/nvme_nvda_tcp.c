@@ -2781,7 +2781,9 @@ static void
 nvme_tcp_iobuf_get_cb(struct spdk_iobuf_entry *entry, void *buf)
 {
 	struct nvme_tcp_req *tcp_req = SPDK_CONTAINEROF(entry, struct nvme_tcp_req, iobuf_entry);
+	struct nvme_request *req = &tcp_req->req;
 	struct nvme_tcp_qpair *tqpair = nvme_tcp_qpair(tcp_req->req.qpair);
+	struct spdk_nvme_cpl cpl;
 	int rc;
 
 	tcp_req->iobuf_iov.iov_base = buf;
@@ -2790,16 +2792,26 @@ nvme_tcp_iobuf_get_cb(struct spdk_iobuf_entry *entry, void *buf)
 	rc = nvme_tcp_handle_accel_sequence_in_capsule(tcp_req);
 
 	if (spdk_unlikely(rc)) {
-		struct spdk_nvme_cpl cpl;
-
 		SPDK_ERRLOG("failed to apply sequence, rc %d\n", rc);
-		assert(rc != 0);
-
-		cpl.status.sc = SPDK_NVME_SC_INTERNAL_DEVICE_ERROR;
-		cpl.status.sct = SPDK_NVME_SCT_GENERIC;
-		cpl.status.dnr = 1;
-		nvme_tcp_req_complete(tcp_req, tqpair, &cpl, true);
+		goto err;
 	}
+
+	rc = nvme_tcp_qpair_capsule_cmd_send(tqpair, tcp_req);
+	if (spdk_unlikely(rc)) {
+		SPDK_ERRLOG("Failed to send capsule cmd, rc %d\n", rc);
+		goto err;
+	}
+
+	spdk_trace_record(TRACE_NVME_TCP_SUBMIT, tqpair->qpair.id, 0, (uintptr_t)req, req->cb_arg,
+			  (uint32_t)req->cmd.cid, (uint32_t)req->cmd.opc,
+			  req->cmd.cdw10, req->cmd.cdw11, req->cmd.cdw12);
+	return;
+
+err:
+	cpl.status.sc = SPDK_NVME_SC_INTERNAL_DEVICE_ERROR;
+	cpl.status.sct = SPDK_NVME_SCT_GENERIC;
+	cpl.status.dnr = 1;
+	nvme_tcp_req_complete(tcp_req, tqpair, &cpl, true);
 }
 
 static int
