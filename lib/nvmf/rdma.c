@@ -2446,6 +2446,7 @@ nvmf_rdma_request_process(struct spdk_nvmf_rdma_transport *rtransport,
 #define SPDK_NVMF_RDMA_ACCEPTOR_BACKLOG 100
 #define SPDK_NVMF_RDMA_DEFAULT_ABORT_TIMEOUT_SEC 1
 #define SPDK_NVMF_RDMA_DEFAULT_NO_WR_BATCHING false
+#define SPDK_NVMF_RDMA_DEFAULT_DATA_WR_POOL_SIZE 4095
 
 static void
 nvmf_rdma_opts_init(struct spdk_nvmf_transport_opts *opts)
@@ -2462,6 +2463,7 @@ nvmf_rdma_opts_init(struct spdk_nvmf_transport_opts *opts)
 	opts->abort_timeout_sec =	SPDK_NVMF_RDMA_DEFAULT_ABORT_TIMEOUT_SEC;
 	opts->msdbd =			NVMF_DEFAULT_MSDBD;
 	opts->transport_specific =      NULL;
+	opts->data_wr_pool_size	=	SPDK_NVMF_RDMA_DEFAULT_DATA_WR_POOL_SIZE;
 }
 
 static int nvmf_rdma_destroy(struct spdk_nvmf_transport *transport,
@@ -2615,13 +2617,13 @@ nvmf_rdma_create(struct spdk_nvmf_transport_opts *opts)
 	struct spdk_nvmf_rdma_transport *rtransport;
 	struct spdk_nvmf_rdma_device	*device;
 	struct ibv_context		**contexts;
+	size_t				data_wr_pool_size;
 	uint32_t			i;
 	int				flag;
 	uint32_t			sge_count;
 	uint32_t			min_shared_buffers;
 	uint32_t			min_in_capsule_data_size;
 	int				max_device_sge = SPDK_NVMF_MAX_SGL_ENTRIES;
-	uint16_t			data_wr_pool_size = opts->max_queue_depth * SPDK_NVMF_MAX_SGL_ENTRIES;
 
 	rtransport = calloc(1, sizeof(*rtransport));
 	if (!rtransport) {
@@ -2736,16 +2738,14 @@ nvmf_rdma_create(struct spdk_nvmf_transport_opts *opts)
 		return NULL;
 	}
 
+	data_wr_pool_size = opts->data_wr_pool_size;
 	if (data_wr_pool_size < SPDK_NVMF_MAX_SGL_ENTRIES * 2 * spdk_env_get_core_count()) {
 		data_wr_pool_size = SPDK_NVMF_MAX_SGL_ENTRIES * 2 * spdk_env_get_core_count();
-		SPDK_WARNLOG("data_wr_pool_size is changed to %u to guarantee enough cache for handling at least one IO in each core\n",
-			     data_wr_pool_size);
+		SPDK_NOTICELOG("data_wr_pool_size is changed to %zu to guarantee enough cache for handling "
+			       "at least one IO in each core\n", data_wr_pool_size);
 	}
-
-	rtransport->data_wr_pool = spdk_mempool_create("spdk_nvmf_rdma_wr_data",
-				   data_wr_pool_size,
-				   sizeof(struct spdk_nvmf_rdma_request_data),
-				   SPDK_MEMPOOL_DEFAULT_CACHE_SIZE,
+	rtransport->data_wr_pool = spdk_mempool_create("spdk_nvmf_rdma_wr_data", data_wr_pool_size,
+				   sizeof(struct spdk_nvmf_rdma_request_data), SPDK_MEMPOOL_DEFAULT_CACHE_SIZE,
 				   SPDK_ENV_SOCKET_ID_ANY);
 	if (!rtransport->data_wr_pool) {
 		if (spdk_mempool_lookup("spdk_nvmf_rdma_wr_data") != NULL) {

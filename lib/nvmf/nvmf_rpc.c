@@ -2171,6 +2171,10 @@ static const struct spdk_json_object_decoder nvmf_rpc_create_transport_decoder[]
 		"msdbd", offsetof(struct nvmf_rpc_create_transport_ctx, opts.msdbd),
 		spdk_json_decode_uint8, true
 	},
+	{
+		"data_wr_pool_size", offsetof(struct nvmf_rpc_create_transport_ctx, opts.data_wr_pool_size),
+		spdk_json_decode_uint32, true
+	}
 };
 
 static void

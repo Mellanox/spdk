@@ -125,6 +125,7 @@ def nvmf_create_transport(client, **params):
         disable_shadow_doorbells: disable shadow doorbell support - VFIO-USER specific (optional)
         acceptor_poll_rate: Acceptor poll period in microseconds (optional)
         msdbd: Set MSDBD value to be used by transport. Some transports may ignore this config (optional)
+        data_wr_pool_size: RDMA data WR pool size. RDMA specific (optional)
     Returns:
         True or False
     """
