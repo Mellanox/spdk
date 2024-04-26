@@ -1159,7 +1159,8 @@ nvme_ctrlr_shutdown_async(struct spdk_nvme_ctrlr *ctrlr,
 	}
 
 	if (ctrlr->adminq == NULL ||
-	    ctrlr->adminq->transport_failure_reason != SPDK_NVME_QPAIR_FAILURE_NONE) {
+	    ctrlr->adminq->transport_failure_reason != SPDK_NVME_QPAIR_FAILURE_NONE ||
+	    spdk_nvme_qpair_is_connected(ctrlr->adminq) == false) {
 		NVME_CTRLR_INFOLOG(ctrlr, "Adminq is not connected.\n");
 		ctx->shutdown_complete = true;
 		return;

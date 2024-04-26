@@ -5513,6 +5513,14 @@ nvme_tcp_ctrlr_connect_qpair_poll(struct spdk_nvme_ctrlr *ctrlr, struct spdk_nvm
 			 * to the init list and connected up to the stage before FABRIC CONNECT.
 			 */
 			if (ctrlr->construct_cb) {
+				/*
+				 * Increase the ref count before calling construct_cb() as the user may
+				 * call nvme_detach() immediately.
+				 *
+				 * We will not do this before attach_cb() in case lazy_fabric_connect
+				 * is true.
+				 */
+				nvme_ctrlr_proc_get_ref(ctrlr);
 				ctrlr->construct_cb(ctrlr->cb_ctx, &ctrlr->trid, ctrlr, &ctrlr->opts);
 				ctrlr->construct_cb = NULL;
 			}

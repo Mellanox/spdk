@@ -973,8 +973,13 @@ nvme_ctrlr_poll_internal(struct spdk_nvme_ctrlr *ctrlr,
 	/*
 	 * Increase the ref count before calling attach_cb() as the user may
 	 * call nvme_detach() immediately.
+	 *
+	 * In case of lazy connect the ref is already taken before calling
+	 * construct_cb().
 	 */
-	nvme_ctrlr_proc_get_ref(ctrlr);
+	if (!ctrlr->lazy_fabric_connect) {
+		nvme_ctrlr_proc_get_ref(ctrlr);
+	}
 	nvme_robust_mutex_unlock(&g_spdk_nvme_driver->lock);
 
 	if (probe_ctx->attach_cb) {
