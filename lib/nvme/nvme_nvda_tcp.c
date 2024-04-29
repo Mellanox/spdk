@@ -999,14 +999,6 @@ xlio_sock_flush(struct spdk_xlio_sock *sock)
 	return xlio_sock_flush_ext(sock);
 }
 
-static inline struct xlio_recvfrom_zcopy_packet_t *
-next_packet(struct xlio_recvfrom_zcopy_packet_t *packet)
-{
-	return (struct xlio_recvfrom_zcopy_packet_t *)((char *)packet +
-			sizeof(struct xlio_recvfrom_zcopy_packet_t) +
-			packet->sz_iov * sizeof(struct iovec));
-}
-
 #ifdef DEBUG
 static void
 dump_packet(struct spdk_xlio_sock *sock, struct xlio_sock_packet *packet)
