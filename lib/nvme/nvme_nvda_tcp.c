@@ -55,6 +55,7 @@
 struct xlio_sock_packet {
 	struct xlio_socketxtreme_packet_desc_t xlio_packet;
 	int refs;
+	bool from_malloc;
 	STAILQ_ENTRY(xlio_sock_packet) link;
 };
 
@@ -126,7 +127,6 @@ struct spdk_xlio_sock_group_impl {
 struct xlio_packets_pool {
 	STAILQ_HEAD(, xlio_sock_packet)	free_packets;
 	struct xlio_sock_packet	*packets;
-	uint32_t		num_free_packets;
 	uint32_t		core_id;
 	STAILQ_ENTRY(xlio_packets_pool)	link;
 };
@@ -530,7 +530,6 @@ xlio_sock_get_packets_pool(uint32_t packets_pool_size)
 	}
 
 	STAILQ_INSERT_HEAD(&g_xlio_packets_pools, pool, link);
-	pool->num_free_packets = packets_pool_size;
 	pool->core_id = current_core;
 	pthread_mutex_unlock(&g_xlio_pool_mutex);
 	SPDK_NOTICELOG("Create xlio pool, packets_pool_size %u on core %u\n",
@@ -1025,11 +1024,20 @@ static struct xlio_sock_packet *
 xlio_sock_get_packet(struct spdk_xlio_sock *sock)
 {
 	struct xlio_sock_packet *packet = STAILQ_FIRST(&sock->xlio_packets_pool->free_packets);
+	static bool not_enough_packets = false;
 
-	assert(packet);
-	STAILQ_REMOVE_HEAD(&sock->xlio_packets_pool->free_packets, link);
-	assert(sock->xlio_packets_pool->num_free_packets > 0);
-	sock->xlio_packets_pool->num_free_packets--;
+	if (spdk_likely(packet)) {
+		STAILQ_REMOVE_HEAD(&sock->xlio_packets_pool->free_packets, link);
+	} else {
+		packet = (struct xlio_sock_packet *)malloc(sizeof(struct xlio_sock_packet));
+		assert(packet);
+		packet->from_malloc = true;
+		if (spdk_unlikely(!not_enough_packets)) {
+			SPDK_WARNLOG("Not enough xlio packets, using dynamic allocation."
+				     " Performance may be degraded\n");
+			not_enough_packets = true;
+		}
+	}
 
 	return packet;
 }
@@ -1049,8 +1057,12 @@ xlio_sock_free_packet(struct spdk_xlio_sock *sock, struct xlio_sock_packet *pack
 			    ret, errno);
 	}
 
-	STAILQ_INSERT_HEAD(&sock->xlio_packets_pool->free_packets, packet, link);
-	sock->xlio_packets_pool->num_free_packets++;
+	if (spdk_likely(!packet->from_malloc)) {
+		STAILQ_INSERT_HEAD(&sock->xlio_packets_pool->free_packets, packet, link);
+	} else {
+		free(packet);
+	}
+
 	assert(sock->consumed_packets > 0);
 	sock->consumed_packets--;
 }
@@ -1142,7 +1154,6 @@ static int
 poll_no_group_socket(struct spdk_xlio_sock *sock)
 {
 	int ret;
-	uint32_t max_events_per_poll;
 
 	/* For sockets not bound to group we have to poll here.
 	 * Polling may find events for other sockets but not for this one.
@@ -1171,15 +1182,9 @@ poll_no_group_socket(struct spdk_xlio_sock *sock)
 			      sock->ring_fd->ring_fd, sock, sock->fd, ret);
 	}
 
-	if (sock->xlio_packets_pool->num_free_packets) {
-		max_events_per_poll = spdk_min(sock->xlio_packets_pool->num_free_packets, MAX_EVENTS_PER_POLL);
-
-		ret = xlio_sock_poll_fd(sock->ring_fd->ring_fd, max_events_per_poll);
-		if (ret < 0) {
-			return -1;
-		}
-	} else {
-		SPDK_DEBUGLOG(nvme_xlio, "no free packets\n");
+	ret = xlio_sock_poll_fd(sock->ring_fd->ring_fd, MAX_EVENTS_PER_POLL);
+	if (ret < 0) {
+		return -1;
 	}
 
 	if (STAILQ_EMPTY(&sock->received_packets)) {
@@ -1767,7 +1772,6 @@ xlio_sock_group_impl_poll(struct spdk_xlio_sock_group_impl *group, int max_event
 {
 	int num_events, rc;
 	struct spdk_xlio_sock *vsock, *ptmp;
-	uint32_t max_events_per_poll;
 	struct spdk_xlio_ring_fd *ring_fd;
 
 	/*
@@ -1803,16 +1807,10 @@ xlio_sock_group_impl_poll(struct spdk_xlio_sock_group_impl *group, int max_event
 	}
 
 	TAILQ_FOREACH(ring_fd, &group->ring_fd, link) {
-		if (group->xlio_packets_pool->num_free_packets) {
-			max_events_per_poll = spdk_min(group->xlio_packets_pool->num_free_packets, MAX_EVENTS_PER_POLL);
-			num_events = xlio_sock_poll_fd(ring_fd->ring_fd, max_events_per_poll);
-			if (num_events < 0) {
-				/* @todo: what if we have a problem with just one ring and another one is good? */
-				return -1;
-			}
-		} else {
-			SPDK_DEBUGLOG(nvme_xlio, "no free packets\n");
-			break;
+		num_events = xlio_sock_poll_fd(ring_fd->ring_fd, MAX_EVENTS_PER_POLL);
+		if (num_events < 0) {
+			/* @todo: what if we have a problem with just one ring and another one is good? */
+			return -1;
 		}
 	}
 
