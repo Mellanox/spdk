@@ -150,6 +150,9 @@ struct spdk_nvmf_qpair {
 
 	bool					connect_received;
 	bool					disconnect_started;
+
+	/* Number of IO outstanding at transport level */
+	uint16_t				queue_depth;
 };
 
 struct spdk_nvmf_transport_poll_group {
