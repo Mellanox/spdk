@@ -78,6 +78,8 @@ steps:
       .ci/upload.sh urm
 
 pipeline_stop:
+  containerSelector:
+      - "{name: 'ubuntu22_04'}"
   run: |
     if [[ ! -n "$ghprbPullId" && "$pipeline_status" == "SUCCESS" ]]; then
       .ci/git_tag.sh
