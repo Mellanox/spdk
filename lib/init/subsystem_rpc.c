@@ -9,7 +9,7 @@
 #include "spdk/env.h"
 #include "spdk/log.h"
 
-#include "spdk_internal/init.h"
+#include "spdk/init.h"
 
 #include "subsystem.h"
 

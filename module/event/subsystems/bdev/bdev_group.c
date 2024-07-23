@@ -8,9 +8,7 @@
 #include "spdk/bdev_group.h"
 #include "spdk/env.h"
 #include "spdk/thread.h"
-
-#include "spdk_internal/init.h"
-#include "spdk/env.h"
+#include "spdk/init.h"
 
 static void
 bdev_group_subsystem_initialize(void)

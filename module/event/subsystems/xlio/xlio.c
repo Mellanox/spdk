@@ -5,7 +5,8 @@
 #include "spdk/stdinc.h"
 #include "spdk/env.h"
 #include "spdk/log.h"
-#include "spdk_internal/init.h"
+#include "spdk/init.h"
+
 #include "spdk_internal/xlio.h"
 
 static void

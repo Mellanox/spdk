@@ -6,7 +6,7 @@
 
 #include "spdk/stdinc.h"
 #include "spdk/sock.h"
-#include "spdk_internal/init.h"
+#include "spdk/init.h"
 #include "spdk/config.h"
 
 static void
