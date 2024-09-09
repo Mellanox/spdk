@@ -33,7 +33,7 @@
             description: "Jenkinsfile to load on trigger"
         - string:
             name: "REPO_URL"
-            default: "http://swx-repos.mtr.labs.mlnx"
+            default: "https://urm.nvidia.com/artifactory"
             description: "Repository manager URL"
         - string:
             name: "GPG_KEY_PATH"

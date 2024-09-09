@@ -10,12 +10,8 @@ USER root
 # Default openeuleros repos are unstable and very slow, so replace
 # them with internal webrepo
 RUN set -eux; \
-    sed -i 's/enabled=1/enabled=0/' /etc/yum.repos.d/openEuler.repo && \
-    echo -e "[1_base]\n\
-name=1_base\n\
-baseurl=http://webrepo.mtl.labs.mlnx/openEuler/20.03.3/\$basearch/\n\
-enabled=1\n\
-gpgcheck=0" > /etc/yum.repos.d/1_base.repo
+    sed -i 's|http[s]*://repo.openeuler.org|https://urm.nvidia.com/artifactory/openeuler-rpm-remote|g' /etc/yum.repos.d/openEuler.repo; \
+    sed -i 's|^metalink=|#metalink=|g' /etc/yum.repos.d/openEuler.repo
 
 RUN yum install -y ca-certificates
 
@@ -45,7 +41,7 @@ RUN yum install -y \
 RUN set -eux; \
     echo -e "[mlnx_ofed]\n\
 name=Mellanox Technologies \$basearch mlnx_ofed\n\
-baseurl=http://webrepo.mtr.labs.mlnx/mswg/release/MLNX_OFED/MLNX_OFED_LINUX-${MOFED_VER}/MLNX_OFED_LINUX-${MOFED_VER}-openeuler20.03sp3-\$basearch/RPMS/\n\
+baseurl=http://nbu-nfs.mellanox.com/auto/mswg/release/MLNX_OFED/MLNX_OFED_LINUX-${MOFED_VER}/MLNX_OFED_LINUX-${MOFED_VER}-openeuler20.03sp3-\$basearch/RPMS/\n\
 enabled=1\n\
 gpgcheck=0" > /etc/yum.repos.d/mellanox_mlnx_ofed.repo; \
     dnf install -y mlnx-ofed-basic-user-only 
