@@ -8,9 +8,10 @@ ENV LANG=en_US.utf-8
 USER root
 
 # Default openeuleros repos are unstable and very slow, so replace
-# them with URM mirror
+# them with internal webrepo
 RUN set -eux; \
-    sed -i 's/http:\/\/repo.openeuler.org/https:\/\/urm.nvidia.com\/artifactory\/openeuler-rpm-remote/' /etc/yum.repos.d/openEuler.repo
+    sed -i 's|http[s]*://repo.openeuler.org|https://urm.nvidia.com/artifactory/openeuler-rpm-remote|g' /etc/yum.repos.d/openEuler.repo; \
+    sed -i 's|^metalink=|#metalink=|g' /etc/yum.repos.d/openEuler.repo
 
 RUN dnf install -y ca-certificates
 

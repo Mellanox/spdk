@@ -43,7 +43,7 @@ RUN yum install --enablerepo=powertools -y \
 RUN set -eux; \
     echo -e "[mlnx_ofed]\n\
 name=Mellanox Technologies \$basearch mlnx_ofed\n\
-baseurl=http://webrepo.mtr.labs.mlnx/mswg/release/MLNX_OFED/MLNX_OFED_LINUX-${MOFED_VER}/MLNX_OFED_LINUX-${MOFED_VER}-rhel8.2-\$basearch/RPMS/\n\
+baseurl=http://nbu-nfs.mellanox.com/auto/mswg/release/MLNX_OFED/MLNX_OFED_LINUX-${MOFED_VER}/MLNX_OFED_LINUX-${MOFED_VER}-rhel8.2-\$basearch/RPMS/\n\
 enabled=1\n\
 gpgcheck=0" > /etc/yum.repos.d/mellanox_mlnx_ofed.repo; \
     yum install -y mlnx-ofed-basic-user-only 

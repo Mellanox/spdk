@@ -35,12 +35,12 @@ RUN apt-get update && \
       linux-headers-generic \
       pkg-config nasm
 
-RUN echo "deb [trusted=yes] http://swx-repos.mtr.labs.mlnx:8081/repository/liburing-focal-apt/ focal main" > /etc/apt/sources.list.d/liburing.list && \
+RUN echo "deb [trusted=yes] https://urm.nvidia.com/artifactory/sw-nbu-swx-ci-debian-local focal liburing1" > /etc/apt/sources.list.d/liburing.list && \
     apt update && apt install -y liburing-dev
 
 RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | \
     sudo apt-key add - && \
-    echo "deb [trusted=yes] http://webrepo.mtr.labs.mlnx/mswg/release/MLNX_OFED/MLNX_OFED_LINUX-${MOFED_VER}/MLNX_OFED_LINUX-${MOFED_VER}-ubuntu20.04-$(dpkg-architecture -qDEB_HOST_GNU_CPU)/DEBS/ ./" > /etc/apt/sources.list.d/ofed.list && \
+    echo "deb [trusted=yes] http://nbu-nfs.mellanox.com/auto/mswg/release/MLNX_OFED/MLNX_OFED_LINUX-${MOFED_VER}/MLNX_OFED_LINUX-${MOFED_VER}-ubuntu20.04-$(dpkg-architecture -qDEB_HOST_GNU_CPU)/DEBS/ ./" > /etc/apt/sources.list.d/ofed.list && \
     apt update && KVERSION=$(ls /lib/modules) apt install -y mlnx-ofed-basic-user-only \
     && apt-get download libxlio-dev && dpkg --force-all -i libxlio-dev*
 
