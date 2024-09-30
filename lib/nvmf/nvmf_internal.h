@@ -152,7 +152,10 @@ struct spdk_nvmf_ns {
 	struct spdk_nvmf_subsystem *subsystem;
 	struct spdk_bdev *bdev;
 	struct spdk_bdev_desc *desc;
-	struct spdk_nvmf_ns_opts opts;
+	/* Persist Through Power Loss feature is enabled */
+	bool ptpl_activated;
+	/* ZCOPY supported on bdev device */
+	bool zcopy;
 	/* reservation notification mask */
 	uint32_t mask;
 	/* generation code */
@@ -167,12 +170,9 @@ struct spdk_nvmf_ns {
 	struct spdk_nvmf_registrant *holder;
 	/* Persist Through Power Loss file which contains the persistent reservation */
 	char *ptpl_file;
-	/* Persist Through Power Loss feature is enabled */
-	bool ptpl_activated;
-	/* ZCOPY supported on bdev device */
-	bool zcopy;
 	/* Command Set Identifier */
 	enum spdk_nvme_csi csi;
+	struct spdk_nvmf_ns_opts opts;
 };
 
 /*
