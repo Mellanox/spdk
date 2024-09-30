@@ -10921,6 +10921,15 @@ spdk_bdev_wait_for_ready(struct spdk_bdev_desc *desc, int64_t timeout_in_msec,
 	return bdev->fn_table->wait_for_ready(bdev->ctxt, timeout_in_msec, cb_fn, cb_arg);
 }
 
+bool
+spdk_bdev_accel_sequence_supported(struct spdk_bdev *bdev, enum spdk_bdev_io_type io_type)
+{
+	if (!bdev || !bdev->fn_table->accel_sequence_supported) {
+		return false;
+	}
+	return bdev->fn_table->accel_sequence_supported(bdev->ctxt, io_type);
+}
+
 static void
 bdev_group_ch_enable_qos(struct spdk_bdev_group_channel *group_ch)
 {
