@@ -152,6 +152,8 @@ struct spdk_nvmf_ns {
 	struct spdk_nvmf_subsystem *subsystem;
 	struct spdk_bdev *bdev;
 	struct spdk_bdev_desc *desc;
+	/* Accel sequence is supported by block device */
+	bool accel_sequence;
 	/* Persist Through Power Loss feature is enabled */
 	bool ptpl_activated;
 	/* ZCOPY supported on bdev device */

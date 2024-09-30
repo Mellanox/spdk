@@ -1,7 +1,7 @@
 /*   SPDX-License-Identifier: BSD-3-Clause
  *   Copyright (C) 2016 Intel Corporation. All rights reserved.
  *   Copyright (c) 2019 Mellanox Technologies LTD. All rights reserved.
- *   Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ *   Copyright (c) 2021, 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  */
 
 #include "spdk/stdinc.h"
@@ -1808,8 +1808,10 @@ spdk_nvmf_subsystem_add_ns_ext(struct spdk_nvmf_subsystem *subsystem, const char
 		return 0;
 	}
 
-	/* Cache the zcopy capability of the bdev device */
+	/* Cache the zcopy and accel sequence capability of the bdev device */
 	ns->zcopy = spdk_bdev_io_type_supported(ns->bdev, SPDK_BDEV_IO_TYPE_ZCOPY);
+	ns->accel_sequence = spdk_bdev_accel_sequence_supported(ns->bdev, SPDK_BDEV_IO_TYPE_READ) &&
+			     spdk_bdev_accel_sequence_supported(ns->bdev, SPDK_BDEV_IO_TYPE_WRITE);
 
 	if (spdk_uuid_is_null(&opts.uuid)) {
 		opts.uuid = *spdk_bdev_get_uuid(ns->bdev);

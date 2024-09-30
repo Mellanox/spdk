@@ -1,6 +1,7 @@
 /*   SPDX-License-Identifier: BSD-3-Clause
  *   Copyright (C) 2016 Intel Corporation. All rights reserved.
  *   Copyright (c) 2019 Mellanox Technologies LTD. All rights reserved.
+ *   Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  */
 
 #include "spdk/stdinc.h"
@@ -34,6 +35,10 @@ DEFINE_STUB(spdk_bdev_is_md_interleaved, bool,
 	    (const struct spdk_bdev *bdev), false);
 
 DEFINE_STUB(spdk_bdev_io_type_supported, bool,
+	    (struct spdk_bdev *bdev,
+	     enum spdk_bdev_io_type io_type), false);
+
+DEFINE_STUB(spdk_bdev_accel_sequence_supported, bool,
 	    (struct spdk_bdev *bdev,
 	     enum spdk_bdev_io_type io_type), false);
 
