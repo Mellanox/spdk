@@ -347,9 +347,6 @@ struct spdk_nvmf_rdma_qpair {
 	/* The maximum number of SGEs per WR on the send queue */
 	uint32_t				max_send_sge;
 
-	/* The maximum number of SGEs per WR on the recv queue */
-	uint32_t				max_recv_sge;
-
 	struct spdk_nvmf_rdma_resources		*resources;
 
 	STAILQ_HEAD(, spdk_nvmf_rdma_request)	pending_rdma_read_queue;
@@ -1018,7 +1015,6 @@ nvmf_rdma_qpair_initialize(struct spdk_nvmf_qpair *qpair)
 	rqpair->max_send_depth = spdk_min((uint32_t)(rqpair->max_queue_depth * 2),
 					  qp_init_attr.cap.max_send_wr);
 	rqpair->max_send_sge = spdk_min(NVMF_DEFAULT_TX_SGE, qp_init_attr.cap.max_send_sge);
-	rqpair->max_recv_sge = spdk_min(NVMF_DEFAULT_RX_SGE, qp_init_attr.cap.max_recv_sge);
 	spdk_trace_record(TRACE_RDMA_QP_CREATE, 0, 0, (uintptr_t)rqpair);
 	SPDK_DEBUGLOG(rdma, "New RDMA Connection: %p\n", qpair);
 
