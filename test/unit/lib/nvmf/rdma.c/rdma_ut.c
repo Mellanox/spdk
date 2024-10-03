@@ -60,6 +60,27 @@ DEFINE_STUB(spdk_rdma_provider_cq_poll, int, (struct spdk_rdma_provider_cq *rdma
 		struct ibv_wc *wc), 0);
 DEFINE_STUB(spdk_mempool_lookup, struct spdk_mempool *, (const char *name), NULL);
 
+static void *g_accel_p = (void *)0xdeadbeaf;
+
+static void
+init_accel(void)
+{
+	spdk_io_device_register(g_accel_p, accel_channel_create, accel_channel_destroy,
+				sizeof(int), "accel_rdma");
+}
+
+static void
+fini_accel(void)
+{
+	spdk_io_device_unregister(g_accel_p, NULL);
+}
+
+struct spdk_io_channel *
+spdk_accel_get_io_channel(void)
+{
+	return spdk_get_io_channel(g_accel_p);
+}
+
 /* ibv_reg_mr can be a macro, need to undefine it */
 #ifdef ibv_reg_mr
 #undef ibv_reg_mr
@@ -758,7 +779,13 @@ test_nvmf_rdma_get_optimal_poll_group(void)
 	struct spdk_nvmf_rdma_poll_group *rgroups[TEST_GROUPS_COUNT];
 	struct spdk_nvmf_transport_poll_group *result;
 	struct spdk_nvmf_poll_group group = {};
+	struct spdk_thread *thread;
 	uint32_t i;
+
+	thread = spdk_thread_create(NULL, NULL);
+	SPDK_CU_ASSERT_FATAL(thread != NULL);
+	spdk_set_thread(thread);
+	init_accel();
 
 	rqpair.qpair.transport = transport;
 	TAILQ_INIT(&rtransport.poll_groups);
@@ -824,6 +851,13 @@ test_nvmf_rdma_get_optimal_poll_group(void)
 	rqpair.qpair.qid = 1;
 	result = nvmf_rdma_get_optimal_poll_group(&rqpair.qpair);
 	CU_ASSERT(result == NULL);
+
+	fini_accel();
+	spdk_thread_exit(thread);
+	while (!spdk_thread_is_exited(thread)) {
+		spdk_thread_poll(thread, 0, 0);
+	}
+	spdk_thread_destroy(thread);
 }
 #undef TEST_GROUPS_COUNT
 
@@ -1459,6 +1493,7 @@ main(int argc, char **argv)
 	CU_ADD_TEST(suite, test_nvmf_rdma_resize_cq);
 
 	num_failures = spdk_ut_run_tests(argc, argv, NULL);
+
 	CU_cleanup_registry();
 	return num_failures;
 }

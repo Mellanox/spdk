@@ -437,6 +437,7 @@ struct spdk_nvmf_rdma_poll_group_stat {
 struct spdk_nvmf_rdma_poll_group {
 	struct spdk_nvmf_transport_poll_group		group;
 	struct spdk_nvmf_rdma_poll_group_stat		stat;
+	struct spdk_io_channel				*accel_ch;
 	TAILQ_HEAD(, spdk_nvmf_rdma_poller)		pollers;
 	TAILQ_ENTRY(spdk_nvmf_rdma_poll_group)		link;
 };
@@ -4120,6 +4121,13 @@ nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport,
 		}
 	}
 
+	rgroup->accel_ch = spdk_accel_get_io_channel();
+	if (spdk_unlikely(!rgroup->accel_ch)) {
+		SPDK_ERRLOG("Cannot create accel_channel for rgroup=%p\n", rgroup);
+		nvmf_rdma_poll_group_destroy(&rgroup->group);
+		return NULL;
+	}
+
 	TAILQ_INSERT_TAIL(&rtransport->poll_groups, rgroup, link);
 	if (rtransport->conn_sched.next_admin_pg == NULL) {
 		rtransport->conn_sched.next_admin_pg = rgroup;
@@ -4268,6 +4276,9 @@ nvmf_rdma_poll_group_destroy(struct spdk_nvmf_transport_poll_group *group)
 	}
 	if (rtransport->conn_sched.next_io_pg == rgroup) {
 		rtransport->conn_sched.next_io_pg = next_rgroup;
+	}
+	if (rgroup->accel_ch) {
+		spdk_put_io_channel(rgroup->accel_ch);
 	}
 
 	free(rgroup);

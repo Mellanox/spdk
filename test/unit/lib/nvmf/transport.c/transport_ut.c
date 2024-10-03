@@ -90,6 +90,27 @@ DEFINE_STUB_V(ut_transport_stop_listen, (struct spdk_nvmf_transport *transport,
 		const struct spdk_nvme_transport_id *trid));
 DEFINE_STUB(spdk_mempool_lookup, struct spdk_mempool *, (const char *name), NULL);
 
+static void *g_accel_p = (void *)0xdeadbeaf;
+
+static void
+init_accel(void)
+{
+	spdk_io_device_register(g_accel_p, accel_channel_create, accel_channel_destroy,
+				sizeof(int), "accel_rdma");
+}
+
+static void
+fini_accel(void)
+{
+	spdk_io_device_unregister(g_accel_p, NULL);
+}
+
+struct spdk_io_channel *
+spdk_accel_get_io_channel(void)
+{
+	return spdk_get_io_channel(g_accel_p);
+}
+
 /* ibv_reg_mr can be a macro, need to undefine it */
 #ifdef ibv_reg_mr
 #undef ibv_reg_mr
@@ -221,6 +242,13 @@ test_nvmf_transport_poll_group_create(void)
 	struct spdk_nvmf_transport_poll_group *poll_group = NULL;
 	struct spdk_nvmf_transport transport = {};
 	struct spdk_nvmf_transport_ops ops = {};
+	struct spdk_thread *thread;
+
+	thread = spdk_thread_create(NULL, NULL);
+	SPDK_CU_ASSERT_FATAL(thread != NULL);
+	spdk_set_thread(thread);
+	init_accel();
+
 
 	ops.poll_group_create = ut_poll_group_create;
 	ops.poll_group_destroy = ut_poll_group_destroy;
@@ -238,6 +266,13 @@ test_nvmf_transport_poll_group_create(void)
 	CU_ASSERT(poll_group->transport == &transport);
 
 	nvmf_transport_poll_group_destroy(poll_group);
+
+	fini_accel();
+	spdk_thread_exit(thread);
+	while (!spdk_thread_is_exited(thread)) {
+		spdk_thread_poll(thread, 0, 0);
+	}
+	spdk_thread_destroy(thread);
 }
 
 static void

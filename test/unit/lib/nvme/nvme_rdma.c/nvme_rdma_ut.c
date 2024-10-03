@@ -40,8 +40,6 @@ DEFINE_STUB(spdk_rdma_provider_cq_poll, int, (struct spdk_rdma_provider_cq *rdma
 
 DEFINE_STUB(spdk_memory_domain_get_context, struct spdk_memory_domain_ctx *,
 	    (struct spdk_memory_domain *device), NULL);
-DEFINE_STUB(spdk_memory_domain_get_dma_device_type, enum spdk_dma_device_type,
-	    (struct spdk_memory_domain *device), SPDK_DMA_DEVICE_TYPE_RDMA);
 DEFINE_STUB(spdk_memory_domain_pull_data, int, (struct spdk_memory_domain *src_domain,
 		void *src_domain_ctx, struct iovec *src_iov, uint32_t src_iov_cnt, struct iovec *dst_iov,
 		uint32_t dst_iov_cnt, spdk_memory_domain_data_cpl_cb cpl_cb, void *cpl_cb_arg), 0);

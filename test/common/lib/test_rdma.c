@@ -9,6 +9,7 @@
 #include "spdk_internal/rdma_utils.h"
 #include "spdk_internal/rdma_provider.h"
 #include "spdk_internal/mock.h"
+#include "spdk/accel.h"
 
 #define RDMA_UT_LKEY 123
 #define RDMA_UT_RKEY 312
@@ -16,6 +17,7 @@
 struct spdk_nvme_transport_opts g_spdk_nvme_transport_opts = {};
 struct spdk_rdma_provider_qp g_spdk_rdma_provider_qp = {};
 struct spdk_rdma_provider_srq g_spdk_rdma_provider_srq = {};
+
 DEFINE_STUB(spdk_rdma_provider_qp_create, struct spdk_rdma_provider_qp *, (struct rdma_cm_id *cm_id,
 		struct spdk_rdma_provider_qp_init_attr *qp_attr), &g_spdk_rdma_provider_qp);
 DEFINE_STUB(spdk_rdma_provider_qp_accept, int, (struct spdk_rdma_provider_qp *spdk_rdma_qp,
@@ -96,3 +98,15 @@ spdk_rdma_utils_get_pd(struct ibv_context *context)
 }
 
 DEFINE_STUB_V(spdk_rdma_utils_put_pd, (struct ibv_pd *pd));
+DEFINE_STUB(spdk_memory_domain_get_dma_device_type, enum spdk_dma_device_type,
+	    (struct spdk_memory_domain *domain), SPDK_DMA_DEVICE_TYPE_RDMA);
+DEFINE_STUB(spdk_accel_append_copy, int, (struct spdk_accel_sequence **pseq,
+		struct spdk_io_channel *ch,
+		struct iovec *dst_iovs, uint32_t dst_iovcnt,
+		struct spdk_memory_domain *dst_domain, void *dst_domain_ctx,
+		struct iovec *src_iovs, uint32_t src_iovcnt,
+		struct spdk_memory_domain *src_domain, void *src_domain_ctx,
+		spdk_accel_step_cb cb_fn, void *cb_arg), 0);
+
+DEFINE_STUB(accel_channel_create, int, (void *io_device, void *ctx_buf), 0);
+DEFINE_STUB_V(accel_channel_destroy, (void *io_device, void *ctx_buf));
