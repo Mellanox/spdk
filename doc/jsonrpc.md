@@ -4109,6 +4109,8 @@ md_size                 | Optional | number      | Metadata size for this bdev (
 md_interleave           | Optional | boolean     | Metadata location, interleaved if true, and separated if false. Default is false.
 dif_type                | Optional | number      | Protection information type. Parameter --md-size needs to be set along --dif-type. Default=0 - no protection.
 dif_is_head_of_md       | Optional | boolean     | Protection information is in the first 8 bytes of metadata. Default=false.
+enable_io_channel_weight| Optional | boolean     | Enable IO channel weight. Default=false.
+disable_accel_support   | Optional | boolean     | Don't report support of accel sequence.
 
 #### Result
 

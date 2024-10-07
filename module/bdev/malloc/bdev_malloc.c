@@ -21,6 +21,7 @@ struct malloc_disk {
 	void				*malloc_buf;
 	void				*malloc_md_buf;
 	bool				enable_io_channel_weight;
+	bool				disable_accel_support;
 	TAILQ_ENTRY(malloc_disk)	link;
 };
 
@@ -570,6 +571,8 @@ bdev_malloc_get_io_channel(void *ctx)
 static void
 bdev_malloc_write_json_config(struct spdk_bdev *bdev, struct spdk_json_write_ctx *w)
 {
+	struct malloc_disk *malloc_disk = bdev->ctxt;
+
 	spdk_json_write_object_begin(w);
 
 	spdk_json_write_named_string(w, "method", "bdev_malloc_create");
@@ -581,6 +584,8 @@ bdev_malloc_write_json_config(struct spdk_bdev *bdev, struct spdk_json_write_ctx
 	spdk_json_write_named_uint32(w, "physical_block_size", bdev->phys_blocklen);
 	spdk_json_write_named_uuid(w, "uuid", &bdev->uuid);
 	spdk_json_write_named_uint32(w, "optimal_io_boundary", bdev->optimal_io_boundary);
+	spdk_json_write_named_bool(w, "enable_io_channel_weight", malloc_disk->enable_io_channel_weight);
+	spdk_json_write_named_bool(w, "disable_accel_support", malloc_disk->disable_accel_support);
 
 	spdk_json_write_object_end(w);
 
@@ -616,6 +621,10 @@ bdev_malloc_accel_sequence_supported(void *ctx, enum spdk_bdev_io_type type)
 	struct malloc_disk *malloc_disk = ctx;
 
 	if (malloc_disk->disk.dif_type != SPDK_DIF_DISABLE) {
+		return false;
+	}
+
+	if (malloc_disk->disable_accel_support) {
 		return false;
 	}
 
@@ -851,6 +860,7 @@ create_malloc_disk(struct spdk_bdev **bdev, const struct malloc_bdev_opts *opts)
 	}
 
 	mdisk->enable_io_channel_weight = opts->enable_io_channel_weight;
+	mdisk->disable_accel_support = opts->disable_accel_support;
 
 	mdisk->disk.max_copy = 0;
 	mdisk->disk.ctxt = mdisk;

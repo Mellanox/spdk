@@ -403,7 +403,8 @@ if __name__ == "__main__":
                                                md_interleave=args.md_interleave,
                                                dif_type=args.dif_type,
                                                dif_is_head_of_md=args.dif_is_head_of_md,
-                                               enable_io_channel_weight=args.enable_io_channel_weight))
+                                               enable_io_channel_weight=args.enable_io_channel_weight,
+                                               disable_accel_support=args.disable_accel_support))
     p = subparsers.add_parser('bdev_malloc_create', help='Create a bdev with malloc backend')
     p.add_argument('-b', '--name', help="Name of the bdev")
     p.add_argument('-u', '--uuid', help="UUID of the bdev")
@@ -423,6 +424,7 @@ if __name__ == "__main__":
     p.add_argument('-d', '--dif-is-head-of-md', action='store_true',
                    help='Protection information is in the first 8 bytes of metadata. Default=false.')
     p.add_argument('--enable-io-channel-weight', action='store_true', help='Enable IO channel weight')
+    p.add_argument('--disable-accel-support', action='store_true', help='Don\'t report support of accel sequence')
     p.set_defaults(func=bdev_malloc_create)
 
     def bdev_malloc_delete(args):
