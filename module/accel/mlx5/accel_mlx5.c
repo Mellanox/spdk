@@ -4924,13 +4924,41 @@ accel_mlx5_task_assign_qp_by_domain_pd(struct accel_mlx5_task *task,
 }
 
 static inline int
+accel_mlx5_task_merge_copy_crypto(struct accel_mlx5_task *crypto, struct accel_mlx5_task *copy,
+				  struct accel_mlx5_io_channel *ch,
+				  struct spdk_memory_domain *domain_override, void *domain_ctx_override)
+{
+	struct spdk_accel_task *crypto_base = &crypto->base;
+	struct spdk_accel_task *copy_base = &copy->base;
+	int rc;
+
+	rc = accel_mlx5_task_assign_qp_by_domain_pd(crypto, ch, domain_override);
+	if (spdk_unlikely(rc)) {
+		return rc;
+	}
+
+	/* Update crypto task memory domain, complete copy task */
+	SPDK_DEBUGLOG(accel_mlx5, "Merge copy task (%p) and %s (%p)\n", copy_base,
+		      spdk_accel_get_opcode_name(crypto_base->op_code), crypto_base);
+	crypto_base->dst_domain = domain_override;
+	crypto_base->dst_domain_ctx = domain_ctx_override;
+	accel_mlx5_task_reset(crypto);
+	crypto->mlx5_opcode = ACCEL_MLX5_OPC_CRYPTO_MKEY;
+	crypto->enc_order = SPDK_MLX5_ENCRYPTION_ORDER_ENCRYPTED_RAW_WIRE;
+	crypto->needs_data_transfer = 1;
+	crypto->inplace = 1;
+	spdk_accel_task_complete(copy_base, 0);
+
+	return 0;
+}
+
+static inline int
 accel_mlx5_driver_examine_sequence(struct spdk_accel_sequence *seq,
 				   struct accel_mlx5_io_channel *accel_ch)
 {
 	struct spdk_accel_task *first_base = spdk_accel_sequence_first_task(seq);
 	struct accel_mlx5_task *first = SPDK_CONTAINEROF(first_base, struct accel_mlx5_task, base);
 	struct spdk_accel_task *next_base = TAILQ_NEXT(first_base, seq_link);
-	struct accel_mlx5_task *next;
 	int rc;
 
 	/* Handle tasks which require special processing, e.g. merge */
@@ -4959,24 +4987,8 @@ accel_mlx5_driver_examine_sequence(struct spdk_accel_sequence *seq,
 		if (next_base && next_base->op_code == SPDK_ACCEL_OPC_COPY &&
 		    next_base->dst_domain && spdk_memory_domain_get_dma_device_type(next_base->dst_domain) ==
 		    SPDK_DMA_DEVICE_TYPE_RDMA && TAILQ_NEXT(next_base, seq_link) == NULL) {
-			rc = accel_mlx5_task_assign_qp_by_domain_pd(first, accel_ch, next_base->dst_domain);
-			if (spdk_unlikely(rc)) {
-				return rc;
-			}
-
-			/* Update encrypt task memory domain, complete copy task */
-			SPDK_DEBUGLOG(accel_mlx5, "Merge copy task (%p) and decrypt (%p)\n",
-				      SPDK_CONTAINEROF(next_base,
-						       struct accel_mlx5_task, base), first);
-			first_base->dst_domain = next_base->dst_domain;
-			first_base->dst_domain_ctx = next_base->dst_domain_ctx;
-			accel_mlx5_task_reset(first);
-			first->mlx5_opcode = ACCEL_MLX5_OPC_CRYPTO_MKEY;
-			first->enc_order = SPDK_MLX5_ENCRYPTION_ORDER_ENCRYPTED_RAW_WIRE;
-			first->needs_data_transfer = 1;
-			first->inplace = 1;
-			spdk_accel_task_complete(next_base, 0);
-			return 0;
+			return accel_mlx5_task_merge_copy_crypto(first, SPDK_CONTAINEROF(next_base, struct accel_mlx5_task,
+					base), accel_ch, next_base->dst_domain, next_base->dst_domain_ctx);
 		}
 
 		if (g_accel_mlx5.merge && accel_mlx5_task_merge_encrypt_and_crc(first, accel_ch)) {
@@ -4998,22 +5010,9 @@ accel_mlx5_driver_examine_sequence(struct spdk_accel_sequence *seq,
 		if (next_base && next_base->op_code == SPDK_ACCEL_OPC_DECRYPT &&
 		    first_base->dst_domain &&  spdk_memory_domain_get_dma_device_type(first_base->dst_domain) ==
 		    SPDK_DMA_DEVICE_TYPE_RDMA && TAILQ_NEXT(next_base, seq_link) == NULL) {
-			next = SPDK_CONTAINEROF(next_base, struct accel_mlx5_task, base);
-			rc = accel_mlx5_task_assign_qp_by_domain_pd(next, accel_ch, first_base->dst_domain);
-			if (spdk_unlikely(rc)) {
-				return rc;
-			}
-			/* Update decrypt task memory domain, complete copy task */
-			SPDK_DEBUGLOG(accel_mlx5, "Merge copy task (%p) and decrypt (%p)\n", first, next);
-			next_base->dst_domain = first_base->dst_domain;
-			next_base->dst_domain_ctx = first_base->dst_domain_ctx;
-			accel_mlx5_task_reset(next);
-			next->mlx5_opcode = ACCEL_MLX5_OPC_CRYPTO_MKEY;
-			next->enc_order = SPDK_MLX5_ENCRYPTION_ORDER_ENCRYPTED_RAW_WIRE;
-			next->needs_data_transfer = 1;
-			next->inplace = 1;
-			spdk_accel_task_complete(first_base, 0);
-			return 0;
+			return accel_mlx5_task_merge_copy_crypto(
+				       SPDK_CONTAINEROF(next_base, struct accel_mlx5_task, base), first, accel_ch,
+				       first_base->dst_domain, first_base->dst_domain_ctx);
 		}
 		break;
 	}

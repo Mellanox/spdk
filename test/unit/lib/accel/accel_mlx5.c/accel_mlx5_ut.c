@@ -107,6 +107,7 @@ DEFINE_STUB(spdk_accel_sequence_next_task, struct spdk_accel_task *, (struct spd
 	    NULL);
 DEFINE_STUB_V(spdk_accel_sequence_continue, (struct spdk_accel_sequence *seq));
 DEFINE_STUB(spdk_accel_get_memory_domain, struct spdk_memory_domain *, (void), NULL);
+DEFINE_STUB(spdk_accel_get_opcode_name, const char *, (enum spdk_accel_opcode opcode), "pewpew");
 DEFINE_STUB(spdk_accel_sequence_first_task, struct spdk_accel_task *,
 	    (struct spdk_accel_sequence *seq), NULL);
 DEFINE_STUB_V(spdk_accel_driver_register, (struct spdk_accel_driver *driver));
