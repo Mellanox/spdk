@@ -147,6 +147,21 @@ sleep 1
 killprocess $nvmfpid
 wait $bdev_perf_pid || true
 
+nvmfappstart -m 0xf0 --wait-for-rpc
+# Test with malloc bdev with disabled accel sequence. In that case generic bdev layer handles the sequence
+$rpc_py mlx5_scan_accel_module --enable-driver --allowed-devs $allowed_devices
+$rpc_py bdev_set_options --disable-auto-examine
+$rpc_py framework_start_init
+$rpc_py nvmf_create_transport $NVMF_TRANSPORT_OPTS --in-capsule-data-size 0
+$rpc_py bdev_malloc_create $MALLOC_BDEV_SIZE $MALLOC_BLOCK_SIZE -b Malloc0 --disable-accel-support
+$rpc_py accel_crypto_key_create -c AES_XTS -k 00112233445566778899001122334455 -e 11223344556677889900112233445500 -n test_dek
+$rpc_py bdev_crypto_create Malloc0 Crypto0 -n test_dek
+$rpc_py nvmf_create_subsystem nqn.2016-06.io.spdk:cnode0 -a
+$rpc_py nvmf_subsystem_add_ns nqn.2016-06.io.spdk:cnode0 Crypto0
+$rpc_py nvmf_subsystem_add_listener nqn.2016-06.io.spdk:cnode0 -t $TEST_TRANSPORT -a $NVMF_FIRST_TARGET_IP -s $NVMF_PORT
+
+$bdevperf --json <(gen_bdevperf_json) -q 64 -o 65536 -t 5 -w verify -m 0xf -r $app_sock
+
 nvmftestfini
 
 trap - SIGINT SIGTERM EXIT
