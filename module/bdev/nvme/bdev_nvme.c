@@ -2207,6 +2207,9 @@ bdev_nvme_create_qpair(struct nvme_qpair *nvme_qpair)
 		_bdev_nvme_clear_io_path_cache(&nvme_qpair->io_path_list);
 	}
 
+	NVME_CTRLR_INFOLOG(nvme_ctrlr, "Connecting qpair %p:%u started.\n",
+			   qpair, spdk_nvme_qpair_get_id(qpair));
+
 	return 0;
 
 err:
@@ -2355,8 +2358,12 @@ nvme_ctrlr_disconnect(struct nvme_ctrlr *nvme_ctrlr, nvme_ctrlr_disconnected_cb 
 {
 	int rc;
 
+	NVME_CTRLR_INFOLOG(nvme_ctrlr, "Start disconnecting ctrlr.\n");
+
 	rc = spdk_nvme_ctrlr_disconnect(nvme_ctrlr->ctrlr);
 	if (rc != 0) {
+		NVME_CTRLR_WARNLOG(nvme_ctrlr, "disconnecting ctrlr failed.\n");
+
 		/* Disconnect fails if ctrlr is already resetting or removed. In this case,
 		 * fail the reset sequence immediately.
 		 */
@@ -2524,6 +2531,10 @@ bdev_nvme_reset_ctrlr_complete(struct nvme_ctrlr *nvme_ctrlr, bool success)
 			/* The next alternate trid exists and is ready to try. Try it now. */
 			pthread_mutex_unlock(&nvme_ctrlr->mutex);
 
+			NVME_CTRLR_INFOLOG(nvme_ctrlr, "Try the next alternate trid %s:%s now.\n",
+					   nvme_ctrlr->active_path_id->trid.traddr,
+					   nvme_ctrlr->active_path_id->trid.trsvcid);
+
 			nvme_ctrlr_disconnect(nvme_ctrlr, bdev_nvme_reconnect_ctrlr);
 			return;
 		}
@@ -2539,6 +2550,8 @@ bdev_nvme_reset_ctrlr_complete(struct nvme_ctrlr *nvme_ctrlr, bool success)
 		nvme_ctrlr->active_path_id->last_failed_tsc = 0;
 	}
 	pthread_mutex_unlock(&nvme_ctrlr->mutex);
+
+	NVME_CTRLR_INFOLOG(nvme_ctrlr, "Clear pending resets.\n");
 
 	/* Make sure we clear any pending resets before returning. */
 	nvme_ctrlr_for_each_channel(nvme_ctrlr,
@@ -2559,6 +2572,7 @@ bdev_nvme_reset_destroy_qpair(struct nvme_ctrlr_channel_iter *i,
 			      struct nvme_ctrlr_channel *ctrlr_ch, void *ctx)
 {
 	struct nvme_qpair *nvme_qpair;
+	struct spdk_nvme_qpair *qpair;
 
 	nvme_qpair = ctrlr_ch->qpair;
 	if (nvme_qpair == NULL) {
@@ -2567,11 +2581,15 @@ bdev_nvme_reset_destroy_qpair(struct nvme_ctrlr_channel_iter *i,
 
 	_bdev_nvme_clear_io_path_cache(&nvme_qpair->io_path_list);
 
-	if (nvme_qpair->qpair != NULL) {
+	qpair = nvme_qpair->qpair;
+	if (qpair != NULL) {
+		NVME_CTRLR_INFOLOG(nvme_ctrlr, "Start disconnecting qpair %p:%u.\n",
+				   qpair, spdk_nvme_qpair_get_id(qpair));
+
 		if (nvme_qpair->ctrlr->dont_retry) {
-			spdk_nvme_qpair_set_abort_dnr(nvme_qpair->qpair, true);
+			spdk_nvme_qpair_set_abort_dnr(qpair, true);
 		}
-		spdk_nvme_ctrlr_disconnect_io_qpair(nvme_qpair->qpair);
+		spdk_nvme_ctrlr_disconnect_io_qpair(qpair);
 
 		/* The current full reset sequence will move to the next
 		 * ctrlr_channel after the qpair is actually disconnected.
@@ -2589,8 +2607,12 @@ static void
 bdev_nvme_reset_create_qpairs_done(struct nvme_ctrlr *nvme_ctrlr, void *ctx, int status)
 {
 	if (status == 0) {
+		NVME_CTRLR_INFOLOG(nvme_ctrlr, "qpairs were created after ctrlr reset.\n");
+
 		bdev_nvme_reset_ctrlr_complete(nvme_ctrlr, true);
 	} else {
+		NVME_CTRLR_INFOLOG(nvme_ctrlr, "qpairs were failed to create after ctrlr reset.\n");
+
 		/* Delete the added qpairs and quiesce ctrlr to make the states clean. */
 		nvme_ctrlr_for_each_channel(nvme_ctrlr,
 					    bdev_nvme_reset_destroy_qpair,
@@ -2603,19 +2625,28 @@ static int
 bdev_nvme_reset_check_qpair_connected(void *ctx)
 {
 	struct nvme_ctrlr_channel *ctrlr_ch = ctx;
+	struct nvme_qpair *nvme_qpair = ctrlr_ch->qpair;
+	struct spdk_nvme_qpair *qpair;
 
 	if (ctrlr_ch->reset_iter == NULL) {
 		/* qpair was already failed to connect and the reset sequence is being aborted. */
 		assert(ctrlr_ch->connect_poller == NULL);
-		assert(ctrlr_ch->qpair->qpair == NULL);
+		assert(nvme_qpair->qpair == NULL);
+
+		NVME_CTRLR_INFOLOG(nvme_qpair->ctrlr,
+				   "qpair was already failed to connect. reset is being aborted.\n");
 		return SPDK_POLLER_BUSY;
 	}
 
-	assert(ctrlr_ch->qpair->qpair != NULL);
+	qpair = nvme_qpair->qpair;
+	assert(qpair != NULL);
 
-	if (!spdk_nvme_qpair_is_connected(ctrlr_ch->qpair->qpair)) {
+	if (!spdk_nvme_qpair_is_connected(qpair)) {
 		return SPDK_POLLER_BUSY;
 	}
+
+	NVME_CTRLR_INFOLOG(nvme_qpair->ctrlr, "qpair %p:%u was connected.\n",
+			   qpair, spdk_nvme_qpair_get_id(qpair));
 
 	spdk_poller_unregister(&ctrlr_ch->connect_poller);
 
@@ -2624,7 +2655,7 @@ bdev_nvme_reset_check_qpair_connected(void *ctx)
 	ctrlr_ch->reset_iter = NULL;
 
 	if (!g_opts.disable_auto_failback) {
-		_bdev_nvme_clear_io_path_cache(&ctrlr_ch->qpair->io_path_list);
+		_bdev_nvme_clear_io_path_cache(&nvme_qpair->io_path_list);
 	}
 
 	return SPDK_POLLER_BUSY;
@@ -2636,16 +2667,23 @@ bdev_nvme_reset_create_qpair(struct nvme_ctrlr_channel_iter *i,
 			     struct nvme_ctrlr_channel *ctrlr_ch,
 			     void *ctx)
 {
+	struct nvme_qpair *nvme_qpair = ctrlr_ch->qpair;
+	struct spdk_nvme_qpair *qpair;
 	int rc = 0;
 
-	if (ctrlr_ch->qpair == NULL) {
+	if (nvme_qpair == NULL) {
 		goto exit;
 	}
 
-	rc = bdev_nvme_create_qpair(ctrlr_ch->qpair);
+	rc = bdev_nvme_create_qpair(nvme_qpair);
 	if (rc == 0) {
 		ctrlr_ch->connect_poller = SPDK_POLLER_REGISTER(bdev_nvme_reset_check_qpair_connected,
 					   ctrlr_ch, 0);
+
+		qpair = nvme_qpair->qpair;
+
+		NVME_CTRLR_INFOLOG(nvme_ctrlr, "Start checking qpair %p:%u to be connected.\n",
+				   qpair, spdk_nvme_qpair_get_id(qpair));
 
 		/* The current full reset sequence will move to the next
 		 * ctrlr_channel after the qpair is actually connected.
@@ -2680,12 +2718,16 @@ bdev_nvme_reconnect_ctrlr_poll(void *arg)
 
 	spdk_poller_unregister(&nvme_ctrlr->reset_detach_poller);
 	if (rc == 0) {
+		NVME_CTRLR_INFOLOG(nvme_ctrlr, "ctrlr was connected. Create qpairs.\n");
+
 		/* Recreate all of the I/O queue pairs */
 		nvme_ctrlr_for_each_channel(nvme_ctrlr,
 					    bdev_nvme_reset_create_qpair,
 					    NULL,
 					    bdev_nvme_reset_create_qpairs_done);
 	} else {
+		NVME_CTRLR_INFOLOG(nvme_ctrlr, "ctrlr could not be connected.\n");
+
 		bdev_nvme_reset_ctrlr_complete(nvme_ctrlr, false);
 	}
 	return SPDK_POLLER_BUSY;
@@ -2694,6 +2736,8 @@ bdev_nvme_reconnect_ctrlr_poll(void *arg)
 static void
 bdev_nvme_reconnect_ctrlr(struct nvme_ctrlr *nvme_ctrlr)
 {
+	NVME_CTRLR_INFOLOG(nvme_ctrlr, "Start reconnecting ctrlr.\n");
+
 	spdk_nvme_ctrlr_reconnect_async(nvme_ctrlr->ctrlr);
 
 	SPDK_DTRACE_PROBE1(bdev_nvme_ctrlr_reconnect, nvme_ctrlr->nbdev_ctrlr->name);
@@ -2708,6 +2752,8 @@ bdev_nvme_reset_destroy_qpair_done(struct nvme_ctrlr *nvme_ctrlr, void *ctx, int
 	SPDK_DTRACE_PROBE1(bdev_nvme_ctrlr_reset, nvme_ctrlr->nbdev_ctrlr->name);
 	assert(status == 0);
 
+	NVME_CTRLR_INFOLOG(nvme_ctrlr, "qpairs were deleted.\n");
+
 	if (!spdk_nvme_ctrlr_is_fabrics(nvme_ctrlr->ctrlr)) {
 		bdev_nvme_reconnect_ctrlr(nvme_ctrlr);
 	} else {
@@ -2718,6 +2764,8 @@ bdev_nvme_reset_destroy_qpair_done(struct nvme_ctrlr *nvme_ctrlr, void *ctx, int
 static void
 bdev_nvme_reset_destroy_qpairs(struct nvme_ctrlr *nvme_ctrlr)
 {
+	NVME_CTRLR_INFOLOG(nvme_ctrlr, "Delete qpairs for reset.\n");
+
 	nvme_ctrlr_for_each_channel(nvme_ctrlr,
 				    bdev_nvme_reset_destroy_qpair,
 				    NULL,
