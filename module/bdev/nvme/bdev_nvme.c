@@ -984,6 +984,10 @@ any_io_path_may_become_available(struct nvme_bdev_channel *nbdev_ch)
 {
 	struct nvme_io_path *io_path;
 
+	if (nbdev_ch->resetting) {
+		return false;
+	}
+
 	STAILQ_FOREACH(io_path, &nbdev_ch->io_path_list, stailq) {
 		if (io_path->nvme_ns->ana_transition_timedout) {
 			continue;
@@ -1096,7 +1100,7 @@ bdev_nvme_io_complete_nvme_status(struct nvme_bdev_io *bio,
 
 	nbdev_ch = spdk_io_channel_get_ctx(spdk_bdev_io_get_io_channel(bdev_io));
 
-	if (cpl->status.dnr != 0 || nbdev_ch->resetting ||
+	if (cpl->status.dnr != 0 ||
 	    (g_opts.bdev_retry_count != -1 && bio->retry_count >= g_opts.bdev_retry_count)) {
 		goto complete;
 	}
