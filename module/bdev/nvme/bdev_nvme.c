@@ -1298,15 +1298,15 @@ bdev_nvme_disconnected_qpair_cb(struct spdk_nvme_qpair *qpair, void *poll_group_
 			/* We are in a full reset sequence. */
 			if (ctrlr_ch->connect_poller != NULL) {
 				/* qpair was failed to connect. Abort the reset sequence. */
-				NVME_CTRLR_DEBUGLOG(nvme_ctrlr,
-						    "qpair %p was failed to connect. abort the reset ctrlr sequence.\n",
-						    qpair);
+				NVME_CTRLR_NOTICELOG(nvme_ctrlr,
+						     "qpair %p was failed to connect. abort the reset ctrlr sequence.\n",
+						     qpair);
 				spdk_poller_unregister(&ctrlr_ch->connect_poller);
 				status = -1;
 			} else {
 				/* qpair was completed to disconnect. Just move to the next ctrlr_channel. */
-				NVME_CTRLR_DEBUGLOG(nvme_ctrlr,
-						    "qpair %p was disconnected and freed in a reset ctrlr sequence.\n",
+				NVME_CTRLR_NOTICELOG(nvme_ctrlr,
+						     "qpair %p was disconnected and freed in a reset ctrlr sequence.\n",
 						    qpair);
 				status = 0;
 			}
@@ -1320,7 +1320,7 @@ bdev_nvme_disconnected_qpair_cb(struct spdk_nvme_qpair *qpair, void *poll_group_
 		}
 	} else {
 		/* In this case, ctrlr_channel is already deleted. */
-		NVME_CTRLR_DEBUGLOG(nvme_ctrlr, "qpair %p was disconnected and freed. delete nvme_qpair.\n", qpair);
+		NVME_CTRLR_NOTICELOG(nvme_ctrlr, "qpair %p was disconnected and freed. delete nvme_qpair.\n", qpair);
 		nvme_qpair_delete(nvme_qpair);
 	}
 }
@@ -2003,7 +2003,7 @@ bdev_nvme_reset(struct nvme_ctrlr *nvme_ctrlr)
 	nvme_ctrlr->dont_retry = true;
 
 	if (nvme_ctrlr->reconnect_is_delayed) {
-		NVME_CTRLR_DEBUGLOG(nvme_ctrlr, "Reconnect is already scheduled.\n");
+		NVME_CTRLR_NOTICELOG(nvme_ctrlr, "Reconnect is already scheduled.\n");
 		msg_fn = _bdev_nvme_reconnect;
 		nvme_ctrlr->reconnect_is_delayed = false;
 	} else {
@@ -3392,7 +3392,7 @@ timeout_cb(void *cb_arg, struct spdk_nvme_ctrlr *ctrlr,
 		bdev_nvme_reset(nvme_ctrlr);
 		break;
 	case SPDK_BDEV_NVME_TIMEOUT_ACTION_NONE:
-		NVME_CTRLR_DEBUGLOG(nvme_ctrlr, "No action for nvme controller timeout.\n");
+		NVME_CTRLR_NOTICELOG(nvme_ctrlr, "No action for nvme controller timeout.\n");
 		break;
 	default:
 		NVME_CTRLR_ERRLOG(nvme_ctrlr, "An invalid timeout action value is found.\n");
@@ -3528,7 +3528,7 @@ nvme_ctrlr_populate_namespace(struct nvme_ctrlr *nvme_ctrlr, struct nvme_ns *nvm
 
 	ns = spdk_nvme_ctrlr_get_ns(nvme_ctrlr->ctrlr, nvme_ns->id);
 	if (!ns) {
-		NVME_CTRLR_DEBUGLOG(nvme_ctrlr, "Invalid NS %d\n", nvme_ns->id);
+		NVME_CTRLR_NOTICELOG(nvme_ctrlr, "Invalid NS %d\n", nvme_ns->id);
 		rc = -EINVAL;
 		goto done;
 	}
