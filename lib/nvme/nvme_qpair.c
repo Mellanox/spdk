@@ -803,8 +803,8 @@ spdk_nvme_qpair_process_completions(struct spdk_nvme_qpair *qpair, uint32_t max_
 		     nvme_qpair_get_state(qpair) == NVME_QPAIR_DISCONNECTED)) {
 			ret = 0;
 		} else {
-			SPDK_ERRLOG("CQ transport error %d (%s) on qpair id %hu\n",
-				    ret, spdk_strerror(-ret), qpair->id);
+			NVME_CTRLR_ERRLOG(qpair->ctrlr, "CQ transport error %d (%s) on qpair id %hu\n",
+					  ret, spdk_strerror(-ret), qpair->id);
 			if (nvme_qpair_is_admin_queue(qpair)) {
 				nvme_ctrlr_fail(qpair->ctrlr, false);
 			}
