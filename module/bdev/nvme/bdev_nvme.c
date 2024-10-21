@@ -2203,10 +2203,13 @@ _bdev_nvme_reset_io(struct nvme_io_path *io_path, struct nvme_bdev_io *bio)
 	struct spdk_bdev_io *bdev_io = spdk_bdev_io_from_ctx(bio);
 	struct nvme_bdev *nbdev = (struct nvme_bdev *)bdev_io->bdev->ctxt;
 	struct nvme_ctrlr *nvme_ctrlr = io_path->qpair->ctrlr;
+	spdk_msg_fn msg_fn;
 	struct nvme_ctrlr_channel *ctrlr_ch;
 	int rc;
 
-	rc = bdev_nvme_reset(nvme_ctrlr);
+	pthread_mutex_lock(&nvme_ctrlr->mutex);
+	rc = bdev_nvme_reset_unsafe(nvme_ctrlr, &msg_fn);
+	pthread_mutex_unlock(&nvme_ctrlr->mutex);
 	if (rc != 0 && rc != -EBUSY) {
 		NVME_BDEV_NOTICELOG(nbdev, "reset_io %p could not reset ctrlr %s, rc:%d\n",
 				    bio, CTRLR_STRING(nvme_ctrlr), rc);
@@ -2224,6 +2227,8 @@ _bdev_nvme_reset_io(struct nvme_io_path *io_path, struct nvme_bdev_io *bio)
 
 		NVME_BDEV_NOTICELOG(nbdev, "reset_io %p started resetting ctrlr %s.\n",
 				    bio, CTRLR_STRING(nvme_ctrlr));
+
+		spdk_thread_send_msg(nvme_ctrlr->thread, msg_fn, nvme_ctrlr);
 	} else if (rc == -EBUSY) {
 		ctrlr_ch = io_path->qpair->ctrlr_ch;
 		assert(ctrlr_ch != NULL);
