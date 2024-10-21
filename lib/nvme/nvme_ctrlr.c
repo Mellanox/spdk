@@ -1048,8 +1048,6 @@ spdk_nvme_ctrlr_fail(struct spdk_nvme_ctrlr *ctrlr)
 int
 spdk_nvme_ctrlr_resume_connect(struct spdk_nvme_ctrlr *ctrlr)
 {
-	int rc;
-
 	assert(ctrlr != NULL);
 	nvme_robust_mutex_lock(&ctrlr->ctrlr_lock);
 	if (!ctrlr->lazy_fabric_connect) {
@@ -1066,14 +1064,6 @@ spdk_nvme_ctrlr_resume_connect(struct spdk_nvme_ctrlr *ctrlr)
 		return -EINVAL;
 	}
 	ctrlr->lazy_fabric_connect = false;
-	rc = spdk_nvme_qpair_process_completions(ctrlr->adminq, 0);
-	if (rc < 0) {
-		NVME_CTRLR_ERRLOG(ctrlr, "Failed to finish lazy FABRIC CONNECT. "
-				  "Error %d. Failing ctrlr %p\n", rc, ctrlr);
-		nvme_ctrlr_fail(ctrlr, false);
-		nvme_robust_mutex_unlock(&ctrlr->ctrlr_lock);
-		return rc;
-	}
 	nvme_robust_mutex_unlock(&ctrlr->ctrlr_lock);
 	return 0;
 }
