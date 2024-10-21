@@ -1541,28 +1541,19 @@ err:
 static void bdev_nvme_reset_io_continue(void *cb_arg, bool success);
 
 static void
-bdev_nvme_complete_pending_resets(struct spdk_io_channel_iter *i)
+bdev_nvme_complete_pending_resets(struct nvme_ctrlr *nvme_ctrlr, bool success)
 {
-	struct spdk_io_channel *_ch = spdk_io_channel_iter_get_channel(i);
-	struct nvme_ctrlr_channel *ctrlr_ch = spdk_io_channel_get_ctx(_ch);
-	bool success = true;
 	struct spdk_bdev_io *bdev_io;
 	struct nvme_bdev_io *bio;
 
-	if (spdk_io_channel_iter_get_ctx(i) != NULL) {
-		success = false;
-	}
-
-	while (!TAILQ_EMPTY(&ctrlr_ch->pending_resets)) {
-		bdev_io = TAILQ_FIRST(&ctrlr_ch->pending_resets);
-		TAILQ_REMOVE(&ctrlr_ch->pending_resets, bdev_io, module_link);
+	while (!TAILQ_EMPTY(&nvme_ctrlr->pending_resets)) {
+		bdev_io = TAILQ_FIRST(&nvme_ctrlr->pending_resets);
+		TAILQ_REMOVE(&nvme_ctrlr->pending_resets, bdev_io, module_link);
 
 		bio = (struct nvme_bdev_io *)bdev_io->driver_ctx;
 
 		bdev_nvme_reset_io_continue(bio, success);
 	}
-
-	spdk_for_each_channel_continue(i, 0);
 }
 
 static void
@@ -1747,16 +1738,16 @@ bdev_nvme_start_reconnect_delay_timer(struct nvme_ctrlr *nvme_ctrlr)
 }
 
 static void
-_bdev_nvme_reset_complete(struct spdk_io_channel_iter *i, int status)
+bdev_nvme_reset_complete(struct nvme_ctrlr *nvme_ctrlr, bool success)
 {
-	struct nvme_ctrlr *nvme_ctrlr = spdk_io_channel_iter_get_io_device(i);
-	bool success = spdk_io_channel_iter_get_ctx(i) == NULL;
 	struct nvme_path_id *path_id;
 	bdev_nvme_reset_cb reset_cb_fn = nvme_ctrlr->reset_cb_fn;
 	void *reset_cb_arg = nvme_ctrlr->reset_cb_arg;
 	enum bdev_nvme_op_after_reset op_after_reset;
 
 	assert(nvme_ctrlr->thread == spdk_get_thread());
+
+	NVME_CTRLR_NOTICELOG(nvme_ctrlr, "Clear pending resets.\n");
 
 	nvme_ctrlr->reset_cb_fn = NULL;
 	nvme_ctrlr->reset_cb_arg = NULL;
@@ -1777,6 +1768,9 @@ _bdev_nvme_reset_complete(struct spdk_io_channel_iter *i, int status)
 	assert(path_id == nvme_ctrlr->active_path_id);
 
 	path_id->is_failed = !success;
+
+	/* Make sure we clear any pending resets before returning. */
+	bdev_nvme_complete_pending_resets(nvme_ctrlr, success);
 
 	op_after_reset = bdev_nvme_check_op_after_reset(nvme_ctrlr, success);
 
@@ -1802,18 +1796,6 @@ _bdev_nvme_reset_complete(struct spdk_io_channel_iter *i, int status)
 	default:
 		break;
 	}
-}
-
-static void
-bdev_nvme_reset_complete(struct nvme_ctrlr *nvme_ctrlr, bool success)
-{
-	NVME_CTRLR_NOTICELOG(nvme_ctrlr, "Clear pending resets.\n");
-
-	/* Make sure we clear any pending resets before returning. */
-	spdk_for_each_channel(nvme_ctrlr,
-			      bdev_nvme_complete_pending_resets,
-			      success ? NULL : (void *)0x1,
-			      _bdev_nvme_reset_complete);
 }
 
 static void
@@ -2204,11 +2186,21 @@ _bdev_nvme_reset_io(struct nvme_io_path *io_path, struct nvme_bdev_io *bio)
 	struct nvme_bdev *nbdev = (struct nvme_bdev *)bdev_io->bdev->ctxt;
 	struct nvme_ctrlr *nvme_ctrlr = io_path->qpair->ctrlr;
 	spdk_msg_fn msg_fn;
-	struct nvme_ctrlr_channel *ctrlr_ch;
 	int rc;
 
 	pthread_mutex_lock(&nvme_ctrlr->mutex);
 	rc = bdev_nvme_reset_unsafe(nvme_ctrlr, &msg_fn);
+	if (rc == -EBUSY) {
+		/*
+		 * Reset call is queued only if it is from the app framework. This is on purpose so that
+		 * we don't interfere with the app framework reset strategy. i.e. we are deferring to the
+		 * upper level. If they are in the middle of a reset, we won't try to schedule another one.
+		 */
+		TAILQ_INSERT_TAIL(&nvme_ctrlr->pending_resets, bdev_io, module_link);
+
+		NVME_BDEV_NOTICELOG(nbdev, "reset_io %p was queued to ctrlr %s.\n",
+				    bio, CTRLR_STRING(nvme_ctrlr));
+	}
 	pthread_mutex_unlock(&nvme_ctrlr->mutex);
 	if (rc != 0 && rc != -EBUSY) {
 		NVME_BDEV_NOTICELOG(nbdev, "reset_io %p could not reset ctrlr %s, rc:%d\n",
@@ -2229,18 +2221,6 @@ _bdev_nvme_reset_io(struct nvme_io_path *io_path, struct nvme_bdev_io *bio)
 				    bio, CTRLR_STRING(nvme_ctrlr));
 
 		spdk_thread_send_msg(nvme_ctrlr->thread, msg_fn, nvme_ctrlr);
-	} else if (rc == -EBUSY) {
-		ctrlr_ch = io_path->qpair->ctrlr_ch;
-		assert(ctrlr_ch != NULL);
-		/*
-		 * Reset call is queued only if it is from the app framework. This is on purpose so that
-		 * we don't interfere with the app framework reset strategy. i.e. we are deferring to the
-		 * upper level. If they are in the middle of a reset, we won't try to schedule another one.
-		 */
-		TAILQ_INSERT_TAIL(&ctrlr_ch->pending_resets, bdev_io, module_link);
-
-		NVME_BDEV_NOTICELOG(nbdev, "reset_io %p was queued to ctrlr %s.\n",
-				    bio, CTRLR_STRING(nvme_ctrlr));
 	}
 
 	return 0;
@@ -2675,8 +2655,6 @@ bdev_nvme_create_ctrlr_channel_cb(void *io_device, void *ctx_buf)
 {
 	struct nvme_ctrlr *nvme_ctrlr = io_device;
 	struct nvme_ctrlr_channel *ctrlr_ch = ctx_buf;
-
-	TAILQ_INIT(&ctrlr_ch->pending_resets);
 
 	return nvme_qpair_create(nvme_ctrlr, ctrlr_ch);
 }
@@ -4389,7 +4367,7 @@ nvme_ctrlr_create(struct spdk_nvme_ctrlr *ctrlr,
 	}
 
 	TAILQ_INIT(&nvme_ctrlr->trids);
-
+	TAILQ_INIT(&nvme_ctrlr->pending_resets);
 	RB_INIT(&nvme_ctrlr->namespaces);
 
 	path_id = calloc(1, sizeof(*path_id));
