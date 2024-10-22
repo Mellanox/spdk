@@ -4691,6 +4691,12 @@ spdk_nvme_ctrlr_get_pci_device(struct spdk_nvme_ctrlr *ctrlr)
 	return nvme_ctrlr_proc_get_devhandle(ctrlr);
 }
 
+uint16_t
+spdk_nvme_ctrlr_get_id(struct spdk_nvme_ctrlr *ctrlr)
+{
+	return ctrlr->cntlid;
+}
+
 uint32_t
 spdk_nvme_ctrlr_get_max_xfer_size(const struct spdk_nvme_ctrlr *ctrlr)
 {

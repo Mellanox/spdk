@@ -1435,6 +1435,15 @@ uint32_t spdk_nvme_ctrlr_get_num_ns(struct spdk_nvme_ctrlr *ctrlr);
 struct spdk_pci_device *spdk_nvme_ctrlr_get_pci_device(struct spdk_nvme_ctrlr *ctrlr);
 
 /**
+ * Get the NVMe controller ID for the given controller.
+ *
+ * \param ctrlr Opaque handle to NVMe controller.
+ *
+ * \return ID of the NVMe controller.
+ */
+uint16_t spdk_nvme_ctrlr_get_id(struct spdk_nvme_ctrlr *ctrlr);
+
+/**
  * Get the maximum data transfer size of a given NVMe controller.
  *
  * \param ctrlr Opaque handle to NVMe controller.
