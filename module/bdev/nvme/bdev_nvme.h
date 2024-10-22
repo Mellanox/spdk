@@ -150,6 +150,8 @@ struct nvme_ctrlr {
 
 	nvme_ctrlr_disconnected_cb		disconnected_cb;
 
+	TAILQ_HEAD(, spdk_bdev_io)		pending_resets;
+
 	/** linked list pointer for device list */
 	TAILQ_ENTRY(nvme_ctrlr)			tailq;
 	struct nvme_bdev_ctrlr			*nbdev_ctrlr;
@@ -207,7 +209,6 @@ struct nvme_qpair {
 
 struct nvme_ctrlr_channel {
 	struct nvme_qpair		*qpair;
-	TAILQ_HEAD(, spdk_bdev_io)	pending_resets;
 	nvme_io_path_tailq_t		io_path_list;
 
 	struct nvme_ctrlr_channel_iter	*reset_iter;
