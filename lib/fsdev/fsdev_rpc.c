@@ -185,7 +185,7 @@ rpc_fsdev_get_fsdevs(struct spdk_jsonrpc_request *request,
 	} else {
 		w = spdk_jsonrpc_begin_result(request);
 		spdk_json_write_array_begin(w);
-		spdk_for_each_fsdev(&ctx, rpc_dump_fsdev_info);
+		spdk_for_each_fsdev(w, rpc_dump_fsdev_info);
 		spdk_json_write_array_end(w);
 		spdk_jsonrpc_end_result(request, w);
 	}
