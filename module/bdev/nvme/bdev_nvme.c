@@ -924,7 +924,7 @@ _bdev_nvme_delete_io_path(struct nvme_bdev_channel *nbdev_ch, struct nvme_io_pat
 	STAILQ_REMOVE(&nbdev_ch->io_path_list, io_path, nvme_io_path, stailq);
 	io_path->nbdev_ch = NULL;
 
-	if (io_path->ctrlr_ch->qpair != NULL) {
+	if (nbdev->ref != 0 && io_path->ctrlr_ch->qpair != NULL) {
 		spdk_bdev_notify_io_channel_weight_change(&nbdev->disk);
 	}
 
