@@ -130,6 +130,9 @@ export LDFLAGS
         --target-arch=armv8-a \
         --with-crypto \
 %endif
+%if %{defined ctyunos}
+        --with-xlio \
+%endif
         --disable-tests \
         --disable-unit-tests \
         --without-fio \
