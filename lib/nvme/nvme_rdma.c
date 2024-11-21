@@ -543,6 +543,12 @@ nvme_rdma_validate_cm_event(enum rdma_cm_event_type expected_evt_type,
 			return 0;
 		}
 		break;
+	case RDMA_CM_EVENT_DISCONNECTED:
+		if (reaped_evt->event == RDMA_CM_EVENT_TIMEWAIT_EXIT &&
+		    reaped_evt->status == 0) {
+			return 0;
+		}
+		break;
 	default:
 		break;
 	}
