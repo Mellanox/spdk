@@ -46,7 +46,7 @@ RUN set -eux; \
     if [ $(uname -m) == "aarch64" ]; then \
       echo -e "[swx-devops]\n\
 name=SWX-DEVOPS\n\
-baseurl=http://nbu-nfs.mellanox.com/auto/sw/work/swx_devops/RPMS/7/aarch64/\n\
+baseurl=http://nbu-nfs.gtm.nvidia.com/auto/sw/work/swx_devops/RPMS/7/aarch64/\n\
 enabled=1\n\
 gpgcheck=0" > /etc/yum.repos.d/swx_devops.repo; \
     fi; \
@@ -60,7 +60,7 @@ RUN set -eux; \
     fi; \
     echo -e "[mlnx_ofed]\n\
 name=Mellanox Technologies \$basearch mlnx_ofed\n\
-baseurl=http://nbu-nfs.mellanox.com/auto/mswg/release/MLNX_OFED/MLNX_OFED_LINUX-${MOFED_VER}/MLNX_OFED_LINUX-${MOFED_VER}-${rhel_dist}-\$basearch/RPMS/\n\
+baseurl=http://nbu-nfs.gtm.nvidia.com/auto/mswg/release/MLNX_OFED/MLNX_OFED_LINUX-${MOFED_VER}/MLNX_OFED_LINUX-${MOFED_VER}-${rhel_dist}-\$basearch/RPMS/\n\
 enabled=1\n\
 gpgcheck=0" > /etc/yum.repos.d/mellanox_mlnx_ofed.repo; \
     yum install -y mlnx-ofed-basic-user-only
