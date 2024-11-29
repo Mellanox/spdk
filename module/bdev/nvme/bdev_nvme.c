@@ -1448,6 +1448,8 @@ bdev_nvme_destruct(void *ctx)
 
 	SPDK_DTRACE_PROBE2(bdev_nvme_destruct, nvme_disk->nbdev_ctrlr->name, nvme_disk->nsid);
 
+	pthread_mutex_lock(&nvme_disk->mutex);
+
 	TAILQ_FOREACH_SAFE(nvme_ns, &nvme_disk->nvme_ns_list, tailq, tmp_nvme_ns) {
 		pthread_mutex_lock(&nvme_ns->ctrlr->mutex);
 
@@ -1464,6 +1466,8 @@ bdev_nvme_destruct(void *ctx)
 			pthread_mutex_unlock(&nvme_ns->ctrlr->mutex);
 		}
 	}
+
+	pthread_mutex_unlock(&nvme_disk->mutex);
 
 	pthread_mutex_lock(&g_bdev_nvme_mutex);
 	TAILQ_REMOVE(&nvme_disk->nbdev_ctrlr->bdevs, nvme_disk, tailq);
@@ -3682,7 +3686,10 @@ nvme_ctrlr_depopulate_namespace(struct nvme_ctrlr *nvme_ctrlr, struct nvme_ns *n
 			 * and clear nvme_ns->bdev here.
 			 */
 			TAILQ_REMOVE(&bdev->nvme_ns_list, nvme_ns, tailq);
+
+			pthread_mutex_lock(&nvme_ns->ctrlr->mutex);
 			nvme_ns->bdev = NULL;
+			pthread_mutex_unlock(&nvme_ns->ctrlr->mutex);
 
 			pthread_mutex_unlock(&bdev->mutex);
 
@@ -5023,8 +5030,11 @@ bdev_nvme_delete(const char *name, const struct nvme_path_id *path_id)
 		return -EINVAL;
 	}
 
+	pthread_mutex_lock(&g_bdev_nvme_mutex);
+
 	nbdev_ctrlr = nvme_bdev_ctrlr_get_by_name(name);
 	if (nbdev_ctrlr == NULL) {
+		pthread_mutex_unlock(&g_bdev_nvme_mutex);
 		SPDK_ERRLOG("Failed to find NVMe bdev controller\n");
 		return -ENODEV;
 	}
@@ -5098,12 +5108,15 @@ bdev_nvme_delete(const char *name, const struct nvme_path_id *path_id)
 			}
 
 			if (rc < 0 && rc != -ENXIO) {
+				pthread_mutex_unlock(&g_bdev_nvme_mutex);
 				return rc;
 			}
 
 
 		}
 	}
+
+	pthread_mutex_unlock(&g_bdev_nvme_mutex);
 
 	/* All nvme_ctrlrs were deleted or no nvme_ctrlr which had the trid was found. */
 	return rc;
