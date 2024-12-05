@@ -22,31 +22,34 @@
     description: Do NOT edit this job through the Web GUI !
     concurrent: true
     sandbox: true
-    parameters:
-        - string:
-            name: "REFSPEC"
-            default: "{refspec_default_value}"
-            description: "{refspec_description}"
-        - bool:
-            name: "do_container"
-            default: true
-            description: "Build docker containers"
-        - bool:
-            name: "do_resources"
-            default: true
-            description: "Release resource files"
-        - bool:
-            name: "build_dockers"
-            default: false
-            description: "Rebuild CI docker containers"
-        - string:
-            name: "conf_file"
-            default: "{conf_file}"
-            description: "Regex to select job config file"
-        - string:
-            name: "script"
-            default: "{jjb_jenkinsfile}"
-            description: "Jenkinsfile to load"
+    parameters: 
+        !j2-yaml: |
+            - string:
+                name: "REFSPEC"
+                default: "{refspec_default_value}"
+                description: "{refspec_description}"
+            {% if build_type == 'release' %}
+            - bool:
+                name: "do_container"
+                default: true
+                description: "Build docker containers"
+            - bool:
+                name: "do_resources"
+                default: true
+                description: "Release resource files"
+            {% endif %}
+            - bool:
+                name: "build_dockers"
+                default: false
+                description: "Rebuild CI docker containers"
+            - string:
+                name: "conf_file"
+                default: "{conf_file}"
+                description: "Regex to select job config file"
+            - string:
+                name: "script"
+                default: "{jjb_jenkinsfile}"
+                description: "Jenkinsfile to load"
     pipeline-scm:
         scm:
             - git:
@@ -83,6 +86,18 @@
                 <li><b>refs/heads/v24.01.3.nvda.tgt_offload</b> - will checkout into v24.01.3.nvda.tgt_offload branch</li>
                 <li><b>refs/pull/1274/head</b> - will checkout into pull request 1274</li>
                 <li><b>refs/tags/v0.0.0-1</b> - will checkout into v0.0.0-1 tag</li>
+        - nightly:
+            conf_file: '.ci/job_matrix_doca_nvmf_target_offload_nightly.yaml'
+            refspec_default_value: 'refs/heads/v24.01.3.nvda.tgt_offload'
+            refspec_description: |
+              <p>refspec to checkout by git. By default <b>refs/heads/main</b><br />
+              You can change it to checkout to a specific <b>branch</b>, <b>pull request</b> or <b>tag</b><br />
+              Examples:</p>
+              <ul>
+                <li><b>refs/heads/v24.01.3.nvda.tgt_offload</b> - will checkout into v24.01.3.nvda.tgt_offload branch</li>
+                <li><b>refs/pull/1274/head</b> - will checkout into pull request 1274</li>
+                <li><b>refs/tags/v0.0.0-1</b> - will checkout into v0.0.0-1 tag</li>
+              </ul>
               </ul>
     jobs:
         - '{name}-{build_type}'
