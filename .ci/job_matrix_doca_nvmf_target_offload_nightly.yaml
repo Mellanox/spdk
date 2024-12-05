@@ -24,10 +24,8 @@ credentials:
 timeout_minutes: 120
 
 env:
-  #DOCKER_REGISTRY_HOST: "nbu-harbor.gtm.nvidia.com"
-  #DOCKER_REGISTRY_PATH: "swx-storage/doca_nvmf_target_offload"
-  DOCKER_REGISTRY_HOST: "nvcr.io"
-  DOCKER_REGISTRY_PATH: "nvstaging/doca"
+  DOCKER_REGISTRY_HOST: "nbu-harbor.gtm.nvidia.com"
+  DOCKER_REGISTRY_PATH: "swx-storage/doca_nvmf_target_offload"
   DOCA_IMAGE: "nvcr.io/nvstaging/doca/doca"
   DOCA_BUILDER_TAG: "2.9.1006-devel-ubuntu22.04-arm64"
   DOCA_RUNTIME_TAG: "2.9.1006-full-rt-ubuntu22.04-arm64"
@@ -81,23 +79,14 @@ steps:
     run: |
       if [[ "$do_container" == "true" ]]; then
         ./container/build_image.sh \
-          --build-type=release \
+          --build-type=debugoptimized \
           --doca-image=$DOCA_IMAGE \
           --doca-builder-tag=$DOCA_BUILDER_TAG \
           --doca-runtime-tag=$DOCA_RUNTIME_TAG \
           --docker-registry-host=$DOCKER_REGISTRY_HOST \
           --docker-registry-path=$DOCKER_REGISTRY_PATH \
+          --docker-image-name=doca_nvmf_target_offload_nightly \
           --sign --push
       else
         echo "Skip generic container build"
-      fi
-
-  - name: Upload resources
-    credentialsId: 'svc-nbu-swx-repos-ngc-token'
-    containerSelector: "{name: 'doca_ci'}"
-    run: |
-      if [[ "$do_resources" == "true" ]]; then
-        ./container/update_ngc_resource.sh
-      else
-        echo "Skip resource upload"
       fi

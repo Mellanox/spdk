@@ -27,7 +27,7 @@ DOCKER_ARCH=$(uname -m)
 DOCKER_FILE="container/Dockerfile.nvmf_target_offload"
 DOCKER_BUILD_ARGS=()
 DOCKER_IMAGE_NAME="doca_nvmf_target_offload"
-DOCKER_REGISTRY_HOST="harbor.mellanox.com"
+DOCKER_REGISTRY_HOST="nbu-harbor.gtm.nvidia.com"
 DOCKER_REGISTRY_PATH="swx-storage/doca_nvmf_target_offload"
 PUSH_IMAGE=false
 SIGN=false
@@ -136,7 +136,7 @@ DOCA_VERSION=$(echo $DOCA_RUNTIME_TAG | grep -o "[0-9]\.[0-9]\.[0-9]")
 NVMF_TARGET_OFFLOAD_VER_MID=$(echo $NVMF_TARGET_OFFLOAD_VERSION | grep -o "[0-9]\.[0-9]\.[0-9]")
 
 case "$DOCKER_REGISTRY_HOST"  in
-    "harbor.mellanox.com")
+    "nbu-harbor.gtm.nvidia.com")
         if test -n "$ghprbPullId"; then
             NVMF_TARGET_OFFLOAD_VERSION="${NVMF_TARGET_OFFLOAD_VER_MID}-pr${ghprbPullId}"
         else
