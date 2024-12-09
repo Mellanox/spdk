@@ -28,20 +28,20 @@
                 name: "REFSPEC"
                 default: "{refspec_default_value}"
                 description: "{refspec_description}"
-            {% if build_type == 'release' %}
+            - bool:
+                name: "build_dockers"
+                default: false
+                description: "Rebuild CI docker containers"
             - bool:
                 name: "do_container"
                 default: true
                 description: "Build docker containers"
+            {% if build_type == 'release' %}
             - bool:
                 name: "do_resources"
                 default: true
                 description: "Release resource files"
             {% endif %}
-            - bool:
-                name: "build_dockers"
-                default: false
-                description: "Rebuild CI docker containers"
             - string:
                 name: "conf_file"
                 default: "{conf_file}"
