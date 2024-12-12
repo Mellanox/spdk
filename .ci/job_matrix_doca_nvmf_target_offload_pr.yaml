@@ -1,0 +1,88 @@
+#
+# SPDX-FileCopyrightText: Copyright (c) 2023-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: LicenseRef-NvidiaProprietary
+#
+# NVIDIA CORPORATION, its affiliates and licensors retain all intellectual
+# property and proprietary rights in and to this material, related
+# documentation and any modifications thereto. Any use, reproduction,
+# disclosure or distribution of this material and related documentation
+# without an express license agreement from NVIDIA CORPORATION or
+# its affiliates is strictly prohibited.
+#
+---
+job: doca-nvmf-target-offload-pr
+
+registry_host: nbu-harbor.gtm.nvidia.com
+registry_path: /swx-storage/doca_nvmf_target_offload
+
+credentials:
+  - {credentialsId: 'svc-nbu-swx-repos', usernameVariable: 'REPO_USER', passwordVariable: 'REPO_PASS'}
+  - {credentialsId: 'svc-nbu-swx-repos-ngc-token', usernameVariable: 'NGC_CLI_USER', passwordVariable: 'NGC_CLI_API_KEY'}
+  - {credentialsId: '3s-bf3-dpa-prod-role', usernameVariable: 'DPA_SIGN_USER', passwordVariable: 'DPA_SIGN_PASS'}
+
+
+timeout_minutes: 120
+
+env:
+  DOCKER_REGISTRY_HOST: "nbu-harbor.gtm.nvidia.com"
+  DOCKER_REGISTRY_PATH: "swx-storage/doca_nvmf_target_offload"
+  DOCA_IMAGE: "nvcr.io/nvstaging/doca/doca"
+  DOCA_BUILDER_TAG: "2.9.1006-devel-ubuntu22.04-arm64"
+  DOCA_RUNTIME_TAG: "2.9.1006-full-rt-ubuntu22.04-arm64"
+  artifact_properties: '/mnt/pvc/doca-sta-artifact.properties'
+  REGISTRY_AUTH_FILE: '/mnt/secret_podman/config_podman.json'
+  GIT_SSH_COMMAND: 'ssh -o StrictHostKeyChecking=no'
+  STORAGE_DRIVER: 'overlay'
+
+failFast: false
+kubernetes:
+  cloud: il-ipp-blossom-prod
+  namespace: nbu-swx-storage-devops
+  runAsUser: "6213"
+  runAsGroup: "11429"
+  privileged: true
+  arch_table:
+    aarch64:
+      jnlpImage: 'dockerhub.nvidia.com/jenkins/inbound-agent:latest'
+      dockerImage: 'quay.io/podman/stable:v5.1.2'
+    x86_64:
+      jnlpImage: 'dockerhub.nvidia.com/jenkins/inbound-agent:latest'
+      dockerImage: 'quay.io/podman/stable:v5.1.2'
+
+empty_volumes:
+  - {mountPath: /var/home/swx-jenkins/.local/share/containers, memory: false}
+
+pvc_volumes:
+  - {claimName: nbu-swx-storage-devops-pvc, mountPath: /mnt/pvc, readOnly: false}
+
+secret_volumes:
+  - {secretName: 'mellanox-debs-keyring', mountPath: '/mnt/secret'}
+  - {secretName: 'registry-auth-file', mountPath: '/mnt/secret_podman'}
+  - {secretName: 'mellanox-github-rsa', mountPath: '/var/home/swx-jenkins/.ssh'}
+
+runs_on_dockers:
+  - {
+     file: '.ci/Dockerfile.doca', name: 'doca_ci', arch: 'aarch64', tag: "241126-1",
+     build_args: '--build-arg DOCA_IMAGE_TAG=$DOCA_BUILDER_TAG --pull --no-cache'
+    }
+
+steps:
+  - name: Clone DPA sign tool
+    containerSelector: "{name: 'doca_ci'}"
+    run: |
+      git clone "ssh://git-nbu.nvidia.com:12023/DevOps/3S/sign-tool" --depth=1
+
+  - name: Build generic docker image
+    containerSelector: "{name: 'doca_ci'}"
+    credentialsId: '3s-bf3-dpa-prod-role'
+    archiveArtifacts: 'artifact.properties'
+    run: |
+        ./container/build_image.sh \
+          --build-type=debugoptimized \
+          --doca-image=$DOCA_IMAGE \
+          --doca-builder-tag=$DOCA_BUILDER_TAG \
+          --doca-runtime-tag=$DOCA_RUNTIME_TAG \
+          --docker-registry-host=$DOCKER_REGISTRY_HOST \
+          --docker-registry-path=$DOCKER_REGISTRY_PATH \
+          --docker-image-name=doca_nvmf_target_offload \
+          --sign --push

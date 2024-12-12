@@ -1,0 +1,93 @@
+# SPDX-FileCopyrightText: Copyright (c) 2023-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: LicenseRef-NvidiaProprietary
+#
+# NVIDIA CORPORATION, its affiliates and licensors retain all intellectual
+# property and proprietary rights in and to this material, related
+# documentation and any modifications thereto. Any use, reproduction,
+# disclosure or distribution of this material and related documentation
+# without an express license agreement from NVIDIA CORPORATION or
+# its affiliates is strictly prohibited.
+---
+- job-template:
+      name: "{name}-{build_type}"
+      project-type: pipeline
+      properties:
+          - github:
+                url: "https://github.com/Mellanox/spdk"
+          - build-discarder:
+                days-to-keep: 50
+                num-to-keep: 20
+          - inject:
+                keep-system-variables: true
+                properties-content: |
+                    jjb_proj='{name}-{build_type}'
+      description: Do NOT edit this job through the Web GUI !
+      concurrent: true
+      sandbox: true
+      parameters:
+          - string:
+                name: "sha1"
+                default: "{refspec_default_value}"
+                description: "{refspec_description}"
+          - bool:
+                name: "build_dockers"
+                default: false
+                description: "Rebuild CI docker containers"
+          - string:
+                name: "conf_file"
+                default: "{conf_file}"
+                description: "Regex to select job config file"
+          - string:
+                name: "script"
+                default: "{jjb_jenkinsfile}"
+                description: "Jenkinsfile to load"
+      triggers:
+          - github-pull-request:
+                cron: "H/5 * * * *"
+                trigger-phrase: '.*\bbot:retest\b.*'
+                status-add-test-results: true
+                auth-id: "mellanox-github-id-rsa"
+                org-list: ["Mellanox"]
+                white-list:
+                    [
+                        "swx-snap"
+                    ]
+                allow-whitelist-orgs-as-admins: true
+                white-list-target-branches: "{white_branches}"
+                black-list-target-branches: "{black_branches}"
+                status-context: "{status_context}"
+      pipeline-scm:
+          scm:
+              - git:
+                    url: "{jjb_git}"
+                    credentials-id: "mellanox-github-id-rsa"
+                    branches: ["$sha1"]
+                    shallow-clone: true
+                    depth: 1
+                    honor-refspec: true
+                    refspec: "+refs/pull/*:refs/remotes/origin/pr/*"
+                    browser: githubweb
+                    browser-url: "{jjb_git}"
+                    submodule:
+                        recursive: true
+                        parent-credentials: true
+                    wipe-workspace: true
+          script-path: "$script"
+
+- project:
+      name: doca-nvmf-target-offload
+      jjb_email: "andriih@nvidia.com"
+      jjb_git: "git@github.com:Mellanox/spdk.git"
+      jjb_owner: "andriih@nvidia.com"
+      jjb_jenkinsfile: ".ci/Jenkinsfile.shlib"
+      build_type:
+          - pr:
+                conf_file: ".ci/job_matrix_doca_nvmf_target_offload_pr.yaml"
+                status_context: "CI checks"
+                white_branches: ["v24.01.3.nvda.tgt_offload"]
+                black_branches: [""]
+                refspec_default_value: "v24.01.3.nvda.tgt_offload"
+                refspec_description: |
+                    <p>branch to checkout by git. By default <b>v24.01.3.nvda.tgt_offload</b><br />
+      jobs:
+          - "{name}-{build_type}"
