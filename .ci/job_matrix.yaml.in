@@ -20,9 +20,9 @@ kubernetes:
   privileged: true
 
 env:
-  MOFED_VER: 24.07-0.6.1.0
-  REGISTRY_AUTH_FILE: '/mnt/secret_podman/config_podman.json'
-  GIT_SSH_COMMAND: 'ssh -o StrictHostKeyChecking=no'
+  MOFED_VER: '${CI_ENV_MOFED_VER}' 
+  REGISTRY_AUTH_FILE: '${CI_ENV_REGISTRY_AUTH_FILE}'
+  GIT_SSH_COMMAND: '${CI_ENV_GIT_SSH_COMMAND}'
 
 secret_volumes:
   - {secretName: 'mellanox-debs-keyring', mountPath: '/mnt/secret'}

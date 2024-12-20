@@ -24,8 +24,8 @@ RUN apt update && \
 
 # Build and install DOCA STA
 RUN set -x; \
-    DOCA_VERSION=$(echo $DOCA_BUILDER_TAG | grep -o "[0-9]\.[0-9]\.[0-9]*") && \
-    wget https://urm.nvidia.com/artifactory/sw-nbu-doca-local/doca-sdk/$(echo $DOCA_VERSION | grep -o "[0-9]\.[0-9]\.[0-9]")/DOCA_${DOCA_VERSION//./-}-1/doca-sdk-sta-${DOCA_VERSION}.tar.gz && \
+    DOCA_VERSION=$(echo $DOCA_BUILDER_TAG | grep -o "[0-9]\+\.[0-9]\+\.[0-9]*") && \
+    wget https://urm.nvidia.com/artifactory/sw-nbu-doca-local/doca-sdk/$(echo $DOCA_VERSION | grep -o "[0-9]\+\.[0-9]\+\.[0-9]")/DOCA_${DOCA_VERSION//./-}-1/doca-sdk-sta-${DOCA_VERSION}.tar.gz && \
     tar xzvf doca-sdk-sta-${DOCA_VERSION}.tar.gz --no-same-owner && \
     cd doca-sdk-sta-${DOCA_VERSION} && \
     . ./devtools/public/set_env_variables.sh --deb && \
