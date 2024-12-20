@@ -24,15 +24,15 @@ credentials:
 timeout_minutes: 120
 
 env:
-  DOCKER_REGISTRY_HOST: "nbu-harbor.gtm.nvidia.com"
-  DOCKER_REGISTRY_PATH: "swx-storage/doca_nvmf_target_offload"
-  DOCA_IMAGE: "nvcr.io/nvstaging/doca/doca"
-  DOCA_BUILDER_TAG: "2.9.1006-devel-ubuntu22.04-arm64"
-  DOCA_RUNTIME_TAG: "2.9.1006-full-rt-ubuntu22.04-arm64"
-  artifact_properties: '/mnt/pvc/doca-sta-artifact.properties'
-  REGISTRY_AUTH_FILE: '/mnt/secret_podman/config_podman.json'
-  GIT_SSH_COMMAND: 'ssh -o StrictHostKeyChecking=no'
-  STORAGE_DRIVER: 'overlay'
+  DOCKER_REGISTRY_HOST: '${CI_ENV_HARBOR_REGISTRY_HOST}' 
+  DOCKER_REGISTRY_PATH: '${CI_ENV_HARBOR_REGISTRY_PATH}'
+  DOCA_IMAGE: '${CI_ENV_DOCA_BUILDER_IMAGE}' 
+  DOCA_BUILDER_TAG: '${CI_ENV_DOCA_BUILDER_TAG}'
+  DOCA_RUNTIME_TAG: '${CI_ENV_DOCA_RUNTIME_TAG}'
+  artifact_properties: '${CI_ENV_ARTIFACT_PROPERTIES}'
+  REGISTRY_AUTH_FILE: '${CI_ENV_REGISTRY_AUTH_FILE}'
+  GIT_SSH_COMMAND: '${CI_ENV_GIT_SSH_COMMAND}'
+  STORAGE_DRIVER: '${CI_ENV_STORAGE_DRIVER}'
 
 failFast: false
 kubernetes:
@@ -62,7 +62,7 @@ secret_volumes:
 
 runs_on_dockers:
   - {
-     file: '.ci/Dockerfile.doca', name: 'doca_ci', arch: 'aarch64', tag: "241126-1",
+     file: '.ci/Dockerfile.doca', name: 'doca_ci', arch: 'aarch64', tag: "${CI_ENV_CI_REV}",
      build_args: '--build-arg DOCA_IMAGE_TAG=$DOCA_BUILDER_TAG --pull --no-cache'
     }
 
@@ -77,12 +77,12 @@ steps:
     credentialsId: '3s-bf3-dpa-prod-role'
     archiveArtifacts: 'artifact.properties'
     run: |
-        ./container/build_image.sh \
-          --build-type=debugoptimized \
-          --doca-image=$DOCA_IMAGE \
-          --doca-builder-tag=$DOCA_BUILDER_TAG \
-          --doca-runtime-tag=$DOCA_RUNTIME_TAG \
-          --docker-registry-host=$DOCKER_REGISTRY_HOST \
-          --docker-registry-path=$DOCKER_REGISTRY_PATH \
-          --docker-image-name=doca_nvmf_target_offload \
-          --sign --push
+      ./container/build_image.sh \
+        --build-type=debug \
+        --doca-image=$DOCA_IMAGE \
+        --doca-builder-tag=$DOCA_BUILDER_TAG \
+        --doca-runtime-tag=$DOCA_RUNTIME_TAG \
+        --docker-registry-host=$DOCKER_REGISTRY_HOST \
+        --docker-registry-path=$DOCKER_REGISTRY_PATH \
+        --docker-image-name=doca_nvmf_target_offload \
+        --sign --push

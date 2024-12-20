@@ -1,4 +1,4 @@
-#!/bin/bash -eE
+#!/bin/bash -eEx
 
 # SPDX-FileCopyrightText: Copyright (c) 2023-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: LicenseRef-NvidiaProprietary
@@ -132,7 +132,7 @@ fi
 
 DOCKER_BUILD_ARGS+=("--build-arg NVMF_TARGET_OFFLOAD_BUILD_ARGS='${NVMF_TARGET_OFFLOAD_BUILD_ARGS[@]}'")
 
-DOCA_VERSION=$(echo $DOCA_RUNTIME_TAG | grep -o "[0-9]\.[0-9]\.[0-9]")
+DOCA_VERSION=$(echo $DOCA_RUNTIME_TAG | grep -o "[0-9]\+\.[0-9]\+\.[0-9]")
 NVMF_TARGET_OFFLOAD_VER_MID=$(echo $NVMF_TARGET_OFFLOAD_VERSION | grep -o "[0-9]\.[0-9]\.[0-9]")
 
 case "$DOCKER_REGISTRY_HOST"  in
