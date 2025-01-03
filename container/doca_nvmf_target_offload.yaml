@@ -18,7 +18,7 @@ spec:
   hostNetwork: true
   containers:
   - name: doca-nvmf-target-offload
-    image: nvcr.io/nvstaging/doca/doca_nvmf_target_offload:0.0.2-3-doca2.9.1
+    image: nvcr.io/nvstaging/doca/doca_nvmf_target_offload:0.0.2-4-doca2.10.0
     imagePullPolicy: Always
     securityContext:
       privileged: true
