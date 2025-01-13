@@ -10,6 +10,9 @@ ARG NVMF_TARGET_OFFLOAD_BUILD_ARGS
 ARG SIGN_DPA=false
 ARG DPA_SIGN_USER
 ARG DPA_SIGN_PASS
+ARG DOCA_STA_URL
+ARG DOCA_STA_VERSION
+ARG DOCA_VERSION
 
 SHELL ["/bin/bash", "-c"]
 
@@ -23,15 +26,19 @@ RUN apt update && \
     apt purge -y spdk*
 
 # Build and install DOCA STA
-RUN set -x; \
-    DOCA_VERSION=$(echo $DOCA_BUILDER_TAG | grep -o "[0-9]\+\.[0-9]\+\.[0-9]*") && \
-    wget https://urm.nvidia.com/artifactory/sw-nbu-doca-local/doca-sdk/$(echo $DOCA_VERSION | grep -o "[0-9]\+\.[0-9]\+\.[0-9]")/DOCA_${DOCA_VERSION//./-}-1/doca-sdk-sta-${DOCA_VERSION}.tar.gz && \
+RUN set -x -o pipefail; \
+    if [ ! -z "$DOCA_STA_URL" ]; then \
+        DOCA_VERSION=$DOCA_STA_VERSION && \
+        wget $DOCA_STA_URL ; \
+    else \
+        wget https://urm.nvidia.com/artifactory/sw-nbu-doca-local/doca-sdk/$(echo $DOCA_VERSION | grep -o "[0-9]\+\.[0-9]\+\.[0-9]")/DOCA_${DOCA_VERSION//./-}-1/doca-sdk-sta-${DOCA_VERSION}.tar.gz ; \
+    fi; \
     tar xzvf doca-sdk-sta-${DOCA_VERSION}.tar.gz --no-same-owner && \
     cd doca-sdk-sta-${DOCA_VERSION} && \
     . ./devtools/public/set_env_variables.sh --deb && \
     ./devtools/public/doca_package_build.sh --dpu --deb && \
     cd ../ && \
-    dpkg -i doca-sdk-sta_${DOCA_VERSION}-1_arm64.deb libdoca-sdk-sta-dev_${DOCA_VERSION}-1_arm64.deb
+    dpkg --force-all -i doca-sdk-sta_${DOCA_VERSION}-1_arm64.deb libdoca-sdk-sta-dev_${DOCA_VERSION}-1_arm64.deb ; 
 
 RUN set -eux; \
     .ci/dpdk_patch.sh && \
@@ -47,8 +54,12 @@ FROM ${DOCA_IMAGE}:${DOCA_RUNTIME_TAG}
 ARG NVMF_TARGET_OFFLOAD_PATH
 ARG VERSION
 ARG GIT_COMMIT
+ARG DOCA_VERSION
+ARG DOCA_STA_VERSION=$DOCA_VERSION
 LABEL version=$VERSION
 LABEL git-commit=$GIT_COMMIT
+LABEL doca_version=$DOCA_VERSION
+LABEL doca_sta_version=$DOCA_STA_VERSION
 
 ENV LD_LIBRARY_PATH="${NVMF_TARGET_OFFLOAD_PATH}/lib:$LD_LIBRARY_PATH"
 ENV PYTHONPATH="${NVMF_TARGET_OFFLOAD_PATH}/local/lib/python3.10/dist-packages:$PYTHONPATH"

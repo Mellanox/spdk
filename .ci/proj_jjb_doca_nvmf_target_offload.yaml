@@ -43,6 +43,10 @@
                 description: "Release resource files"
             {% endif %}
             - string:
+                name: "doca_sta_url"
+                default: ""
+                description: "Install doca-sta from URL. Example: https://urm.nvidia.com/artifactory/sw-nbu-doca-local/doca-sdk/2.10.0/DOCA_2-10-0065-1/doca-sdk-sta-2.10.0065.tar.gz"
+            - string:
                 name: "conf_file"
                 default: "{conf_file}"
                 description: "Regex to select job config file"

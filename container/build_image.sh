@@ -51,6 +51,7 @@ Arguments:
    --push                          Wheather to push image into a registry (default: ${PUSH_IMAGE})
    --sign                          Sign DPA binary (default: ${SIGN}). Requires DPA_SIGN_USER and DPA_SIGN_PASS env variables to be set
    --artifact-prop-name            Key name in artifact.properties (default: ${ARTIFACT_PROP_NAME})
+   --doca-sta-url                  URL for DOCA-STA file: https://urm.nvidia.com/artifactory/sw-nbu-doca-local/doca-sdk/2.10.0/DOCA_2-10-0065-1/doca-sdk-sta-2.10.0065.tar.gz (default: empty)
 EOF
 }
 
@@ -101,6 +102,9 @@ while getopts ":h-:" optchar; do
                     ;;
                 artifact-prop-name=*)
                     ARTIFACT_PROP_NAME=${OPTARG#*=}
+                    ;;
+                doca-sta-url=*)
+                    DOCA_STA_URL=${OPTARG#*=}
                     ;;
                 *)
                     if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
@@ -156,11 +160,21 @@ esac
 DOCKER_BUILD_ARGS+=("--build-arg VERSION=${NVMF_TARGET_OFFLOAD_VERSION}")
 DOCKER_BUILD_ARGS+=("--build-arg GIT_COMMIT=${GIT_COMMIT}")
 
+doca_version=$(echo $DOCA_BUILDER_TAG | grep -o "[0-9]\+\.[0-9]\+\.[0-9]*")
+DOCKER_BUILD_ARGS+=("--build-arg DOCA_VERSION=${doca_version}")
+
+
 if [ "$SIGN" = true ]; then
     test -d sign-tool || { echo "[ERROR]: sign-tool is not found!"; exit 1; }
     DOCKER_BUILD_ARGS+=("--build-arg SIGN_DPA=true")
     DOCKER_BUILD_ARGS+=("--build-arg DPA_SIGN_USER=${DPA_SIGN_USER}")
     DOCKER_BUILD_ARGS+=("--build-arg DPA_SIGN_PASS=${DPA_SIGN_PASS}")
+fi
+
+if [ ! -z "$DOCA_STA_URL" ]; then
+    doca_sta_version=$(echo $DOCA_STA_URL | grep -o "[0-9]\+\.[0-9]\+\.[0-9]\{4\}")
+    DOCKER_BUILD_ARGS+=("--build-arg DOCA_STA_URL=${DOCA_STA_URL}")
+    DOCKER_BUILD_ARGS+=("--build-arg DOCA_STA_VERSION=${doca_sta_version}")
 fi
 
 cmd="podman build --format docker -f ${DOCKER_FILE} -t ${DOCKER_IMG} ${DOCKER_BUILD_ARGS[@]} ."

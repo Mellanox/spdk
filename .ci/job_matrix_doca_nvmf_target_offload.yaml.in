@@ -85,6 +85,7 @@ steps:
           --doca-runtime-tag=$DOCA_RUNTIME_TAG \
           --docker-registry-host=$DOCKER_REGISTRY_HOST \
           --docker-registry-path=$DOCKER_REGISTRY_PATH \
+          --doca-sta-url=$doca_sta_url \
           --sign --push
       else
         echo "Skip generic container build"
