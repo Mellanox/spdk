@@ -45,7 +45,7 @@ RUN set -eux; \
     ./configure --with-rdma=mlx5_dv --with-doca --with-flexio \
     --disable-tests --disable-unit-tests --disable-examples \
     --prefix=${NVMF_TARGET_OFFLOAD_PATH} ${NVMF_TARGET_OFFLOAD_BUILD_ARGS} && \
-    make -j && make -j install && \
+    make -j4 && make -j4 install && \
     [ "$SIGN_DPA" = "true" ] && echo "\n===== SIGN DPA =====\n"&& \
     cp sign-tool/build/bf3_dpa/* /usr/bin/ && hash -r && \
     .ci/sign_dpa.sh ${NVMF_TARGET_OFFLOAD_PATH}/bin/spdk_tgt
