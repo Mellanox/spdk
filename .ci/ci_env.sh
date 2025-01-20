@@ -15,11 +15,11 @@ export CI_ENV_HARBOR_REGISTRY_PATH="swx-storage/doca_nvmf_target_offload"
 export CI_ENV_ARTIFACT_PROPERTIES="/mnt/pvc/doca-sta-artifact.properties"
 
 export CI_ENV_DOCA_BUILDER_IMAGE="nvcr.io/nvstaging/doca/doca"
-export CI_ENV_DOCA_RUNTIME_TAG="2.10.0063-full-rt-ubuntu22.04-arm64"
-export CI_ENV_DOCA_BUILDER_TAG="2.10.0063-devel-ubuntu22.04-arm64"
+export CI_ENV_DOCA_RUNTIME_TAG="2.10.0069-full-rt-ubuntu22.04-arm64"
+export CI_ENV_DOCA_BUILDER_TAG="2.10.0069-devel-ubuntu22.04-arm64"
   
 # Change this revision number always when you make any
 # changes that affect components in CI builder images.
 # CI builder images use it as docker tag.
 # Format=<YYMMDD>-<ID>
-export CI_ENV_CI_REV="250114-1"
+export CI_ENV_CI_REV="250120-1"
