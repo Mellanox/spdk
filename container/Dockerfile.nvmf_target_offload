@@ -31,14 +31,14 @@ RUN set -x -o pipefail; \
         DOCA_VERSION=$DOCA_STA_VERSION && \
         wget $DOCA_STA_URL ; \
     else \
-        wget https://urm.nvidia.com/artifactory/sw-nbu-doca-local/doca-sdk/$(echo $DOCA_VERSION | grep -o "[0-9]\+\.[0-9]\+\.[0-9]")/DOCA_${DOCA_VERSION//./-}-1/doca-sdk-sta-${DOCA_VERSION}.tar.gz ; \
+        wget https://urm.nvidia.com/artifactory/sw-nbu-doca-local/doca-sdk/2.10.0/DOCA_2-10-0087-1/doca-sdk-sta-2.10.0087.tar.gz ; \
     fi; \
-    tar xzvf doca-sdk-sta-${DOCA_VERSION}.tar.gz --no-same-owner && \
-    cd doca-sdk-sta-${DOCA_VERSION} && \
+    tar xzvf doca-sdk-sta-2.10.0087.tar.gz --no-same-owner && \
+    cd doca-sdk-sta-2.10.0087 && \
     . ./devtools/public/set_env_variables.sh --deb && \
     ./devtools/public/doca_package_build.sh --dpu --deb && \
     cd ../ && \
-    dpkg --force-all -i doca-sdk-sta_${DOCA_VERSION}-1_arm64.deb libdoca-sdk-sta-dev_${DOCA_VERSION}-1_arm64.deb ; 
+    dpkg --force-all -i doca-sdk-sta_2.10.0087-1_arm64.deb libdoca-sdk-sta-dev_2.10.0087-1_arm64.deb ; 
 
 RUN set -eux; \
     .ci/dpdk_patch.sh && \
