@@ -101,6 +101,22 @@ upload_rpm_urm() {
     done
 }
 
+upload_tar_urm() {
+    pushd $HOME/rpmbuild/SOURCES
+    tar_pkg_url="${name}-${VER}-${REV}.tar.gz"
+    MD5=$(md5sum $tar_pkg_url | awk '{print $1}')
+    SHA1=$(shasum -a 1 $tar_pkg_url | awk '{ print $1 }')
+    SHA256=$(shasum -a 256 $tar_pkg_url | awk '{ print $1 }')
+    upload_url_urm="${REPO_URL}/${repo_name}/${tar_pkg_url}"
+    echo "INFO: Uploading package ${tar_pkg_url} to ${upload_url_urm}"
+    curl --fail -u "${REPO_USER}:${REPO_PASS}" -X PUT \
+        -H "X-Checksum-MD5:${MD5}" \
+        -H "X-Checksum-Sha1:${SHA1}" \
+        -H "X-Checksum-Sha256:${SHA256}" \
+        -T "${tar_pkg_url}" "${upload_url_urm}"
+    popd
+}
+
 bd=$(dirname $0)
 user=${USER:-root}
 : ${REPO_URL:?REPO_URL is not found!}
@@ -122,8 +138,8 @@ if command -v ofed_info >/dev/null 2>&1; then
     repo_name="${repo_name}-mlnx-ofed-${ofed_ver}"
 fi
 
-if test -n "$ghprbPullId" ; then
-    REV=${BUILD_NUMBER:-pr1}
+if test -n "$ghprbPullId"; then
+    REV="pr${ghprbPullId}"
     repo_name="${repo_name}-pr"
     STAGE="pr"
 else
@@ -153,6 +169,14 @@ elif [[ -f /etc/redhat-release || -f /etc/openEuler-release ]]; then
     if [ $1 == "urm" ]; then
         REPO_URL="${REPO_URL}/sw-nbu-swx-ci-rpm-local"
         upload_rpm_urm
+    elif [ $1 == "tar" ]; then
+        if [[ -f "$HOME/rpmbuild/SOURCES/${name}-$VER-$REV.tar.gz" ]]; then
+            REPO_URL="${REPO_URL}/sw-nbu-swx-ci-generic-local/packages/tar"
+            upload_tar_urm
+        else
+            echo "*.tar.gz file not found!"
+            exit 1
+        fi
     else
         echo "Repo not selected"
         exit 1

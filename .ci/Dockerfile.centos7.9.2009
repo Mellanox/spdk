@@ -5,7 +5,8 @@ ARG _LOGIN=swx-jenkins
 ARG _HOME=/var/home/$_LOGIN
 ARG MOFED_VER
 ENV LANG=en_US.utf-8
-ENV PATH=/opt/rh/devtoolset-8/root/usr/bin:$PATH
+ENV PATH=/opt/rh/devtoolset-8/root/usr/bin:/opt/rh/rh-git227/root/bin:$PATH
+ENV LD_LIBRARY_PATH=/opt/rh/httpd24/root/usr/lib64:$LD_LIBRARY_PATHPATH
 USER root
 
 RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*; \
@@ -23,6 +24,7 @@ RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-SCLo-*.repo; \
 RUN yum install -y \
     sudo \
     git \
+    rh-git227-git \
     vim \
     wget \
     fakeroot \

@@ -66,6 +66,17 @@ steps:
     run: |
       .ci/upload.sh urm
 
+  - name: Upload tar package
+    containerSelector:
+      - "{name: 'rockylinux9_2', variant:1}"
+    credentialsId: 'svc-nbu-swx-repos'
+    run: |
+      if [[ "$(uname -m)" == "aarch64" ]]; then
+          .ci/upload.sh tar
+      else
+        exit 0
+      fi
+
 pipeline_stop:
   containerSelector:
       - "{name: 'ubuntu22_04'}"

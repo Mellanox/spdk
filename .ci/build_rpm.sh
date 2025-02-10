@@ -36,32 +36,41 @@ fi
 #---
 # VladS asked to have "Revision" hardcoded into the SPEC file
 # So that we have to do inline editing
+if test -n "$ghprbPullId" ; then
+    REV="pr${ghprbPullId}"
+else
+    REV="${BUILD_NUMBER:-1}"
+fi
+
 OUT_SPEC=./spdk.spec
-sed -e "s#scm_rev %{_rev}#scm_rev ${BUILD_NUMBER:-1}#" scripts/spdk.spec > $OUT_SPEC
-sed -i "s#%{_date}#$_date#; s#%{_sha1}#$sha1#; s#%{_branch}#$branch# " $OUT_SPEC
+mv scripts/spdk.spec $OUT_SPEC 
+sed -i -e "s#scm_rev %{_rev}#scm_rev ${REV}#" $OUT_SPEC
+sed -i -e "s#%{_date}#$_date#; s#%{_sha1}#$sha1#; s#%{_branch}#$branch# " $OUT_SPEC
 
 git archive \
-    --format=tar --prefix=spdk-$VER/ -o $OUTDIR/spdk-$VER.tar HEAD
+	--format=tar --prefix=spdk-$VER/ -o $OUTDIR/spdk-$VER.tar HEAD -- ':!**/*.spec'
 generate_changelog
 
 pushd spdk-$VER
 apply_dpdk_patch
+cp ../spdk.spec .
 popd
 
 tar -uf  $OUTDIR/spdk-$VER.tar \
 	spdk-$VER/debian/changelog \
 	spdk-$VER/scripts/debian/changelog \
-	spdk-$VER/dpdk/config/arm/arm64_bluefield_linux_native_gcc
+	spdk-$VER/dpdk/config/arm/arm64_bluefield_linux_native_gcc \
+	spdk-$VER/spdk.spec
 
 git submodule init
 git submodule update
 
-for MOD in $(git submodule |awk '{print $2}')
-do
-  (cd $MOD;
-   git archive \
-    --format=tar --prefix=spdk-$VER/$MOD/ -o $OUTDIR/spdk-$MOD-$VER.tar  HEAD
-  )
+for MOD in $(git submodule | awk '{print $2}'); do
+	(
+		cd $MOD
+		git archive \
+			--format=tar --prefix=spdk-$VER/$MOD/ -o $OUTDIR/spdk-$MOD-$VER.tar HEAD -- ':!**/*.spec'
+	)
 done
 
 apply_dpdk_patch
@@ -71,7 +80,7 @@ do
     tar --concatenate --file=$OUTDIR/spdk-$VER.tar $OUTDIR/spdk-$MOD-$VER.tar
 done
 
-gzip -c $OUTDIR/spdk-$VER.tar >$OUTDIR/spdk-$VER.tar.gz
+gzip -c $OUTDIR/spdk-$VER.tar > $OUTDIR/spdk-$VER-${REV}.tar.gz
 
 # BUILD_NUMBER is an env var passed by Jenkins
 # https://stackoverflow.com/questions/16155792/using-jenkins-build-number-in-rpm-spec-file

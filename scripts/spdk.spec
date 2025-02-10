@@ -1,6 +1,7 @@
 %define scm_version 23.01.5
 %define unmangled_version %{scm_version}
 %define scm_rev %{_rev}
+%define pkg_ver %{scm_version}-%{scm_rev}
 Epoch: 0
 
 %define pkg_prefix /opt/mellanox/spdk
@@ -15,7 +16,7 @@ Packager:       andriih@nvidia.com
 Group:          System Environment/Daemons
 License:        BSD and LGPLv2 and GPLv2
 URL:            http://www.spdk.io
-Source0:        spdk-%{version}.tar.gz
+Source0:        spdk-%{pkg_ver}.tar.gz
 
 %define package_version %{epoch}:%{version}-%{release}
 %define install_datadir %{buildroot}/%{_datadir}/%{name}
