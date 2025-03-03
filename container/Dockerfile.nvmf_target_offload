@@ -66,7 +66,7 @@ ENV PYTHONPATH="${NVMF_TARGET_OFFLOAD_PATH}/local/lib/python3.10/dist-packages:$
 ENV PKG_CONFIG_PATH="${NVMF_TARGET_OFFLOAD_PATH}/lib/pkgconfig:$PKG_CONFIG_PATH"
 ENV PATH="${NVMF_TARGET_OFFLOAD_PATH}/bin:$PATH"
 
-RUN apt update && apt install -y supervisor libjson-c5 fuse3
+RUN apt update && apt install -y supervisor libjson-c5 fuse3 libasan6 libubsan1
 RUN apt clean && rm -rf /var/lib/apt/lists/*
 RUN dpkg --force-all -r spdk spdk-rpc mlnx-dpdk
 

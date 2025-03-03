@@ -91,3 +91,25 @@ steps:
       else
         echo "Skip generic container build"
       fi
+
+  - name: Build ASAN docker image
+    containerSelector: "{name: 'doca_ci'}"
+    credentialsId: '3s-bf3-dpa-prod-role'
+    archiveArtifacts: 'artifact.properties'
+    run: |
+      if [[ "$do_container" == "true" ]]; then
+        ./container/build_image.sh \
+          --build-type=debug \
+          --doca-image=$DOCA_IMAGE \
+          --doca-builder-tag=$DOCA_BUILDER_TAG \
+          --doca-runtime-tag=$DOCA_RUNTIME_TAG \
+          --docker-registry-host=$DOCKER_REGISTRY_HOST \
+          --docker-registry-path=$DOCKER_REGISTRY_PATH \
+          --docker-image-name=doca_nvmf_target_offload_nightly_asan \
+          --doca-sta-url=$doca_sta_url \
+          --configure-args='--enable-asan --enable-ubsan' \
+          --artifact-prop-name=DOCKER_IMAGE_ASAN \
+          --sign --push
+      else
+        echo "Skip generic container build"
+      fi

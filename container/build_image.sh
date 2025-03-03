@@ -52,6 +52,8 @@ Arguments:
    --sign                          Sign DPA binary (default: ${SIGN}). Requires DPA_SIGN_USER and DPA_SIGN_PASS env variables to be set
    --artifact-prop-name            Key name in artifact.properties (default: ${ARTIFACT_PROP_NAME})
    --doca-sta-url                  URL for DOCA-STA file: https://urm.nvidia.com/artifactory/sw-nbu-doca-local/doca-sdk/2.10.0/DOCA_2-10-0065-1/doca-sdk-sta-2.10.0065.tar.gz (default: empty)
+   --configure-args                Configure arguments for DOCA NVMf target offload (default: empty)
+
 EOF
 }
 
@@ -105,6 +107,9 @@ while getopts ":h-:" optchar; do
                     ;;
                 doca-sta-url=*)
                     DOCA_STA_URL=${OPTARG#*=}
+                    ;;
+                configure-args=*)
+                    NVMF_TARGET_OFFLOAD_BUILD_ARGS=${OPTARG#*=}
                     ;;
                 *)
                     if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
