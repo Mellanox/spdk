@@ -10,26 +10,18 @@
 # its affiliates is strictly prohibited.
 #
 ---
-job: doca-nvmf-target-offload-pr
+job: doca-nvmf-target-offload-coverity
 
 registry_host: nbu-harbor.gtm.nvidia.com
 registry_path: /swx-storage/doca_nvmf_target_offload
 
 credentials:
-  - {credentialsId: 'svc-nbu-swx-repos', usernameVariable: 'REPO_USER', passwordVariable: 'REPO_PASS'}
-  - {credentialsId: 'svc-nbu-swx-repos-ngc-token', usernameVariable: 'NGC_CLI_USER', passwordVariable: 'NGC_CLI_API_KEY'}
-  - {credentialsId: '3s-bf3-dpa-prod-role', usernameVariable: 'DPA_SIGN_USER', passwordVariable: 'DPA_SIGN_PASS'}
-
+  - {credentialsId: 'snap4_coverity', usernameVariable: 'COV_USER', passwordVariable: 'COV_PASS'}
 
 timeout_minutes: 120
 
 env:
-  DOCKER_REGISTRY_HOST: '${CI_ENV_HARBOR_REGISTRY_HOST}' 
-  DOCKER_REGISTRY_PATH: '${CI_ENV_HARBOR_REGISTRY_PATH}'
-  DOCA_IMAGE: '${CI_ENV_DOCA_BUILDER_IMAGE}' 
   DOCA_BUILDER_TAG: '${CI_ENV_DOCA_BUILDER_TAG}'
-  DOCA_RUNTIME_TAG: '${CI_ENV_DOCA_RUNTIME_TAG}'
-  artifact_properties: '${CI_ENV_ARTIFACT_PROPERTIES}'
   REGISTRY_AUTH_FILE: '${CI_ENV_REGISTRY_AUTH_FILE}'
   GIT_SSH_COMMAND: '${CI_ENV_GIT_SSH_COMMAND}'
   STORAGE_DRIVER: '${CI_ENV_STORAGE_DRIVER}'
@@ -56,48 +48,34 @@ pvc_volumes:
   - {claimName: nbu-swx-storage-devops-pvc, mountPath: /mnt/pvc, readOnly: false}
 
 secret_volumes:
-  - {secretName: 'mellanox-debs-keyring', mountPath: '/mnt/secret'}
   - {secretName: 'registry-auth-file', mountPath: '/mnt/secret_podman'}
   - {secretName: 'mellanox-github-rsa', mountPath: '/var/home/swx-jenkins/.ssh'}
 
 runs_on_dockers:
   - {
-     file: '.ci/Dockerfile.doca', name: 'doca_ci', arch: 'aarch64', tag: "${CI_ENV_CI_REV}",
-     build_args: '--build-arg DOCA_IMAGE_TAG=$DOCA_BUILDER_TAG --pull --no-cache'
-    }
-  - {
      file: '.ci/Dockerfile.doca', name: 'toolbox', arch: 'aarch64', tag: "${CI_ENV_CI_REV}", 
-     category: 'tool', build_args: '--build-arg DOCA_IMAGE_TAG=$DOCA_BUILDER_TAG --pull --no-cache'
+     category: 'tool', build_args: "--build-arg DOCA_IMAGE_TAG=${DOCA_BUILDER_TAG} --pull --no-cache"
     }
 
 steps:
-  - name: Clone DPA sign tool
-    containerSelector: "{name: 'doca_ci'}"
-    run: |
-      git clone "ssh://git-nbu.nvidia.com:12023/DevOps/3S/sign-tool" --depth=1
-
-  - name: Build generic docker image
-    containerSelector: "{name: 'doca_ci'}"
-    credentialsId: '3s-bf3-dpa-prod-role'
-    archiveArtifacts: 'artifact.properties'
-    run: |
-      ./container/build_image.sh \
-        --build-type=debug \
-        --doca-image=$DOCA_IMAGE \
-        --doca-builder-tag=$DOCA_BUILDER_TAG \
-        --doca-runtime-tag=$DOCA_RUNTIME_TAG \
-        --docker-registry-host=$DOCKER_REGISTRY_HOST \
-        --docker-registry-path=$DOCKER_REGISTRY_PATH \
-        --docker-image-name=doca_nvmf_target_offload \
-        --sign --push
-
   - name: Coverity
     containerSelector: "{name:'toolbox'}"
+    credentialsId: 'snap4_coverity'
     run: |
+      set -eux
+      [ ! -z "$COV_SERVER_URL" ] || { echo "COV_SERVER_URL is empty!"; exit 1; }
+      [ ! -z "$COV_USER" ] || { echo "COV_USER is empty!"; exit 1; }
+      [ ! -z "$COV_PASS" ] || { echo "COV_PASS is empty!"; exit 1; }
+      [ ! -z "$COV_STREAM" ] || { echo "COV_STREAM is empty!"; exit 1; }
       .ci/coverity.sh --pre_script 'pwd && ls -la && .ci/dpdk_patch.sh && ./configure --with-rdma=mlx5_dv --with-doca --with-flexio --disable-tests --disable-unit-tests --disable-examples --prefix=/opt' \
                       --build_script "make -j4" \
                       --include_files 'lib/nvmf/rdma_offload.c lib/env_dpdk/dmabuf.c' \
-                      --doca-version `echo $DOCA_RUNTIME_TAG | grep -o "[0-9]\+\.[0-9]\+\.[0-9]*"` \
+                      --doca-version `echo $DOCA_BUILDER_TAG | grep -o "[0-9]\+\.[0-9]\+\.[0-9]*"` \
+                      --url $COV_SERVER_URL \
+                      --user $COV_USER \
+                      --password $COV_PASS \
+                      --stream $COV_STREAM \
+                      --upload \
                       --verbose
     archiveArtifacts: 'cov_build/html/**/*,cov_build/coverity.log,cov_build/*.txt'
     publishHTML:
