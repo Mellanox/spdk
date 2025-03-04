@@ -22,4 +22,4 @@ export CI_ENV_DOCA_BUILDER_TAG="2.10.0087-devel-ubuntu22.04-arm64"
 # changes that affect components in CI builder images.
 # CI builder images use it as docker tag.
 # Format=<YYMMDD>-<ID>
-export CI_ENV_CI_REV="250205-2"
+export CI_ENV_CI_REV="250305-1"
