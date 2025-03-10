@@ -1019,6 +1019,8 @@ bdev_nvme_create_bdev_channel_cb(void *io_device, void *ctx_buf)
 	}
 	pthread_mutex_unlock(&nbdev->mutex);
 
+	SPDK_NOTICELOG("Created bdev nvme %s IO channel %p, core %u\n",
+		       nbdev->disk.name, nbdev_ch, spdk_env_get_current_core());
 	return 0;
 }
 
@@ -1047,6 +1049,8 @@ bdev_nvme_destroy_bdev_channel_cb(void *io_device, void *ctx_buf)
 
 	bdev_nvme_abort_retry_ios(nbdev_ch);
 	_bdev_nvme_delete_io_paths(nbdev_ch);
+	SPDK_NOTICELOG("Destroyed bdev nvme IO channel %p, core %u\n",
+		       nbdev_ch, spdk_env_get_current_core());
 }
 
 static inline bool
@@ -4153,8 +4157,10 @@ static struct spdk_io_channel *
 bdev_nvme_get_io_channel(void *ctx)
 {
 	struct nvme_bdev *nvme_bdev = ctx;
-
-	return spdk_get_io_channel(nvme_bdev);
+	struct spdk_io_channel *ch = spdk_get_io_channel(nvme_bdev);
+	SPDK_NOTICELOG("Bdev_nvme %s get IO channel %p, core %u\n",
+		       nvme_bdev->disk.name, ch, spdk_env_get_current_core());
+	return ch;
 }
 
 static void *

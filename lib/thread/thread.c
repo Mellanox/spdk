@@ -2362,8 +2362,9 @@ spdk_get_io_channel(void *io_device)
 	if (ch != NULL) {
 		ch->ref++;
 
-		SPDK_DEBUGLOG(thread, "Get io_channel %p for io_device %s (%p) on thread %s refcnt %u\n",
-			      ch, dev->name, dev->io_device, thread->name, ch->ref);
+		SPDK_NOTICELOG("Get io_channel %p for io_device %s (%p) on thread %s (core %u) refcnt %u\n",
+			       ch, dev->name, dev->io_device, thread->name,
+			       spdk_env_get_current_core(), ch->ref);
 
 		/*
 		 * An I/O channel already exists for this device on this
@@ -2389,8 +2390,9 @@ spdk_get_io_channel(void *io_device)
 	ch->destroy_ref = 0;
 	RB_INSERT(io_channel_tree, &thread->io_channels, ch);
 
-	SPDK_DEBUGLOG(thread, "Get io_channel %p for io_device %s (%p) on thread %s refcnt %u\n",
-		      ch, dev->name, dev->io_device, thread->name, ch->ref);
+	SPDK_NOTICELOG("Get io_channel %p for io_device %s (%p) on thread %s (core %u) refcnt %u\n",
+		       ch, dev->name, dev->io_device, thread->name,
+		       spdk_env_get_current_core(), ch->ref);
 
 	dev->refcnt++;
 
@@ -2426,9 +2428,9 @@ put_io_channel(void *arg)
 		return;
 	}
 
-	SPDK_DEBUGLOG(thread,
-		      "Releasing io_channel %p for io_device %s (%p) on thread %s\n",
-		      ch, ch->dev->name, ch->dev->io_device, thread->name);
+	SPDK_NOTICELOG("Releasing io_channel %p for io_device %s (%p) on thread %s (core %u) refcnt %u, destroy refcnt %u\n",
+		       ch, ch->dev->name, ch->dev->io_device, thread->name,
+		       spdk_env_get_current_core(), ch->ref, ch->destroy_ref);
 
 	assert(ch->thread == thread);
 
@@ -2490,9 +2492,9 @@ spdk_put_io_channel(struct spdk_io_channel *ch)
 		return;
 	}
 
-	SPDK_DEBUGLOG(thread,
-		      "Putting io_channel %p for io_device %s (%p) on thread %s refcnt %u\n",
-		      ch, ch->dev->name, ch->dev->io_device, thread->name, ch->ref);
+	SPDK_NOTICELOG("Putting io_channel %p for io_device %s (%p) on thread %s (core %u) refcnt %u\n",
+		       ch, ch->dev->name, ch->dev->io_device, thread->name,
+		       spdk_env_get_current_core(), ch->ref);
 
 	ch->ref--;
 

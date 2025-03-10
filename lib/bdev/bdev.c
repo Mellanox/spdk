@@ -4520,7 +4520,8 @@ bdev_channel_create(void *io_device, void *ctx_buf)
 	bdev_update_all_descriptors(bdev);
 
 	spdk_spin_unlock(&bdev->internal.spinlock);
-
+	SPDK_NOTICELOG("Created bdev %s IO channel %p, core %u\n",
+		       bdev->name, ch, spdk_env_get_current_core());
 	return 0;
 }
 
@@ -4916,6 +4917,8 @@ bdev_channel_destroy(void *io_device, void *ctx_buf)
 	}
 
 	bdev_channel_destroy_resource(ch);
+	SPDK_NOTICELOG("Destroyed bdev %s IO channel %p, core %u\n",
+		       ch->bdev->name, ch, spdk_env_get_current_core());
 }
 
 /*
@@ -5037,7 +5040,10 @@ spdk_bdev_alias_del_all(struct spdk_bdev *bdev)
 struct spdk_io_channel *
 spdk_bdev_get_io_channel(struct spdk_bdev_desc *desc)
 {
-	return spdk_get_io_channel(__bdev_to_io_dev(spdk_bdev_desc_get_bdev(desc)));
+	struct spdk_io_channel *ch = spdk_get_io_channel(__bdev_to_io_dev(spdk_bdev_desc_get_bdev(desc)));
+	SPDK_NOTICELOG("Bdev %s get IO channel %p, core %u\n",
+		       desc->bdev->name, ch, spdk_env_get_current_core());
+	return ch;
 }
 
 uint32_t
