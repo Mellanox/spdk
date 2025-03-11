@@ -65,7 +65,7 @@
                     shallow-clone: true
                     depth: 1
                     honor-refspec: true
-                    refspec: "+refs/pull/*:refs/remotes/origin/pr/*"
+                    refspec: "+refs/pull/$ghprbPullId/*:refs/remotes/origin/pr/$ghprbPullId/*"
                     browser: githubweb
                     browser-url: "{jjb_git}"
                     submodule:
