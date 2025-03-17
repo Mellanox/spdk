@@ -63,7 +63,7 @@
                 description: "Coverity server URL"
             - string:
                 name: "COV_STREAM"
-                default: "doca-nvmf-target-offload_v24.01.3.nvda.tgt_offload"
+                default: "doca-nvmf-target-offload_v25.01.1.nvda.tgt_offload"
                 description: "Stream on Coverity server (usually created per branch / version)"
             {% endif %}
     pipeline-scm:
@@ -93,37 +93,37 @@
     build_type:
         - release:
             conf_file: '.ci/job_matrix_doca_nvmf_target_offload.yaml'
-            refspec_default_value: 'refs/heads/v24.01.3.nvda.tgt_offload'
+            refspec_default_value: 'refs/heads/v25.01.1.nvda.tgt_offload'
             refspec_description: |
               <p>refspec to checkout by git. By default <b>refs/heads/main</b><br />
               You can change it to checkout to a specific <b>branch</b>, <b>pull request</b> or <b>tag</b><br />
               Examples:</p>
               <ul>
-                <li><b>refs/heads/v24.01.3.nvda.tgt_offload</b> - will checkout into v24.01.3.nvda.tgt_offload branch</li>
+                <li><b>refs/heads/v25.01.1.nvda.tgt_offload</b> - will checkout into v25.01.1.nvda.tgt_offload branch</li>
                 <li><b>refs/pull/1274/head</b> - will checkout into pull request 1274</li>
                 <li><b>refs/tags/v0.0.0-1</b> - will checkout into v0.0.0-1 tag</li>
         - nightly:
             conf_file: '.ci/job_matrix_doca_nvmf_target_offload_nightly.yaml'
-            refspec_default_value: 'refs/heads/v24.01.3.nvda.tgt_offload'
+            refspec_default_value: 'refs/heads/v25.01.1.nvda.tgt_offload'
             refspec_description: |
               <p>refspec to checkout by git. By default <b>refs/heads/main</b><br />
               You can change it to checkout to a specific <b>branch</b>, <b>pull request</b> or <b>tag</b><br />
               Examples:</p>
               <ul>
-                <li><b>refs/heads/v24.01.3.nvda.tgt_offload</b> - will checkout into v24.01.3.nvda.tgt_offload branch</li>
+                <li><b>refs/heads/v25.01.1.nvda.tgt_offload</b> - will checkout into v25.01.1.nvda.tgt_offload branch</li>
                 <li><b>refs/pull/1274/head</b> - will checkout into pull request 1274</li>
                 <li><b>refs/tags/v0.0.0-1</b> - will checkout into v0.0.0-1 tag</li>
               </ul>
               </ul>
         - coverity:
             conf_file: '.ci/job_matrix_doca_nvmf_target_offload_coverity.yaml'
-            refspec_default_value: 'refs/heads/v24.01.3.nvda.tgt_offload'
+            refspec_default_value: 'refs/heads/v25.01.1.nvda.tgt_offload'
             refspec_description: |
               <p>refspec to checkout by git. By default <b>refs/heads/main</b><br />
               You can change it to checkout to a specific <b>branch</b>, <b>pull request</b> or <b>tag</b><br />
               Examples:</p>
               <ul>
-                <li><b>refs/heads/v24.01.3.nvda.tgt_offload</b> - will checkout into v24.01.3.nvda.tgt_offload branch</li>
+                <li><b>refs/heads/v25.01.1.nvda.tgt_offload</b> - will checkout into v25.01.1.nvda.tgt_offload branch</li>
                 <li><b>refs/pull/1274/head</b> - will checkout into pull request 1274</li>
                 <li><b>refs/tags/v0.0.0-1</b> - will checkout into v0.0.0-1 tag</li>
               </ul>

@@ -84,10 +84,10 @@
           - pr:
                 conf_file: ".ci/job_matrix_doca_nvmf_target_offload_pr.yaml"
                 status_context: "CI checks"
-                white_branches: ["v24.01.3.nvda.tgt_offload"]
+                white_branches: ["v24.01.3.nvda.tgt_offload","v25.01.1.nvda.tgt_offload"]
                 black_branches: [""]
-                refspec_default_value: "v24.01.3.nvda.tgt_offload"
+                refspec_default_value: "v25.01.1.nvda.tgt_offload"
                 refspec_description: |
-                    <p>branch to checkout by git. By default <b>v24.01.3.nvda.tgt_offload</b><br />
+                    <p>branch to checkout by git. By default <b>v25.01.1.nvda.tgt_offload</b><br />
       jobs:
           - "{name}-{build_type}"
