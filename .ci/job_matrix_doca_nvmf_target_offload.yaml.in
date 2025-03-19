@@ -43,11 +43,11 @@ kubernetes:
   privileged: true
   arch_table:
     aarch64:
-      jnlpImage: 'dockerhub.nvidia.com/jenkins/inbound-agent:latest'
-      dockerImage: 'quay.io/podman/stable:v5.1.2'
+      jnlpImage: '${CI_ENV_JNLP_AARCH64}'
+      dockerImage: '${CI_ENV_DOCKER_AARCH64}'
     x86_64:
-      jnlpImage: 'dockerhub.nvidia.com/jenkins/inbound-agent:latest'
-      dockerImage: 'quay.io/podman/stable:v5.1.2'
+      jnlpImage: '${CI_ENV_JNLP_AARCH64}'
+      dockerImage: '${CI_ENV_DOCKER_AARCH64}'
 
 empty_volumes:
   - {mountPath: /var/home/swx-jenkins/.local/share/containers, memory: false}

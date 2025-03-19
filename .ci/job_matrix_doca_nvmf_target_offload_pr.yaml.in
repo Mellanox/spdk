@@ -43,8 +43,8 @@ kubernetes:
   privileged: true
   arch_table:
     aarch64:
-      jnlpImage: 'dockerhub.nvidia.com/jenkins/inbound-agent:3283.v92c105e0f819-6'
-      dockerImage: 'urm.nvidia.com/quay-remote/podman/stable:v5.3.2'
+      jnlpImage: '${CI_ENV_JNLP_AARCH64}'
+      dockerImage: '${CI_ENV_DOCKER_AARCH64}'
 
 volumes:
   - {mountPath: /auto/sw_tools, hostPath: /auto/sw_tools}

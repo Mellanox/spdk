@@ -43,11 +43,12 @@ kubernetes:
   privileged: true
   arch_table:
     aarch64:
-      jnlpImage: 'dockerhub.nvidia.com/jenkins/inbound-agent:latest'
-      dockerImage: 'quay.io/podman/stable:v5.1.2'
-    x86_64:
-      jnlpImage: 'dockerhub.nvidia.com/jenkins/inbound-agent:latest'
-      dockerImage: 'quay.io/podman/stable:v5.1.2'
+      jnlpImage: '${CI_ENV_JNLP_AARCH64}'
+      dockerImage: '${CI_ENV_DOCKER_AARCH64}'
+
+
+volumes:
+  - {mountPath: /auto/app/BullsEye, hostPath: /auto/app/BullsEye}
 
 empty_volumes:
   - {mountPath: /var/home/swx-jenkins/.local/share/containers, memory: false}
@@ -109,6 +110,29 @@ steps:
           --doca-sta-url=$doca_sta_url \
           --configure-args='--enable-asan --enable-ubsan' \
           --artifact-prop-name=DOCKER_IMAGE_ASAN \
+          --sign --push
+      else
+        echo "Skip generic container build"
+      fi
+
+  - name: Build docker image Bullseye
+    containerSelector: "{name: 'doca_ci'}"
+    credentialsId: '3s-bf3-dpa-prod-role'
+    archiveArtifacts: 'artifact.properties'
+    run: |
+      if [[ "$do_container" == "true" ]]; then
+        ./container/build_image.sh \
+          --build-type=debug \
+          --doca-image=$DOCA_IMAGE \
+          --doca-builder-tag=$DOCA_BUILDER_TAG \
+          --doca-runtime-tag=$DOCA_RUNTIME_TAG \
+          --docker-registry-host=$DOCKER_REGISTRY_HOST \
+          --docker-registry-path=$DOCKER_REGISTRY_PATH \
+          --docker-image-name=doca_nvmf_target_offload_nightly_coverage \
+          --doca-sta-url=$doca_sta_url \
+          --artifact-prop-name=DOCKER_IMAGE_COVERAGE \
+          --docker-file=container/Dockerfile.nvmf_target_offload_coverage \
+          --docker-build-opts="-v /auto/app/BullsEye/BullseyeCoverage-9.6.10-arm64:/auto/app/BullsEye/BullseyeCoverage-Latest-arm64:ro" \
           --sign --push
       else
         echo "Skip generic container build"

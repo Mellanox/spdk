@@ -13,6 +13,8 @@ ARG DPA_SIGN_PASS
 ARG DOCA_STA_URL
 ARG DOCA_STA_VERSION
 ARG DOCA_VERSION
+ENV COVFILE=/nvmf-target-offload.cov
+ENV PATH="/auto/app/BullsEye/BullseyeCoverage-Latest-arm64/bin:$PATH"
 
 SHELL ["/bin/bash", "-c"]
 
@@ -41,11 +43,13 @@ RUN set -x -o pipefail; \
     dpkg --force-all -i doca-sdk-sta_${DOCA_VERSION}-1_arm64.deb libdoca-sdk-sta-dev_${DOCA_VERSION}-1_arm64.deb ; 
 
 RUN set -eux; \
+    cov01 --on; \
     .ci/dpdk_patch.sh && \
     ./configure --with-rdma=mlx5_dv --with-doca --with-flexio \
     --disable-tests --disable-unit-tests --disable-examples \
     --prefix=${NVMF_TARGET_OFFLOAD_PATH} ${NVMF_TARGET_OFFLOAD_BUILD_ARGS} && \
-    make -j4 && make -j4 install && \
+    make -j4 && make -j4 install; \
+    cov01 --off; \
     [ "$SIGN_DPA" = "true" ] && echo "\n===== SIGN DPA =====\n"&& \
     cp sign-tool/build/bf3_dpa/* /usr/bin/ && hash -r && \
     .ci/sign_dpa.sh ${NVMF_TARGET_OFFLOAD_PATH}/bin/spdk_tgt
@@ -65,12 +69,14 @@ ENV LD_LIBRARY_PATH="${NVMF_TARGET_OFFLOAD_PATH}/lib:$LD_LIBRARY_PATH"
 ENV PYTHONPATH="${NVMF_TARGET_OFFLOAD_PATH}/local/lib/python3.10/dist-packages:$PYTHONPATH"
 ENV PKG_CONFIG_PATH="${NVMF_TARGET_OFFLOAD_PATH}/lib/pkgconfig:$PKG_CONFIG_PATH"
 ENV PATH="${NVMF_TARGET_OFFLOAD_PATH}/bin:$PATH"
+ENV COVFILE=/nvmf-target-offload.cov
 
 RUN apt update && apt install -y supervisor libjson-c5 fuse3 libasan6 libubsan1
 RUN apt clean && rm -rf /var/lib/apt/lists/*
 RUN dpkg --force-all -r spdk spdk-rpc mlnx-dpdk
 
 COPY --from=builder ${NVMF_TARGET_OFFLOAD_PATH} ${NVMF_TARGET_OFFLOAD_PATH}
+COPY --from=builder /nvmf-target-offload.cov /nvmf-target-offload.cov
 
 COPY ./container/entrypoint.sh /usr/bin/entrypoint.sh
 COPY ./container/set_environment_variables.sh ${NVMF_TARGET_OFFLOAD_PATH}/bin/set_environment_variables.sh

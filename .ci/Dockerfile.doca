@@ -36,6 +36,8 @@ RUN set -eux; \
     libaio-dev \
     libncurses-dev
 
+### PODMAN ###
+RUN printf "[storage.options]\nignore_chown_errors = \"true\"\n" > /etc/containers/storage.conf
 
 ### TOOLS INSTALL ###
 RUN set -eux; \

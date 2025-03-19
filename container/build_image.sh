@@ -48,6 +48,7 @@ Arguments:
    --doca-builder-tag              DOCA docker tag for devel image (example: 2.9.0056-devel-ubuntu22.04-arm64)
    --doca-runtime-tag              DOCA docker tag for runtime image (example: 2.9.0056-full-rt-ubuntu22.04-arm64)
    --doca-image                    DOCA image URL for build & runtime images (example: nvcr.io/nvstaging/doca/doca)
+   --docker-build-opts             Docker build options (default: empty)
    --push                          Wheather to push image into a registry (default: ${PUSH_IMAGE})
    --sign                          Sign DPA binary (default: ${SIGN}). Requires DPA_SIGN_USER and DPA_SIGN_PASS env variables to be set
    --artifact-prop-name            Key name in artifact.properties (default: ${ARTIFACT_PROP_NAME})
@@ -91,6 +92,9 @@ while getopts ":h-:" optchar; do
                     ;;
                 doca-image=*)
                     DOCA_IMAGE=${OPTARG#*=}
+                    ;;
+                docker-build-opts=*)
+                    DOCKER_BUILD_ARGS+=(${OPTARG#*=})
                     ;;
                 push)
                     PUSH_IMAGE="true"
