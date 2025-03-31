@@ -15,8 +15,8 @@ export CI_ENV_HARBOR_REGISTRY_PATH="swx-storage/doca_nvmf_target_offload"
 export CI_ENV_ARTIFACT_PROPERTIES="/mnt/pvc/doca-sta-artifact.properties"
 
 export CI_ENV_DOCA_BUILDER_IMAGE="nvcr.io/nvstaging/doca/doca"
-export CI_ENV_DOCA_RUNTIME_TAG="3.0.0034-full-rt-ubuntu22.04-arm64"
-export CI_ENV_DOCA_BUILDER_TAG="3.0.0034-devel-ubuntu22.04-arm64"
+export CI_ENV_DOCA_RUNTIME_TAG="3.0.0027-full-rt-ubuntu22.04-arm64"
+export CI_ENV_DOCA_BUILDER_TAG="3.0.0027-devel-ubuntu22.04-arm64"
 
 # Jenkins JNLP image
 # https://nvbugspro.nvidia.com/bug/5115436
