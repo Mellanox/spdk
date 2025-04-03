@@ -18,9 +18,13 @@ export NGC_CLI_FORMAT_TYPE=ascii
 export NGC_CLI_ORG=nvstaging
 export NGC_CLI_TEAM=doca
 export NGC_CLI_API_KEY=${NGC_CLI_API_KEY:-'no-apikey'}
+export NGC_CLI_RESOURCE_NAME=doca_nvmf_target_offload
+ 
+_ver=$(cat VERSION)
+NVMF_TARGET_OFFLOAD_VERSION=${_ver%%-*}
 
 # Download the (latest) YAML files
-ngc registry resource download-version "${NGC_CLI_ORG}/${NGC_CLI_TEAM}/doca_container_configs" --format_type json | tee ngc_cli_output.txt
+ngc registry resource download-version "${NGC_CLI_ORG}/${NGC_CLI_TEAM}/${NGC_CLI_RESOURCE_NAME}" --format_type json | tee ngc_cli_output.txt
 DOWNLOADED_FOLDER=$(cat ngc_cli_output.txt | jq -r '.local_path')
 CURRENT_VERSION=$(echo $DOWNLOADED_FOLDER | egrep -o '[0-9]+\.[0-9]+\.[0-9]+')
 rm -f ngc_cli_output.txt
@@ -29,20 +33,24 @@ rm -f ngc_cli_output.txt
 IFS='.'
 read -a strarr <<< "$CURRENT_VERSION"
 
-VERION_MAJOR="${strarr[0]}"
-VERION_MINOR="${strarr[1]}"
-VERION_PATCH="${strarr[2]}"
+NGC_VERSION_MAJOR="${strarr[0]}"
+NGC_VERSION_MINOR="${strarr[1]}"
+NGC_VERSION_PATCH="${strarr[2]}"
 
 unset IFS
 
-NEW_VERSION=${VERION_MAJOR}.${VERION_MINOR}."$(($VERION_PATCH + 1))"
+NEW_NGC_VERSION=${NGC_VERSION_MAJOR}.${NGC_VERSION_MINOR}."$(($NGC_VERSION_PATCH + 1))"
 
 # Copy the directory so to have a backup to diff against
 cp -r ${DOWNLOADED_FOLDER} candidate_ngc_resource
 
 # Update all the YAML files that we are aware of:
 # Base Image
-cp container/doca_nvmf_target_offload.yaml candidate_ngc_resource/configs/latest/
+# Create NVMF TARGET OFFLOAD version folder if doesn't exist
+mkdir -p candidate_ngc_resource/configs/${NVMF_TARGET_OFFLOAD_VERSION}
+ 
+# Update base image YAML:
+cp container/doca_nvmf_target_offload.yaml candidate_ngc_resource/configs/${NVMF_TARGET_OFFLOAD_VERSION}/
 
 # Diff and check if there is a need for update
 set +e
@@ -51,9 +59,9 @@ diff_rc=$?
 set -e
 
 if [[ "$diff_rc" != "0" ]]; then
-    ngc registry resource upload-version "${NGC_CLI_ORG}/${NGC_CLI_TEAM}/doca_container_configs:${NEW_VERSION}" --source candidate_ngc_resource --format_type json
+    ngc registry resource upload-version "${NGC_CLI_ORG}/${NGC_CLI_TEAM}/${NGC_CLI_RESOURCE_NAME}:${NEW_NGC_VERSION}" --source candidate_ngc_resource --format_type json
+    echo "NGC=${NGC_CLI_ORG}/${NGC_CLI_TEAM}/${NGC_CLI_RESOURCE_NAME}:${NEW_NGC_VERSION}" >> artifact.properties
 fi
 
-echo "NGC=${NGC_CLI_ORG}/${NGC_CLI_TEAM}/doca_container_configs:${NEW_VERSION}" >> artifact.properties
 rm -rf ${DOWNLOADED_FOLDER}
 rm -rf candidate_ngc_resource
