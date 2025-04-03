@@ -32,15 +32,15 @@ RUN set -x -o pipefail; \
     if [ ! -z "$DOCA_STA_URL" ]; then \
         DOCA_VERSION=$DOCA_STA_VERSION && \
         wget $DOCA_STA_URL ; \
+        tar xzvf doca-sdk-sta-${DOCA_VERSION}.tar.gz --no-same-owner && \
+        cd doca-sdk-sta-${DOCA_VERSION} && \
+        . ./devtools/public/set_env_variables.sh --deb && \
+        ./devtools/public/doca_package_build.sh --dpu --deb && \
+        cd ../ && \
+        dpkg --force-all -i doca-sdk-sta_${DOCA_VERSION}-1_arm64.deb libdoca-sdk-sta-dev_${DOCA_VERSION}-1_arm64.deb ; \
     else \
-        wget https://urm.nvidia.com/artifactory/sw-nbu-doca-local/doca-sdk/$(echo $DOCA_VERSION | grep -o "[0-9]\+\.[0-9]\+\.[0-9]")/DOCA_${DOCA_VERSION//./-}-1/doca-sdk-sta-${DOCA_VERSION}.tar.gz ; \
-    fi; \
-    tar xzvf doca-sdk-sta-${DOCA_VERSION}.tar.gz --no-same-owner && \
-    cd doca-sdk-sta-${DOCA_VERSION} && \
-    . ./devtools/public/set_env_variables.sh --deb && \
-    ./devtools/public/doca_package_build.sh --dpu --deb && \
-    cd ../ && \
-    dpkg --force-all -i doca-sdk-sta_${DOCA_VERSION}-1_arm64.deb libdoca-sdk-sta-dev_${DOCA_VERSION}-1_arm64.deb ; 
+        echo "Skip STA installation" ; \
+    fi
 
 RUN set -eux; \
     cov01 --on; \
