@@ -33,6 +33,7 @@ env:
   REGISTRY_AUTH_FILE: '${CI_ENV_REGISTRY_AUTH_FILE}'
   GIT_SSH_COMMAND: '${CI_ENV_GIT_SSH_COMMAND}'
   STORAGE_DRIVER: '${CI_ENV_STORAGE_DRIVER}'
+  dst_ver: '/mnt/pvc/nvmf-target-offload'
 
 failFast: false
 kubernetes:
@@ -65,6 +66,18 @@ runs_on_dockers:
      file: '.ci/Dockerfile.doca', name: 'doca_ci', arch: 'aarch64', tag: "${CI_ENV_CI_REV}",
      build_args: '--build-arg DOCA_IMAGE_TAG=$DOCA_BUILDER_TAG --pull --no-cache'
     }
+
+
+pipeline_start:
+    containerSelector: "{name: 'doca_ci'}"
+    run: |
+      if [[ $tag =~ ^v?[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]]; then
+        echo "Valid tag: $tag"
+        echo ${tag#v} > ${dst_ver}
+      else
+        echo "Invalid tag: $tag"
+        exit 1
+      fi
 
 steps:
   - name: Clone DPA sign tool
@@ -99,4 +112,17 @@ steps:
         ./container/update_ngc_resource.sh
       else
         echo "Skip resource upload"
+      fi
+
+  - name: Build/Upload packages
+    credentialsId: 'svc-nbu-swx-repos'
+    containerSelector:
+      - "{name: 'doca_ci'}"
+    run: |
+      if [[ "$do_packages" == "true" ]]; then
+        echo "Build package"
+        .ci/pkg_build.sh -f ${dst_ver}
+        .ci/pkg_upload.sh -f ${dst_ver} -s release -r doca-nvmf-target-offload
+      else
+        echo "Skip package build/upload"
       fi

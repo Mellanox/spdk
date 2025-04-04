@@ -105,3 +105,12 @@ steps:
       reportFiles: 'index.html'
       reportName: 'Coverity Report'
     parallel: true
+
+  - name: Build packages
+    containerSelector:
+      - "{name: 'doca_ci'}"
+    run: |
+      echo "$(cat VERSION).${ghprbPullId:-$(git rev-parse --short HEAD)}" > _ver
+      echo "Build package"
+      .ci/pkg_build.sh -f _ver
+    archiveArtifacts: 'doca-nvmf*.tar.gz'

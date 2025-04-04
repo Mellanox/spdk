@@ -137,3 +137,13 @@ steps:
       else
         echo "Skip generic container build"
       fi
+
+  - name: Build/Upload packages
+    credentialsId: 'svc-nbu-swx-repos'
+    containerSelector:
+      - "{name: 'doca_ci'}"
+    run: |
+      echo "$(cat VERSION).${ghprbPullId:-$(git rev-parse --short HEAD)}" > _ver
+      echo "Build package"
+      .ci/pkg_build.sh -f _ver
+      .ci/pkg_upload.sh -f _ver -s nightly -r doca-nvmf-target-offload
