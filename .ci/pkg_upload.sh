@@ -26,6 +26,11 @@ upload_tar_urm() {
         -H "X-Checksum-Sha1:${SHA1}" \
         -H "X-Checksum-Sha256:${SHA256}" \
         -T "${tar_pkg_url}" "${upload_url_urm}"
+
+    echo "INFO: Adding TAR package ${tar_pkg_url} to artifact.properties"
+    pkg_name=${tar_pkg_url%-*-*}
+    pkg_name_upper=$(echo "$pkg_name" | tr '[:lower:]' '[:upper:]')
+    echo "PKG_${pkg_name_upper}=${REPO_URL}/${repo_name}/${STAGE}/${tar_pkg_url}" >> artifact.properties 
 }
 
 name="doca-nvmf-target-offload"
