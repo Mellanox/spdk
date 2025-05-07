@@ -37,7 +37,8 @@ RUN apt-get update && \
       linux-headers-generic \
       pkg-config nasm \
       libnuma-dev \
-      libfuse3-dev
+      libfuse3-dev \
+      lsb-release
 
 RUN echo "deb [trusted=yes] http://nbu-nfs.gtm.nvidia.com/auto/mswg/release/MLNX_OFED/MLNX_OFED_LINUX-${MOFED_VER}/MLNX_OFED_LINUX-${MOFED_VER}-debian12.1-$(dpkg-architecture -qDEB_HOST_GNU_CPU)/DEBS/ ./" > /etc/apt/sources.list.d/ofed.list && \
     apt update && KVERSION=$(ls /lib/modules) apt install -y mlnx-ofed-basic-user-only

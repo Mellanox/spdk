@@ -16,6 +16,12 @@ if [ -z "$VER" ]; then
 	export VER=$(echo $branch | grep -o '[0-9]\+\(\.[0-9]\+\)*')
 fi
 
+if test -n "$ghprbPullId" ; then
+    REV="pr${ghprbPullId}"
+else
+    REV="${BUILD_NUMBER:-1}"
+fi
+
 function pack_dist() {
 	git submodule init
 	git submodule update
@@ -38,7 +44,7 @@ function pack_dist() {
 
 function generate_changelog() {
 	today=$(date +"%a, %d %b %Y %T %z")
-	sed -e "s/@PACKAGE_VERSION@/$VER/" -e "s/@PACKAGE_REVISION@/${BUILD_NUMBER:-1}/" \
+	sed -e "s/@PACKAGE_VERSION@/$VER/" -e "s/@PACKAGE_REVISION@/${REV}/" \
 		-e 's/@PACKAGE_BUGREPORT@/support@mellanox.com/' -e "s/@BUILD_DATE_CHANGELOG@/$today/" \
 		debian/changelog.in > debian/changelog
 }

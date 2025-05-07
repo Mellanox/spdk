@@ -68,9 +68,6 @@ override_dh_auto_install:
 	install -m 644 include/spdk/pci_ids.h debian/tmp$(install_datadir)/include/spdk
 	install -p -m 644 scripts/bash-completion/spdk debian/tmp/etc/bash_completion.d
 	sed -i -e 's/ rpc.py/ spdk_rpc.py/' debian/tmp/etc/bash_completion.d/spdk
-	for so in debian/tmp$(pkg_prefix)/lib/lib*so.*; do \
-		patchelf --set-rpath $(pkg_prefix)/lib --force-rpath $$so || true; \
-	done
 	rm -rf debian/tmp$(pkg_prefix)/share/dpdk/examples
 	(cd scripts ; python3 setup.py install --install-layout=deb --root=../debian/tmp )
 	mv debian/tmp/usr/bin/spdkcli.py debian/tmp/usr/bin/spdkcli
@@ -81,6 +78,13 @@ override_dh_auto_install:
 override_dh_installdeb:
 	dh_installdeb
 	rm debian/*/DEBIAN/conffiles
+
+# Run patchelf after strip to avoid corruption with patchelf > 0.14 (RM 4406077)
+override_dh_strip:
+	dh_strip
+	for so in debian/*/$(pkg_prefix)/lib/lib*so.*; do \
+		patchelf --set-rpath $(pkg_prefix)/lib --force-rpath $$so || true; \
+	done
 
 override_dh_shlibdeps:
 	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info -l$(shell pwd)/debian/tmp$(pkg_prefix)/lib

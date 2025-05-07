@@ -36,7 +36,8 @@ RUN apt-get update && \
       linux-headers-generic \
       pkg-config nasm \
       libnuma-dev \
-      libfuse3-dev
+      libfuse3-dev \
+      lsb-release
 
 RUN echo "deb [trusted=yes] https://urm.nvidia.com/artifactory/sw-nbu-swx-ci-debian-local focal liburing1" > /etc/apt/sources.list.d/liburing.list && \
     apt update && apt install -y liburing-dev
