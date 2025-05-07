@@ -41,11 +41,14 @@ upload_deb_urm() {
         test -e $deb_pkg
         echo "INFO: Signing package ${deb_pkg##*/}"
         # Debian 12 doesn't have dpkg-sig, so use debsigs
-        if [[ "$(get_os_name)" == "debian_12" ]]; then
-            debsigs --sign=origin -k ${gpg_key_name} ${deb_pkg}
-        else
-            dpkg-sig -k ${gpg_key_name} -s builder ${deb_pkg}
-        fi
+        case "$(get_os_name)" in
+            debian_12|ubuntu_24.04)
+                debsigs --sign=origin -k ${gpg_key_name} ${deb_pkg}
+                ;;
+            *)
+                dpkg-sig -k ${gpg_key_name} -s builder ${deb_pkg}
+                ;;
+        esac
         MD5=$(md5sum $deb_pkg | awk '{print $1}')
         SHA1=$(shasum -a 1 $deb_pkg | awk '{ print $1 }')
         SHA256=$(shasum -a 256 $deb_pkg | awk '{ print $1 }')
