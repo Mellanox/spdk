@@ -70,18 +70,6 @@ export CC=gcc-11
 export CXX=g++-11
 
 
-function install_dependencies() {
-
-    # Install DOCA STA
-    wget https://urm.nvidia.com/artifactory/sw-nbu-doca-local/doca-sdk/$(echo $DOCA_VERSION | grep -o "[0-9]\+\.[0-9]\+\.[0-9]")/DOCA_${DOCA_VERSION//./-}-1/doca-sdk-sta-${DOCA_VERSION}.tar.gz
-    tar xzvf doca-sdk-sta-${DOCA_VERSION}.tar.gz --no-same-owner
-    cd doca-sdk-sta-${DOCA_VERSION}
-    . ./devtools/public/set_env_variables.sh --deb
-    ./devtools/public/doca_package_build.sh --dpu --deb
-    cd ../
-    sudo dpkg --force-all -i doca-sdk-sta_${DOCA_VERSION}-1_arm64.deb libdoca-sdk-sta-dev_${DOCA_VERSION}-1_arm64.deb
-}
-
 # Build and install NVMF Target Offload
 
 if [ -n "${pre_cmd}" ]; then
@@ -89,7 +77,6 @@ if [ -n "${pre_cmd}" ]; then
     echo "==== Running Pre-commands ===="
 
     set +eE
-    install_dependencies
     /bin/bash -c "$pre_cmd"
     rc=$?
 
