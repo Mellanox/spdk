@@ -1,6 +1,6 @@
 ARG DOCA_IMAGE=nvcr.io/nvstaging/doca/doca
-ARG DOCA_BUILDER_TAG=2.9.0052-devel-ubuntu22.04-arm64
-ARG DOCA_RUNTIME_TAG=2.9.0052-full-rt-ubuntu22.04-arm64
+ARG DOCA_BUILDER_TAG=3.0.0-devel-ubuntu22.04-arm64
+ARG DOCA_RUNTIME_TAG=3.0.0-full-rt-ubuntu22.04-arm64
 ARG NVMF_TARGET_OFFLOAD_PATH=/opt/nvidia/nvmf_target_offload
 
 FROM ${DOCA_IMAGE}:${DOCA_BUILDER_TAG} as builder
