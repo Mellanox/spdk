@@ -19,7 +19,7 @@ if not os.path.exists('spdk'):
     shutil.copytree('../python/spdk', 'spdk')
 setup(
     name='spdk-rpc',
-    version='25.01.1',
+    version='25.01.2',
     author='SPDK Mailing List',
     author_email='spdk@lists.01.org',
     description='SPDK RPC modules',
