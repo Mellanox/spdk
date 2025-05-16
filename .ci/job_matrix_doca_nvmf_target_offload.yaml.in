@@ -116,6 +116,7 @@ steps:
 
   - name: Build/Upload packages
     credentialsId: 'svc-nbu-swx-repos'
+    archiveArtifacts: 'artifact.properties'
     containerSelector:
       - "{name: 'doca_ci'}"
     run: |
