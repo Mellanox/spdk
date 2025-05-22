@@ -4858,6 +4858,20 @@ bdev_nvme_io_channel_get_weight(struct spdk_io_channel *ch)
 	return weight;
 }
 
+static void *
+bdev_nvme_io_channel_get_module_ctx(struct spdk_io_channel *ch)
+{
+	struct nvme_bdev_channel *nbdev_ch = spdk_io_channel_get_ctx(ch);
+	struct nvme_io_path *io_path = bdev_nvme_find_io_path(nbdev_ch);
+	struct spdk_nvme_qpair *qpair = NULL;
+
+	if (io_path && io_path->qpair) {
+		qpair = io_path->qpair->qpair;
+	}
+
+	return qpair;
+}
+
 static const struct spdk_bdev_fn_table nvmelib_fn_table = {
 	.destruct			= bdev_nvme_destruct,
 	.submit_request			= bdev_nvme_submit_request_initial,
@@ -4873,6 +4887,7 @@ static const struct spdk_bdev_fn_table nvmelib_fn_table = {
 	.dump_device_stat_json		= bdev_nvme_dump_device_stat_json,
 	.event_type_supported		= bdev_nvme_event_type_supported,
 	.io_channel_get_weight		= bdev_nvme_io_channel_get_weight,
+	.io_channel_get_module_ctx	= bdev_nvme_io_channel_get_module_ctx,
 };
 
 typedef int (*bdev_nvme_parse_ana_log_page_cb)(

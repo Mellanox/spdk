@@ -5422,6 +5422,20 @@ spdk_bdev_io_channel_get_weight(struct spdk_io_channel *ch)
 }
 
 void *
+spdk_bdev_io_channel_get_module_ctx(struct spdk_io_channel *ch)
+{
+	struct spdk_bdev_channel *bdev_ch = __io_ch_to_bdev_ch(ch);
+	struct spdk_io_channel *_ch = bdev_ch->channel;
+	struct spdk_bdev *bdev = bdev_ch->bdev;
+
+	if (bdev->fn_table->io_channel_get_module_ctx != NULL) {
+		return bdev->fn_table->io_channel_get_module_ctx(_ch);
+	}
+
+	return NULL;
+}
+
+void *
 spdk_bdev_get_module_ctx(struct spdk_bdev_desc *desc)
 {
 	struct spdk_bdev *bdev = spdk_bdev_desc_get_bdev(desc);

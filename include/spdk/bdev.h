@@ -1241,6 +1241,15 @@ struct spdk_io_channel *spdk_bdev_get_io_channel(struct spdk_bdev_desc *desc);
 uint32_t spdk_bdev_io_channel_get_weight(struct spdk_io_channel *ch);
 
 /**
+ * Obtain a bdev IO channel module context.
+ *
+ * \param ch I/O channel.
+ *
+ * \return A bdev IO channel module context or NULL on failure.
+ */
+void *spdk_bdev_io_channel_get_module_ctx(struct spdk_io_channel *ch);
+
+/**
  * Obtain a bdev module context for the block device opened by the specified
  * descriptor.
  *

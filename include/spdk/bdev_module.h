@@ -388,6 +388,9 @@ struct spdk_bdev_fn_table {
 
 	/** Check if the block device supports a specific asynchronous event type. */
 	bool (*event_type_supported)(void *ctx, enum spdk_bdev_event_type type);
+
+	/** Get bdev module context for an I/O channel. */
+	void *(*io_channel_get_module_ctx)(struct spdk_io_channel *ch);
 };
 
 /** bdev I/O completion status */

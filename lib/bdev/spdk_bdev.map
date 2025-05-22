@@ -72,6 +72,7 @@
 	spdk_bdev_get_io_time;
 	spdk_bdev_get_weighted_io_time;
 	spdk_bdev_get_io_channel;
+	spdk_bdev_io_channel_get_module_ctx;
 	spdk_bdev_get_module_ctx;
 	spdk_bdev_seek_data;
 	spdk_bdev_seek_hole;
