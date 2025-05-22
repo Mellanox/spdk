@@ -267,6 +267,8 @@ def add_parser(subparsers):
                    help='Do not auto make namespace visible to controllers (optional)')
     p.add_argument('-N', '--hide-metadata', action='store_true',
                    help='Enable hide_metadata option to the bdev (optional)')
+    p.add_argument('-b', '--bypass-bdev', action='store_true',
+                   help='Bypass bdev API in IO path, works for limited set of bdevs (optional)')
     p.set_defaults(func=nvmf_subsystem_add_ns)
 
     def nvmf_subsystem_set_ns_ana_group(args):

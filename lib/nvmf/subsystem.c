@@ -2000,6 +2000,7 @@ spdk_nvmf_ns_opts_get_defaults(struct spdk_nvmf_ns_opts *opts, size_t opts_size)
 	SET_FIELD(anagrpid, 0);
 	SET_FIELD(transport_specific, NULL);
 	SET_FIELD(hide_metadata, false);
+	SET_FIELD(bypass_bdev, false);
 
 #undef FIELD_OK
 #undef SET_FIELD
@@ -2032,13 +2033,14 @@ nvmf_ns_opts_copy(struct spdk_nvmf_ns_opts *opts,
 	SET_FIELD(no_auto_visible);
 	SET_FIELD(transport_specific);
 	SET_FIELD(hide_metadata);
+	SET_FIELD(bypass_bdev);
 
 	opts->opts_size = user_opts->opts_size;
 
 	/* We should not remove this statement, but need to update the assert statement
 	 * if we add a new field, and also add a corresponding SET_FIELD statement.
 	 */
-	SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_ns_opts) == 73, "Incorrect size");
+	SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_ns_opts) == 74, "Incorrect size");
 
 #undef FIELD_OK
 #undef SET_FIELD
@@ -2071,6 +2073,29 @@ nvmf_subsystem_zone_append_supported(struct spdk_nvmf_subsystem *subsystem)
 	}
 
 	return false;
+}
+
+static int
+nvmf_set_bdev_bypass(struct spdk_nvmf_ns *ns)
+{
+	const char *module_name = spdk_bdev_get_module_name(ns->bdev);
+	const char *bdev_name = spdk_bdev_get_name(ns->bdev);
+
+	if (strcmp(module_name, "nvme") == 0) {
+		ns->bypass_bdev.nvme.ns = spdk_bdev_get_module_ctx(ns->desc);
+		if (ns->bypass_bdev.nvme.ns) {
+			ns->bypass_type = SPDK_NVMF_NS_BDEV_BYPASS_TYPE_NVME;
+			return 0;
+		} else {
+			SPDK_WARNLOG("Failed to get NVMe NS for bdev %s, continue without bypass\n", bdev_name);
+			return -ENOTSUP;
+		}
+	} else {
+		SPDK_WARNLOG("Unsupported bdev module type %s, continue without bypass\n", module_name);
+		return -ENOTSUP;
+	}
+
+	return -ENOTSUP;
 }
 
 uint32_t
@@ -2293,6 +2318,17 @@ spdk_nvmf_subsystem_add_ns_ext(struct spdk_nvmf_subsystem *subsystem, const char
 		      spdk_nvmf_subsystem_get_nqn(subsystem),
 		      bdev_name,
 		      opts.nsid);
+
+	ns->bypass_type = SPDK_NVMF_NS_BDEV_BYPASS_TYPE_NONE;
+	if (opts.bypass_bdev) {
+		rc = nvmf_set_bdev_bypass(ns);
+		if (rc != 0) {
+			SPDK_ERRLOG("Subsystem %s: bdev %s cannot be bypassed, error=%d\n",
+				    subsystem->subnqn, bdev_name, rc);
+			nvmf_ns_reservation_clear_all_registrants(ns);
+			goto err;
+		}
+	}
 
 	nvmf_subsystem_ns_changed(subsystem, opts.nsid);
 

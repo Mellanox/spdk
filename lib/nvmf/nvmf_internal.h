@@ -57,6 +57,11 @@ enum spdk_nvmf_subsystem_state {
 	SPDK_NVMF_SUBSYSTEM_NUM_STATES,
 };
 
+enum spdk_nvmf_ns_bdev_bypass_type {
+	SPDK_NVMF_NS_BDEV_BYPASS_TYPE_NONE = 0,
+	SPDK_NVMF_NS_BDEV_BYPASS_TYPE_NVME,
+};
+
 RB_HEAD(subsystem_tree, spdk_nvmf_subsystem);
 
 struct spdk_nvmf_tgt {
@@ -178,6 +183,12 @@ struct spdk_nvmf_ns {
 	bool ptpl_activated;
 	/* ZCOPY supported on bdev device */
 	bool zcopy;
+	enum spdk_nvmf_ns_bdev_bypass_type bypass_type;
+	union {
+		struct {
+			struct spdk_nvme_ns *ns;
+		} nvme;
+	} bypass_bdev;
 	/* reservation notification mask */
 	uint32_t mask;
 	/* generation code */

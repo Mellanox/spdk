@@ -1083,8 +1083,13 @@ struct spdk_nvmf_ns_opts {
 	 * Enable hide_metadata option to the bdev.
 	 */
 	bool hide_metadata;
+
+	/**
+	 * Bypass the bdev and use the backend device directly instead. Works for nvme block devices only.
+	 */
+	bool bypass_bdev;
 } __attribute__((packed));
-SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_ns_opts) == 73, "Incorrect size");
+SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_ns_opts) == 74, "Incorrect size");
 
 /**
  * Get default namespace creation options.

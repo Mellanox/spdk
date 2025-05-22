@@ -88,6 +88,9 @@ DEFINE_STUB(spdk_bdev_get_module_name, const char *, (const struct spdk_bdev *bd
 DEFINE_STUB(spdk_bdev_get_module_ctx, void *, (struct spdk_bdev_desc *desc), NULL);
 DEFINE_STUB(spdk_bdev_get_nvme_nsid, uint32_t, (struct spdk_bdev *bdev), 0);
 
+DEFINE_STUB(spdk_nvme_ns_get_ctrlr, struct spdk_nvme_ctrlr *, (struct spdk_nvme_ns *ns),
+	    (struct spdk_nvme_ctrlr *)0xfeedbeef);
+
 static struct spdk_nvmf_transport g_transport = {};
 
 struct spdk_nvmf_subsystem *
