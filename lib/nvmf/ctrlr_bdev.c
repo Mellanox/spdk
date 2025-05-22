@@ -368,9 +368,12 @@ nvmf_bdev_zcopy_enabled(struct spdk_bdev *bdev)
 }
 
 int
-nvmf_bdev_ctrlr_read_cmd(struct spdk_bdev *bdev, struct spdk_bdev_desc *desc,
-			 struct spdk_io_channel *ch, struct spdk_nvmf_request *req)
+nvmf_bdev_ctrlr_read_cmd(struct spdk_nvmf_ns *ns, struct spdk_nvmf_subsystem_pg_ns_info *ns_info,
+			 struct spdk_nvmf_request *req)
 {
+	struct spdk_bdev *bdev = ns->bdev;
+	struct spdk_bdev_desc *desc = ns->desc;
+	struct spdk_io_channel *ch = ns_info->channel;
 	struct spdk_bdev_ext_io_opts opts = {
 		.size = SPDK_SIZEOF(&opts, nvme_cdw13),
 		.memory_domain = req->memory_domain,
@@ -421,9 +424,12 @@ nvmf_bdev_ctrlr_read_cmd(struct spdk_bdev *bdev, struct spdk_bdev_desc *desc,
 }
 
 int
-nvmf_bdev_ctrlr_write_cmd(struct spdk_bdev *bdev, struct spdk_bdev_desc *desc,
-			  struct spdk_io_channel *ch, struct spdk_nvmf_request *req)
+nvmf_bdev_ctrlr_write_cmd(struct spdk_nvmf_ns *ns, struct spdk_nvmf_subsystem_pg_ns_info *ns_info,
+			  struct spdk_nvmf_request *req)
 {
+	struct spdk_bdev *bdev = ns->bdev;
+	struct spdk_bdev_desc *desc = ns->desc;
+	struct spdk_io_channel *ch = ns_info->channel;
 	struct spdk_bdev_ext_io_opts opts = {
 		.size = SPDK_SIZEOF(&opts, nvme_cdw13),
 		.memory_domain = req->memory_domain,

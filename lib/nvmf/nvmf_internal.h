@@ -417,10 +417,10 @@ void nvmf_bdev_ctrlr_identify_ns(struct spdk_nvmf_ns *ns, struct spdk_nvme_ns_da
 				 bool dif_insert_or_strip);
 void nvmf_bdev_ctrlr_identify_iocs_nvm(struct spdk_nvmf_ns *ns,
 				       struct spdk_nvme_nvm_ns_data *nsdata_nvm);
-int nvmf_bdev_ctrlr_read_cmd(struct spdk_bdev *bdev, struct spdk_bdev_desc *desc,
-			     struct spdk_io_channel *ch, struct spdk_nvmf_request *req);
-int nvmf_bdev_ctrlr_write_cmd(struct spdk_bdev *bdev, struct spdk_bdev_desc *desc,
-			      struct spdk_io_channel *ch, struct spdk_nvmf_request *req);
+int nvmf_bdev_ctrlr_read_cmd(struct spdk_nvmf_ns *ns,
+			     struct spdk_nvmf_subsystem_pg_ns_info *ns_info, struct spdk_nvmf_request *req);
+int nvmf_bdev_ctrlr_write_cmd(struct spdk_nvmf_ns *ns,
+			      struct spdk_nvmf_subsystem_pg_ns_info *ns_info, struct spdk_nvmf_request *req);
 int nvmf_bdev_ctrlr_compare_cmd(struct spdk_bdev *bdev, struct spdk_bdev_desc *desc,
 				struct spdk_io_channel *ch, struct spdk_nvmf_request *req);
 int nvmf_bdev_ctrlr_compare_and_write_cmd(struct spdk_bdev *bdev, struct spdk_bdev_desc *desc,

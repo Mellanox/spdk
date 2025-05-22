@@ -895,6 +895,9 @@ test_nvmf_bdev_ctrlr_read_write_cmd(void)
 	struct spdk_bdev bdev = {};
 	struct spdk_bdev_desc desc = { .bdev = &bdev, };
 	struct spdk_nvmf_request req = {};
+	struct spdk_nvmf_ns ns = {.bdev = &bdev, .desc = &desc};
+	struct spdk_io_channel ch = {};
+	struct spdk_nvmf_subsystem_pg_ns_info ns_info = {.channel = &ch};
 	union nvmf_c2h_msg rsp = {};
 	union nvmf_h2c_msg cmd = {};
 	int rc;
@@ -909,7 +912,7 @@ test_nvmf_bdev_ctrlr_read_write_cmd(void)
 	req.length = 8192;
 	req.zcopy_phase = NVMF_ZCOPY_PHASE_NONE;
 
-	rc = nvmf_bdev_ctrlr_read_cmd(&bdev, &desc, NULL, &req);
+	rc = nvmf_bdev_ctrlr_read_cmd(&ns, &ns_info, &req);
 	CU_ASSERT(rc == SPDK_NVMF_REQUEST_EXEC_STATUS_ASYNCHRONOUS);
 
 	/* Write two blocks, block size 4096 */
@@ -919,7 +922,7 @@ test_nvmf_bdev_ctrlr_read_write_cmd(void)
 	req.length = 8192;
 	req.zcopy_phase = NVMF_ZCOPY_PHASE_NONE;
 
-	rc = nvmf_bdev_ctrlr_write_cmd(&bdev, &desc, NULL, &req);
+	rc = nvmf_bdev_ctrlr_write_cmd(&ns, &ns_info, &req);
 	CU_ASSERT(rc == SPDK_NVMF_REQUEST_EXEC_STATUS_ASYNCHRONOUS);
 }
 

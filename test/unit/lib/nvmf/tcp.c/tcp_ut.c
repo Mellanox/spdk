@@ -112,13 +112,13 @@ DEFINE_STUB(nvmf_ctrlr_copy_supported,
 
 DEFINE_STUB(nvmf_bdev_ctrlr_read_cmd,
 	    int,
-	    (struct spdk_bdev *bdev, struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
+	    (struct spdk_nvmf_ns *ns, struct spdk_nvmf_subsystem_pg_ns_info *ns_info,
 	     struct spdk_nvmf_request *req),
 	    0);
 
 DEFINE_STUB(nvmf_bdev_ctrlr_write_cmd,
 	    int,
-	    (struct spdk_bdev *bdev, struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
+	    (struct spdk_nvmf_ns *ns, struct spdk_nvmf_subsystem_pg_ns_info *ns_info,
 	     struct spdk_nvmf_request *req),
 	    0);
 

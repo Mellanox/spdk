@@ -4597,9 +4597,9 @@ nvmf_ctrlr_process_io_cmd(struct spdk_nvmf_request *req)
 	} else {
 		switch (cmd->opc) {
 		case SPDK_NVME_OPC_READ:
-			return nvmf_bdev_ctrlr_read_cmd(bdev, desc, ch, req);
+			return nvmf_bdev_ctrlr_read_cmd(ns, ns_info, req);
 		case SPDK_NVME_OPC_WRITE:
-			return nvmf_bdev_ctrlr_write_cmd(bdev, desc, ch, req);
+			return nvmf_bdev_ctrlr_write_cmd(ns, ns_info, req);
 		case SPDK_NVME_OPC_FLUSH:
 			return nvmf_bdev_ctrlr_flush_cmd(bdev, desc, ch, req);
 		case SPDK_NVME_OPC_COMPARE:
