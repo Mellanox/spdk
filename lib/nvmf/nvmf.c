@@ -1568,6 +1568,7 @@ poll_group_update_subsystem(struct spdk_nvmf_poll_group *group,
 				}
 				ns_info->reg_hostid[j++] = reg->hostid;
 			}
+			ns_info->bypass_type = ns->bypass_type;
 		}
 	}
 

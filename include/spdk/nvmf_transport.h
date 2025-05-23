@@ -131,8 +131,11 @@ struct spdk_nvmf_request {
 	/* Timeout tracked for connect and abort flows. */
 	uint64_t timeout_tsc;
 	uint32_t			orig_nsid;
+	uint32_t			iovpos;
+	uint64_t			iov_offset;
+	struct spdk_nvme_ns_cmd_ext_io_opts	nvme_ext_io_opts;
 };
-SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_request) == 824, "Incorrect size");
+SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_request) == 896, "Incorrect size");
 
 enum spdk_nvmf_qpair_state {
 	SPDK_NVMF_QPAIR_UNINITIALIZED = 0,

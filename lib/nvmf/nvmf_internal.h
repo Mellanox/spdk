@@ -134,6 +134,7 @@ struct spdk_nvmf_subsystem_pg_ns_info {
 	struct spdk_uuid		uuid;
 	/* current reservation key, no reservation if the value is 0 */
 	uint64_t			crkey;
+	enum spdk_nvmf_ns_bdev_bypass_type bypass_type;
 	/* reservation type */
 	enum spdk_nvme_reservation_type	rtype;
 	/* Host ID which holds the reservation */

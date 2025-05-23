@@ -53,6 +53,23 @@ DEFINE_STUB(spdk_bdev_abort, int,
 DEFINE_STUB_V(spdk_bdev_io_get_iovec,
 	      (struct spdk_bdev_io *bdev_io, struct iovec **iovp, int *iovcntp));
 DEFINE_STUB(spdk_bdev_get_write_unit_size, uint32_t, (const struct spdk_bdev *bdev), 1);
+DEFINE_STUB(spdk_bdev_io_channel_get_module_ctx, void *, (struct spdk_io_channel *ch),
+	    (void *)0xf00df00d);
+
+DEFINE_STUB(spdk_nvme_ns_cmd_readv_ext, int, (struct spdk_nvme_ns *ns,
+		struct spdk_nvme_qpair *qpair,
+		uint64_t lba, uint32_t lba_count,
+		spdk_nvme_cmd_cb cb_fn, void *cb_arg,
+		spdk_nvme_req_reset_sgl_cb reset_sgl_fn,
+		spdk_nvme_req_next_sge_cb next_sge_fn,
+		struct spdk_nvme_ns_cmd_ext_io_opts *opts), 0);
+DEFINE_STUB(spdk_nvme_ns_cmd_writev_ext, int, (struct spdk_nvme_ns *ns,
+		struct spdk_nvme_qpair *qpair,
+		uint64_t lba, uint32_t lba_count,
+		spdk_nvme_cmd_cb cb_fn, void *cb_arg,
+		spdk_nvme_req_reset_sgl_cb reset_sgl_fn,
+		spdk_nvme_req_next_sge_cb next_sge_fn,
+		struct spdk_nvme_ns_cmd_ext_io_opts *opts), 0);
 
 struct spdk_bdev_desc {
 	struct spdk_bdev *bdev;

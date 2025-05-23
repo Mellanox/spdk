@@ -108,6 +108,25 @@ nvmf_bdev_ctrlr_complete_cmd(struct spdk_bdev_io *bdev_io, bool success,
 }
 
 static void
+nvmf_bdev_bypass_cb(void *ctx, const struct spdk_nvme_cpl *cpl)
+{
+	struct spdk_nvmf_request	*req = ctx;
+
+	if (spdk_unlikely(req->first_fused)) {
+		struct spdk_nvmf_request	*first_req = req->first_fused_req;
+
+		first_req->rsp->nvme_cpl = *cpl;
+		/* first request should be completed */
+		spdk_nvmf_request_complete(first_req);
+		req->first_fused_req = NULL;
+		req->first_fused = false;
+	}
+
+	req->rsp->nvme_cpl = *cpl;
+	spdk_nvmf_request_complete(req);
+}
+
+static void
 nvmf_bdev_ctrlr_complete_admin_cmd(struct spdk_bdev_io *bdev_io, bool success,
 				   void *cb_arg)
 {
@@ -367,6 +386,51 @@ nvmf_bdev_zcopy_enabled(struct spdk_bdev *bdev)
 	return spdk_bdev_io_type_supported(bdev, SPDK_BDEV_IO_TYPE_ZCOPY);
 }
 
+static void
+nvmf_queued_reset_sgl(void *ref, uint32_t sgl_offset)
+{
+	struct spdk_nvmf_request *req = ref;
+	struct iovec *iov;
+
+	req->iov_offset = sgl_offset;
+	for (req->iovpos = 0; req->iovpos < req->iovcnt; req->iovpos++) {
+		iov = &req->iov[req->iovpos];
+		if (req->iov_offset < iov->iov_len) {
+			break;
+		}
+
+		req->iov_offset -= iov->iov_len;
+	}
+}
+
+static int
+nvmf_queued_next_sge(void *ref, void **address, uint32_t *length)
+{
+	struct spdk_nvmf_request *req = ref;
+	struct iovec *iov;
+
+	assert(req->iovpos < req->iovcnt);
+
+	iov = &req->iov[req->iovpos];
+
+	*address = iov->iov_base;
+	*length = iov->iov_len;
+
+	if (req->iov_offset) {
+		assert(req->iov_offset <= iov->iov_len);
+		*address += req->iov_offset;
+		*length -= req->iov_offset;
+	}
+
+	req->iov_offset += *length;
+	if (req->iov_offset == iov->iov_len) {
+		req->iovpos++;
+		req->iov_offset = 0;
+	}
+
+	return 0;
+}
+
 int
 nvmf_bdev_ctrlr_read_cmd(struct spdk_nvmf_ns *ns, struct spdk_nvmf_subsystem_pg_ns_info *ns_info,
 			 struct spdk_nvmf_request *req)
@@ -374,12 +438,6 @@ nvmf_bdev_ctrlr_read_cmd(struct spdk_nvmf_ns *ns, struct spdk_nvmf_subsystem_pg_
 	struct spdk_bdev *bdev = ns->bdev;
 	struct spdk_bdev_desc *desc = ns->desc;
 	struct spdk_io_channel *ch = ns_info->channel;
-	struct spdk_bdev_ext_io_opts opts = {
-		.size = SPDK_SIZEOF(&opts, nvme_cdw13),
-		.memory_domain = req->memory_domain,
-		.memory_domain_ctx = req->memory_domain_ctx,
-		.accel_sequence = req->accel_sequence,
-	};
 	uint64_t bdev_num_blocks = spdk_bdev_get_num_blocks(bdev);
 	uint32_t block_size = spdk_bdev_desc_get_block_size(desc);
 	struct spdk_nvme_cmd *cmd = &req->cmd->nvme_cmd;
@@ -389,7 +447,6 @@ nvmf_bdev_ctrlr_read_cmd(struct spdk_nvmf_ns *ns, struct spdk_nvmf_subsystem_pg_
 	int rc;
 
 	nvmf_bdev_ctrlr_get_rw_params(cmd, &start_lba, &num_blocks);
-	nvmf_bdev_ctrlr_get_rw_ext_params(cmd, &opts, desc, !req->dif_enabled);
 
 	if (spdk_unlikely(!nvmf_bdev_ctrlr_lba_in_range(bdev_num_blocks, start_lba, num_blocks))) {
 		SPDK_ERRLOG("end of media\n");
@@ -408,8 +465,38 @@ nvmf_bdev_ctrlr_read_cmd(struct spdk_nvmf_ns *ns, struct spdk_nvmf_subsystem_pg_
 
 	assert(!spdk_nvmf_request_using_zcopy(req));
 
-	rc = spdk_bdev_readv_blocks_ext(desc, ch, req->iov, req->iovcnt, start_lba, num_blocks,
-					nvmf_bdev_ctrlr_complete_cmd, req, &opts);
+	switch (ns->bypass_type) {
+	case SPDK_NVMF_NS_BDEV_BYPASS_TYPE_NVME: {
+		struct spdk_nvme_qpair *qpair = spdk_bdev_io_channel_get_module_ctx(ch);
+
+		if (!qpair) {
+			/* NULL qpair pointer can mean controller reset, submit IO via bdev API to handle this case */
+			goto submit_io;
+		}
+		memset(&req->nvme_ext_io_opts, 0, sizeof(req->nvme_ext_io_opts));
+		req->nvme_ext_io_opts.size = SPDK_SIZEOF(&req->nvme_ext_io_opts, accel_sequence);
+		req->nvme_ext_io_opts.memory_domain = req->memory_domain;
+		req->nvme_ext_io_opts.memory_domain_ctx = req->memory_domain_ctx;
+
+		rc = spdk_nvme_ns_cmd_readv_ext(ns->bypass_bdev.nvme.ns, qpair, start_lba, num_blocks,
+						nvmf_bdev_bypass_cb, req, nvmf_queued_reset_sgl, nvmf_queued_next_sge, &req->nvme_ext_io_opts);
+		break;
+	}
+	default:
+submit_io: {
+			struct spdk_bdev_ext_io_opts opts = {
+				.size = SPDK_SIZEOF(&opts, nvme_cdw13),
+				.memory_domain = req->memory_domain,
+				.memory_domain_ctx = req->memory_domain_ctx,
+				.accel_sequence = req->accel_sequence,
+			};
+
+			nvmf_bdev_ctrlr_get_rw_ext_params(cmd, &opts, desc, !req->dif_enabled);
+			rc = spdk_bdev_readv_blocks_ext(desc, ch, req->iov, req->iovcnt, start_lba, num_blocks,
+							nvmf_bdev_ctrlr_complete_cmd, req, &opts);
+		}
+	}
+
 	if (spdk_unlikely(rc)) {
 		if (rc == -ENOMEM) {
 			nvmf_bdev_ctrl_queue_io(req, bdev, ch, nvmf_ctrlr_process_io_cmd_resubmit, req);
@@ -430,12 +517,6 @@ nvmf_bdev_ctrlr_write_cmd(struct spdk_nvmf_ns *ns, struct spdk_nvmf_subsystem_pg
 	struct spdk_bdev *bdev = ns->bdev;
 	struct spdk_bdev_desc *desc = ns->desc;
 	struct spdk_io_channel *ch = ns_info->channel;
-	struct spdk_bdev_ext_io_opts opts = {
-		.size = SPDK_SIZEOF(&opts, nvme_cdw13),
-		.memory_domain = req->memory_domain,
-		.memory_domain_ctx = req->memory_domain_ctx,
-		.accel_sequence = req->accel_sequence,
-	};
 	uint64_t bdev_num_blocks = spdk_bdev_get_num_blocks(bdev);
 	uint32_t block_size = spdk_bdev_desc_get_block_size(desc);
 	struct spdk_nvme_cmd *cmd = &req->cmd->nvme_cmd;
@@ -445,7 +526,6 @@ nvmf_bdev_ctrlr_write_cmd(struct spdk_nvmf_ns *ns, struct spdk_nvmf_subsystem_pg
 	int rc;
 
 	nvmf_bdev_ctrlr_get_rw_params(cmd, &start_lba, &num_blocks);
-	nvmf_bdev_ctrlr_get_rw_ext_params(cmd, &opts, desc, !req->dif_enabled);
 
 	if (spdk_unlikely(!nvmf_bdev_ctrlr_lba_in_range(bdev_num_blocks, start_lba, num_blocks))) {
 		SPDK_ERRLOG("end of media\n");
@@ -464,8 +544,38 @@ nvmf_bdev_ctrlr_write_cmd(struct spdk_nvmf_ns *ns, struct spdk_nvmf_subsystem_pg
 
 	assert(!spdk_nvmf_request_using_zcopy(req));
 
-	rc = spdk_bdev_writev_blocks_ext(desc, ch, req->iov, req->iovcnt, start_lba, num_blocks,
-					 nvmf_bdev_ctrlr_complete_cmd, req, &opts);
+	switch (ns->bypass_type) {
+	case SPDK_NVMF_NS_BDEV_BYPASS_TYPE_NVME: {
+		struct spdk_nvme_qpair *qpair = spdk_bdev_io_channel_get_module_ctx(ch);
+
+		if (!qpair) {
+			/* NULL qpair pointer can mean controller reset, submit IO via bdev API to handle this case */
+			goto submit_io;
+		}
+		memset(&req->nvme_ext_io_opts, 0, sizeof(req->nvme_ext_io_opts));
+		req->nvme_ext_io_opts.size = SPDK_SIZEOF(&req->nvme_ext_io_opts, accel_sequence);
+		req->nvme_ext_io_opts.memory_domain = req->memory_domain;
+		req->nvme_ext_io_opts.memory_domain_ctx = req->memory_domain_ctx;
+
+		rc = spdk_nvme_ns_cmd_writev_ext(ns->bypass_bdev.nvme.ns, qpair, start_lba, num_blocks,
+						 nvmf_bdev_bypass_cb, req, nvmf_queued_reset_sgl, nvmf_queued_next_sge, &req->nvme_ext_io_opts);
+		break;
+	}
+	default:
+submit_io: {
+			struct spdk_bdev_ext_io_opts opts = {
+				.size = SPDK_SIZEOF(&opts, nvme_cdw13),
+				.memory_domain = req->memory_domain,
+				.memory_domain_ctx = req->memory_domain_ctx,
+				.accel_sequence = req->accel_sequence,
+			};
+
+			nvmf_bdev_ctrlr_get_rw_ext_params(cmd, &opts, desc, !req->dif_enabled);
+			rc = spdk_bdev_writev_blocks_ext(desc, ch, req->iov, req->iovcnt, start_lba, num_blocks,
+							 nvmf_bdev_ctrlr_complete_cmd, req, &opts);
+		}
+	}
+
 	if (spdk_unlikely(rc)) {
 		if (rc == -ENOMEM) {
 			nvmf_bdev_ctrl_queue_io(req, bdev, ch, nvmf_ctrlr_process_io_cmd_resubmit, req);
