@@ -68,16 +68,12 @@ runs_on_dockers:
     }
 
 steps:
-  - name: Clone DPA sign tool
-    containerSelector: "{name: 'doca_ci'}"
-    run: |
-      git clone "ssh://git-nbu.nvidia.com:12023/DevOps/3S/sign-tool" --depth=1
-
   - name: Build generic docker image
     containerSelector: "{name: 'doca_ci'}"
     credentialsId: '3s-bf3-dpa-prod-role'
     archiveArtifacts: 'artifact.properties'
     run: |
+      export TMPDIR=/var/tmp/generic
       if [[ "$do_container" == "true" ]]; then
         ./container/build_image.sh \
           --build-type=debug \
@@ -88,16 +84,18 @@ steps:
           --docker-registry-path=$DOCKER_REGISTRY_PATH \
           --docker-image-name=doca_nvmf_target_offload_nightly \
           --doca-sta-url=$doca_sta_url \
-          --sign --push
+          --push
       else
         echo "Skip generic container build"
       fi
+    parallel: true
 
   - name: Build ASAN docker image
     containerSelector: "{name: 'doca_ci'}"
     credentialsId: '3s-bf3-dpa-prod-role'
     archiveArtifacts: 'artifact.properties'
     run: |
+      export TMPDIR=/var/tmp/asan
       if [[ "$do_container" == "true" ]]; then
         ./container/build_image.sh \
           --build-type=debug \
@@ -110,16 +108,18 @@ steps:
           --doca-sta-url=$doca_sta_url \
           --configure-args='--enable-asan --enable-ubsan' \
           --artifact-prop-name=DOCKER_IMAGE_ASAN \
-          --sign --push
+          --push
       else
         echo "Skip generic container build"
       fi
+    parallel: true
 
   - name: Build docker image Bullseye
     containerSelector: "{name: 'doca_ci'}"
     credentialsId: '3s-bf3-dpa-prod-role'
     archiveArtifacts: 'artifact.properties'
     run: |
+      export TMPDIR=/var/tmp/bullseye
       if [[ "$do_container" == "true" ]]; then
         ./container/build_image.sh \
           --build-type=debug \
@@ -133,10 +133,11 @@ steps:
           --artifact-prop-name=DOCKER_IMAGE_COVERAGE \
           --docker-file=container/Dockerfile.nvmf_target_offload_coverage \
           --docker-build-opts="-v /auto/app/BullsEye/BullseyeCoverage-9.6.10-arm64:/auto/app/BullsEye/BullseyeCoverage-Latest-arm64:ro" \
-          --sign --push
+          --push
       else
         echo "Skip generic container build"
       fi
+    parallel: true
 
   - name: Build/Upload packages
     credentialsId: 'svc-nbu-swx-repos'
@@ -148,3 +149,4 @@ steps:
       echo "Build package"
       .ci/pkg_build.sh -f _ver
       .ci/pkg_upload.sh -f _ver -s nightly -r doca-nvmf-target-offload
+    parallel: true

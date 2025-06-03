@@ -71,16 +71,12 @@ runs_on_dockers:
     }
 
 steps:
-  - name: Clone DPA sign tool
-    containerSelector: "{name: 'doca_ci'}"
-    run: |
-      git clone "ssh://git-nbu.nvidia.com:12023/DevOps/3S/sign-tool" --depth=1
-
   - name: Build generic docker image
     containerSelector: "{name: 'doca_ci'}"
     credentialsId: '3s-bf3-dpa-prod-role'
     archiveArtifacts: 'artifact.properties'
     run: |
+      export TMPDIR=/var/tmp/generic
       ./container/build_image.sh \
         --build-type=debug \
         --doca-image=$DOCA_IMAGE \
@@ -89,7 +85,8 @@ steps:
         --docker-registry-host=$DOCKER_REGISTRY_HOST \
         --docker-registry-path=$DOCKER_REGISTRY_PATH \
         --docker-image-name=doca_nvmf_target_offload \
-        --sign --push
+        --push
+    parallel: true
 
   - name: Coverity
     containerSelector: "{name:'toolbox'}"
@@ -114,3 +111,4 @@ steps:
       echo "Build package"
       .ci/pkg_build.sh -f _ver
     archiveArtifacts: 'doca-nvmf*.tar.gz'
+    parallel: true
