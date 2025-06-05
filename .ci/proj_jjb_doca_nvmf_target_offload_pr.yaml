@@ -84,7 +84,7 @@
           - pr:
                 conf_file: ".ci/job_matrix_doca_nvmf_target_offload_pr.yaml"
                 status_context: "CI checks"
-                white_branches: ["v2*.nvda.tgt_offload"]
+                white_branches: ["v2.*.nvda.tgt_offload"]
                 black_branches: [""]
                 refspec_default_value: "v25.01.2.nvda.tgt_offload"
                 refspec_description: |
