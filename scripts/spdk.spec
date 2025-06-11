@@ -1,4 +1,4 @@
-%define scm_version 25.01.2
+%define scm_version 25.05.1
 %define unmangled_version %{scm_version}
 %define scm_rev %{_rev}
 %define pkg_ver %{scm_version}-%{scm_rev}
@@ -233,6 +233,9 @@ esac
 %changelog
 * %{_date} Andrii Holovchenko <andriih@nvidia.com>
 - build from %{_branch} (sha1 %{_sha1})
+
+* Wed Jun 11 2025 Andrii Holovchenko <andriih@nvidia.com>
+- Ported to v25.05.1 release
 
 * Fri May 16 2025 Andrii Holovchenko <andriih@nvidia.com>
 - Ported to v25.01.2 release
