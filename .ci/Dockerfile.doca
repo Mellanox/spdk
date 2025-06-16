@@ -56,11 +56,11 @@ RUN set -eux; \
     else \
         NGC_CLI_URL="https://api.ngc.nvidia.com/v2/resources/nvidia/ngc-apps/ngc_cli/versions/${NGC_CLI_VER}/files/ngccli_linux.zip"; \
     fi; \
-    wget --content-disposition $NGC_CLI_URL -O ngccli_linux.zip && \
-    unzip ngccli_linux.zip && \
-    chmod u+x ngc-cli/ngc && \
+    wget --content-disposition $NGC_CLI_URL -O /ngccli_linux.zip && \
+    unzip /ngccli_linux.zip -d / && \
+    chmod u+x /ngc-cli/ngc && \
     ln -s /ngc-cli/ngc /usr/bin/ngc && \
-    rm -f ngccli_linux.zip
+    rm -f /ngccli_linux.zip
 
 ### APT-CLEAN ###
 RUN apt clean && rm -rf /var/lib/apt/lists/*
