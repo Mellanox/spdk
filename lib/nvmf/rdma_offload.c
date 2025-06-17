@@ -4864,7 +4864,7 @@ nvmf_rdma_create(struct spdk_nvmf_transport_opts *opts)
 	rdma_free_devices(contexts);
 
 	rc = nvmf_rdma_sta_start(rtransport);
-	if (DOCA_IS_ERROR(rc)) {
+	if (rc) {
 		SPDK_ERRLOG("Unable to start DOCA STA\n");
 		nvmf_rdma_destroy(&rtransport->transport, NULL, NULL);
 		return NULL;
@@ -4879,11 +4879,6 @@ nvmf_rdma_create(struct spdk_nvmf_transport_opts *opts)
 		opts->io_unit_size = spdk_max(opts->io_unit_size, SPDK_NVMF_RDMA_MIN_IO_BUFFER_SIZE);
 		SPDK_NOTICELOG("Adjusting the io unit size to fit the device's maximum I/O size. New I/O unit size %u\n",
 			       opts->io_unit_size);
-	}
-
-	if (rc < 0) {
-		nvmf_rdma_destroy(&rtransport->transport, NULL, NULL);
-		return NULL;
 	}
 
 	rc = generate_poll_fds(rtransport);
