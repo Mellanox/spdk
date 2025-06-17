@@ -8834,6 +8834,7 @@ nvmf_rdma_bdev_create(struct spdk_nvmf_rdma_transport *rtransport,
 
 		if (rbdev->num_queues == 0) {
 			SPDK_ERRLOG("The number of P2P IO queues cannot be zero\n");
+			nvmf_rdma_bdev_destroy(rbdev);
 			return NULL;
 		}
 		if (rbdev->num_queues < nvme_ctrlr->opts.max_p2p_io_queues) {
