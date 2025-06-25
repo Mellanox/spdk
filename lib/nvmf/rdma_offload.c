@@ -8568,13 +8568,11 @@ nvmf_rdma_bdev_nvme_queue_init(struct spdk_nvmf_rdma_sta *sta,
 	}
 
 	nvme_pqpair = nvme_pcie_qpair(queue->nvme_qpair);
-	SPDK_NOTICELOG("PCIe qpair: sqdb %p, cqdb %p, sq %p, cq %p, num_entries %u"
-		       ", sq_bus_addr %p, cq_bus_addr %p\n",
-		       nvme_pqpair->sq_tdbl, nvme_pqpair->cq_hdbl,
-		       nvme_pqpair->cmd, nvme_pqpair->cpl,
-		       nvme_pqpair->num_entries,
-		       (void *)nvme_pqpair->cmd_bus_addr,
-		       (void *)nvme_pqpair->cpl_bus_addr);
+	SPDK_DEBUGLOG(rdma_offload,
+		      "PCIe qpair: sqdb %p, cqdb %p, sq %p, cq %p, num_entries %u"
+		      ", sq_bus_addr %p, cq_bus_addr %p\n",
+		      nvme_pqpair->sq_tdbl, nvme_pqpair->cq_hdbl, nvme_pqpair->cmd, nvme_pqpair->cpl,
+		      nvme_pqpair->num_entries, (void *)nvme_pqpair->cmd_bus_addr, (void *)nvme_pqpair->cpl_bus_addr);
 
 	queue->sq_mmap = nvmf_rdma_create_doca_mmap(sta->dev,
 			 nvme_pqpair->cmd,
@@ -8606,8 +8604,8 @@ nvmf_rdma_bdev_nvme_queue_init(struct spdk_nvmf_rdma_sta *sta,
 		return -1;
 	}
 
-	SPDK_NOTICELOG("Add DOCA STA nvme backend queue %p to backend %p\n", queue->handle,
-		       rbdev->handle);
+	SPDK_DEBUGLOG(rdma_offload, "Add DOCA STA nvme backend queue %p to backend %p\n", queue->handle,
+		      rbdev->handle);
 	return 0;
 }
 
@@ -8860,9 +8858,9 @@ nvmf_rdma_bdev_create(struct spdk_nvmf_rdma_transport *rtransport,
 			nvmf_rdma_bdev_destroy(rbdev);
 			return NULL;
 		}
-		SPDK_NOTICELOG("Nvme %s BAR0 dmabuf: addr %p, len %lu, fd %d\n", rbdev->name,
-			       rbdev->nvme.bar0_dmabuf->addr, rbdev->nvme.bar0_dmabuf->length,
-			       rbdev->nvme.bar0_dmabuf->fd);
+		SPDK_DEBUGLOG(rdma_offload, "Nvme %s BAR0 dmabuf: addr %p, len %lu, fd %d\n", rbdev->name,
+			      rbdev->nvme.bar0_dmabuf->addr, rbdev->nvme.bar0_dmabuf->length,
+			      rbdev->nvme.bar0_dmabuf->fd);
 
 		rbdev->nvme.bar0_mmap = nvmf_rdma_create_doca_mmap(rtransport->sta.dev,
 					rbdev->nvme.bar0_dmabuf->addr,
