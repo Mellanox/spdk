@@ -8402,6 +8402,11 @@ nvmf_rdma_listen_associate(struct spdk_nvmf_transport *transport,
 	struct spdk_nvmf_rdma_port *port;
 	struct spdk_nvmf_rdma_subsystem *rsubsystem;
 
+	/* Skip discovery subsystems */
+	if (subsystem->subtype != SPDK_NVMF_SUBTYPE_NVME) {
+		return 0;
+	}
+
 	rtransport = SPDK_CONTAINEROF(transport, struct spdk_nvmf_rdma_transport, transport);
 
 	TAILQ_FOREACH(port, &rtransport->ports, link) {
