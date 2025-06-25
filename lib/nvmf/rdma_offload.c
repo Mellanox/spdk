@@ -8835,7 +8835,8 @@ nvmf_rdma_bdev_create(struct spdk_nvmf_rdma_transport *rtransport,
 	if (nvme_ctrlr) {
 		rbdev->type = SPDK_NVMF_RDMA_BDEV_TYPE_NVME;
 		rbdev->nvme.ctrlr = nvme_ctrlr;
-		rbdev->num_queues = spdk_min(nvme_ctrlr->opts.max_p2p_io_queues, rtransport->sta.caps.max_qs_per_be);
+		rbdev->num_queues = spdk_min(nvme_ctrlr->opts.max_p2p_io_queues,
+					     rtransport->sta.caps.max_qs_per_be);
 
 		if (rbdev->num_queues == 0) {
 			SPDK_ERRLOG("The number of P2P IO queues cannot be zero\n");
@@ -10363,4 +10364,5 @@ bdev_is_found:
 cleanup:
 	free_tgt_ofld_get_bdev_queue_mapping(&req);
 }
-SPDK_RPC_REGISTER("tgt_ofld_get_bdev_queue_mapping", rpc_tgt_ofld_get_bdev_queue_mapping, SPDK_RPC_RUNTIME)
+SPDK_RPC_REGISTER("tgt_ofld_get_bdev_queue_mapping", rpc_tgt_ofld_get_bdev_queue_mapping,
+		  SPDK_RPC_RUNTIME)
