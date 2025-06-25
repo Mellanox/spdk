@@ -3,7 +3,7 @@ set -o pipefail
 
 progname=$(basename $0)
 
-DEFECTS_EXPECTED=10
+DEFECTS_EXPECTED=8
 
 function usage()
 {
