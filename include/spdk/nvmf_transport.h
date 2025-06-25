@@ -99,6 +99,7 @@ struct spdk_nvmf_request {
 	union nvmf_h2c_msg		*cmd;
 	union nvmf_c2h_msg		*rsp;
 	STAILQ_ENTRY(spdk_nvmf_request)	buf_link;
+	STAILQ_ENTRY(spdk_nvmf_request)	io_cpl_link;
 	TAILQ_ENTRY(spdk_nvmf_request)	link;
 
 	/* Memory domain which describes payload in this request. If the bdev doesn't support memory
@@ -135,7 +136,7 @@ struct spdk_nvmf_request {
 	uint64_t			iov_offset;
 	struct spdk_nvme_ns_cmd_ext_io_opts	nvme_ext_io_opts;
 };
-SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_request) == 896, "Incorrect size");
+SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_request) == 904, "Incorrect size");
 
 enum spdk_nvmf_qpair_state {
 	SPDK_NVMF_QPAIR_UNINITIALIZED = 0,
@@ -199,6 +200,7 @@ struct spdk_nvmf_transport_poll_group {
 	struct spdk_nvmf_transport					*transport;
 	/* Requests that are waiting to obtain a data buffer */
 	STAILQ_HEAD(, spdk_nvmf_request)				pending_buf_queue;
+	STAILQ_HEAD(, spdk_nvmf_request)				io_to_complete;
 	struct spdk_iobuf_channel					*buf_cache;
 	struct spdk_nvmf_poll_group					*group;
 	struct spdk_poller						*poller;

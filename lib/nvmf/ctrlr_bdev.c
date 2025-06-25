@@ -444,7 +444,7 @@ nvmf_bdev_ctrlr_read_cmd(struct spdk_nvmf_ns *ns, struct spdk_nvmf_subsystem_pg_
 	struct spdk_nvme_cpl *rsp = &req->rsp->nvme_cpl;
 	uint64_t start_lba;
 	uint64_t num_blocks;
-	int rc;
+	int rc = 0;
 
 	nvmf_bdev_ctrlr_get_rw_params(cmd, &start_lba, &num_blocks);
 
@@ -480,6 +480,14 @@ nvmf_bdev_ctrlr_read_cmd(struct spdk_nvmf_ns *ns, struct spdk_nvmf_subsystem_pg_
 
 		rc = spdk_nvme_ns_cmd_readv_ext(ns->bypass_bdev.nvme.ns, qpair, start_lba, num_blocks,
 						nvmf_bdev_bypass_cb, req, nvmf_queued_reset_sgl, nvmf_queued_next_sge, &req->nvme_ext_io_opts);
+		break;
+	}
+	case SPDK_NVMF_NS_BDEV_BYPASS_TYPE_NULL: {
+		struct spdk_nvmf_transport_poll_group *tgroup = nvmf_get_transport_poll_group(req->qpair->group,
+				req->qpair->transport);
+
+		memset(rsp, 0, sizeof(*rsp));
+		STAILQ_INSERT_TAIL(&tgroup->io_to_complete, req, io_cpl_link);
 		break;
 	}
 	default:
@@ -523,7 +531,7 @@ nvmf_bdev_ctrlr_write_cmd(struct spdk_nvmf_ns *ns, struct spdk_nvmf_subsystem_pg
 	struct spdk_nvme_cpl *rsp = &req->rsp->nvme_cpl;
 	uint64_t start_lba;
 	uint64_t num_blocks;
-	int rc;
+	int rc = 0;
 
 	nvmf_bdev_ctrlr_get_rw_params(cmd, &start_lba, &num_blocks);
 
@@ -559,6 +567,14 @@ nvmf_bdev_ctrlr_write_cmd(struct spdk_nvmf_ns *ns, struct spdk_nvmf_subsystem_pg
 
 		rc = spdk_nvme_ns_cmd_writev_ext(ns->bypass_bdev.nvme.ns, qpair, start_lba, num_blocks,
 						 nvmf_bdev_bypass_cb, req, nvmf_queued_reset_sgl, nvmf_queued_next_sge, &req->nvme_ext_io_opts);
+		break;
+	}
+	case SPDK_NVMF_NS_BDEV_BYPASS_TYPE_NULL: {
+		struct spdk_nvmf_transport_poll_group *tgroup = nvmf_get_transport_poll_group(req->qpair->group,
+				req->qpair->transport);
+
+		memset(rsp, 0, sizeof(*rsp));
+		STAILQ_INSERT_TAIL(&tgroup->io_to_complete, req, io_cpl_link);
 		break;
 	}
 	default:

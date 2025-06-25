@@ -60,6 +60,7 @@ enum spdk_nvmf_subsystem_state {
 enum spdk_nvmf_ns_bdev_bypass_type {
 	SPDK_NVMF_NS_BDEV_BYPASS_TYPE_NONE = 0,
 	SPDK_NVMF_NS_BDEV_BYPASS_TYPE_NVME,
+	SPDK_NVMF_NS_BDEV_BYPASS_TYPE_NULL,
 };
 
 RB_HEAD(subsystem_tree, spdk_nvmf_subsystem);

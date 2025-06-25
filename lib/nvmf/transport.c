@@ -665,6 +665,7 @@ nvmf_transport_poll_group_create(struct spdk_nvmf_transport *transport,
 	nvmf_transport_poll_group_create_poller(tgroup);
 
 	STAILQ_INIT(&tgroup->pending_buf_queue);
+	STAILQ_INIT(&tgroup->io_to_complete);
 
 	if (!nvmf_transport_use_iobuf(transport)) {
 		/* We aren't going to allocate any shared buffers or cache, so just return now. */
@@ -820,7 +821,21 @@ nvmf_transport_poll_group_remove(struct spdk_nvmf_transport_poll_group *group,
 int
 nvmf_transport_poll_group_poll(struct spdk_nvmf_transport_poll_group *group)
 {
-	return group->transport->ops->poll_group_poll(group);
+	STAILQ_HEAD(, spdk_nvmf_request) tmp_ios;
+	struct spdk_nvmf_request *req, *tmp;
+	int rc;
+
+	rc = group->transport->ops->poll_group_poll(group);
+
+	STAILQ_INIT(&tmp_ios);
+	STAILQ_SWAP(&tmp_ios, &group->io_to_complete, spdk_nvmf_request);
+
+	STAILQ_FOREACH_SAFE(req, &tmp_ios, io_cpl_link, tmp) {
+		STAILQ_REMOVE_HEAD(&tmp_ios, io_cpl_link);
+		spdk_nvmf_request_complete(req);
+	}
+
+	return rc;
 }
 
 int

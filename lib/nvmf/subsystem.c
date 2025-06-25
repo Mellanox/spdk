@@ -2090,6 +2090,8 @@ nvmf_set_bdev_bypass(struct spdk_nvmf_ns *ns)
 			SPDK_WARNLOG("Failed to get NVMe NS for bdev %s, continue without bypass\n", bdev_name);
 			return -ENOTSUP;
 		}
+	} else if (strcmp(module_name, "null") == 0) {
+		ns->bypass_type = SPDK_NVMF_NS_BDEV_BYPASS_TYPE_NULL;
 	} else {
 		SPDK_WARNLOG("Unsupported bdev module type %s, continue without bypass\n", module_name);
 		return -ENOTSUP;
