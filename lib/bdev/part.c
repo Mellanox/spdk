@@ -443,7 +443,7 @@ bdev_part_base_event_cb(enum spdk_bdev_event_type type, struct spdk_bdev *bdev,
 		base->remove_cb(base);
 		break;
 	default:
-		SPDK_NOTICELOG("Unsupported bdev event: type %d\n", type);
+		SPDK_DEBUGLOG(bdev, "Unsupported bdev event: type %d\n", type);
 		break;
 	}
 }
