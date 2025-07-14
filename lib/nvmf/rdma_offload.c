@@ -9645,6 +9645,12 @@ rpc_tgt_ofld_event_handler_counter_reset(struct spdk_jsonrpc_request *request,
 	struct doca_sta_eu_handle **eu_handles = NULL;
 	struct doca_sta_eu_handle *eu_handle;
 	uint32_t num_eu_handles;
+	enum dpa_sta_eu_type all_eu_types[] = {
+		DOCA_STA_EU_COMP,
+		DOCA_STA_EU_TX,
+		DOCA_STA_EU_BEQ
+	};
+	size_t i;
 	int rc;
 	doca_error_t drc;
 
@@ -9655,12 +9661,6 @@ rpc_tgt_ofld_event_handler_counter_reset(struct spdk_jsonrpc_request *request,
 							 "spdk_json_decode_object failed");
 			goto cleanup;
 		}
-	}
-	if (attr.type == DOCA_STA_EU_MAX && attr.name == NULL) {
-		SPDK_ERRLOG("Either type or name must be configured\n");
-		spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INVALID_PARAMS,
-						 spdk_strerror(EINVAL));
-		goto cleanup;
 	}
 	if (attr.type != DOCA_STA_EU_MAX && attr.name != NULL) {
 		SPDK_ERRLOG("Only one of type and name can be configured\n");
@@ -9684,7 +9684,7 @@ rpc_tgt_ofld_event_handler_counter_reset(struct spdk_jsonrpc_request *request,
 							 doca_error_get_descr(drc));
 			goto cleanup;
 		}
-	} else {
+	} else if (attr.name != NULL) {
 		drc = rpc_tgt_ofld_get_eu_handles(sta, &eu_handles, &num_eu_handles);
 		if (DOCA_IS_ERROR(drc)) {
 			spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INTERNAL_ERROR,
@@ -9706,6 +9706,16 @@ rpc_tgt_ofld_event_handler_counter_reset(struct spdk_jsonrpc_request *request,
 			spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INTERNAL_ERROR,
 							 doca_error_get_descr(drc));
 			goto cleanup;
+		}
+	} else {
+		for (i = 0; i < SPDK_COUNTOF(all_eu_types); i++) {
+			drc = doca_sta_eu_reset_stats_type(sta->sta, all_eu_types[i]);
+			if (DOCA_IS_ERROR(drc)) {
+				SPDK_ERRLOG("Failed to reset EU counters: %s\n", doca_error_get_descr(drc));
+				spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INTERNAL_ERROR,
+								 doca_error_get_descr(drc));
+				goto cleanup;
+			}
 		}
 	}
 
