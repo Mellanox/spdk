@@ -1,21 +1,6 @@
 ---
 workflow:
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      changes:
-        - include/spdk/fsdev.h
-        - include/spdk/fsdev_module.h
-        - include/linux/virtio_fs.h
-        - include/linux/fuse_kernel.h
-        - include/linux/virtio_types.h
-        - python/spdk/rpc/fsdev.py
-        - lib/fsdev/**/*
-        - lib/fuse_dispatcher/**/*
-        - module/event/subsystems/fsdev/**/*
-        - module/fsdev/**/*
-        - test/unit/lib/fsdev/**/*
-      variables:
-        PIPELINE_TYPE: "fsdev"
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
 
 stages:
@@ -108,9 +93,6 @@ unittest-mlx5_dv-release:
         - go/
         - rpmbuild/
       when: never
-    - if: $PIPELINE_TYPE == "fsdev"
-      when: manual
-      allow_failure: true
     - when: on_success
   hooks:
     pre_get_sources_script:
@@ -254,11 +236,6 @@ check-so-deps-job:
 external-code-test-job:
   extends: .test-job-vm-template
   tags: [not-crypto, vm, linux, x86_64, f39]
-  rules:
-    - if: $PIPELINE_TYPE == "fsdev"
-      when: on_success
-    - when: manual
-      allow_failure: true
   script:
     # clean up output from previous runs
     - sudo rm -rf $CI_PROJECT_DIR/../output/
@@ -274,11 +251,6 @@ test-virtio-fs-app:
   variables:
     VIRTIO_FS_TARGET_REF: main
     GIT_STRATEGY: none
-  rules:
-    - if: $PIPELINE_TYPE == "fsdev"
-      when: on_success
-    - when: manual
-      allow_failure: true
   script:
     - |
       if [ x"$VIRTIO_FS_CI_WEBREPO_URL" != x"" ]; then
