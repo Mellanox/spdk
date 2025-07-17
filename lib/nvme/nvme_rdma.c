@@ -2173,7 +2173,9 @@ nvme_rdma_qpair_flush_send_wrs(struct nvme_rdma_qpair *rqpair)
 static int
 nvme_rdma_qpair_disconnected(struct nvme_rdma_qpair *rqpair, int ret)
 {
-	nvme_rdma_qpair_flush_send_wrs(rqpair);
+	if (rqpair->rdma_qp != NULL) {
+		nvme_rdma_qpair_flush_send_wrs(rqpair);
+	}
 
 	if (rqpair->num_active_accel_reqs != 0) {
 		SPDK_DEBUGLOG(nvme, "qp %p has %u accel requests\n", rqpair, rqpair->num_active_accel_reqs);
