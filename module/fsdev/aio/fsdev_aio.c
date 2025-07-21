@@ -4834,6 +4834,9 @@ fsdev_aio_dump_info_json(void *ctx, struct spdk_json_write_ctx *w)
 	spdk_json_write_named_bool(w, "enable_notifications", vfsdev->opts.enable_notifications);
 	spdk_json_write_named_uint32(w, "attr_valid_ms", vfsdev->opts.attr_valid_ms);
 	spdk_json_write_named_bool(w, "disable_copy_file_range", vfsdev->opts.disable_copy_file_range);
+	spdk_json_write_named_object_begin(w, "io_uring");
+	spdk_json_write_named_bool(w, "rdwr", aio_fsdev_use_io_uring_rdwr());
+	spdk_json_write_object_end(w);
 
 	return 0;
 }
