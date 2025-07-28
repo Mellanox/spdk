@@ -56,6 +56,9 @@ enum spdk_nvmf_rdma_request_state {
 	/* The request is queued until a data buffer is available. */
 	RDMA_REQUEST_STATE_NEED_BUFFER,
 
+	/* The request has a data buffer available. */
+	RDMA_REQUEST_STATE_HAVE_BUFFER,
+
 	/* The request is queued until accel task is available. */
 	RDMA_REQUEST_STATE_NEED_ACCEL_TASK,
 
@@ -130,6 +133,9 @@ nvmf_trace(void)
 
 	spdk_trace_register_description_ext(opts, SPDK_COUNTOF(opts));
 	spdk_trace_register_description("RDMA_REQ_NEED_BUFFER", TRACE_RDMA_REQUEST_STATE_NEED_BUFFER,
+					OWNER_TYPE_NONE, OBJECT_NVMF_RDMA_IO, 0,
+					SPDK_TRACE_ARG_TYPE_PTR, "qpair");
+	spdk_trace_register_description("RDMA_REQ_HAVE_BUFFER", TRACE_RDMA_REQUEST_STATE_HAVE_BUFFER,
 					OWNER_TYPE_NONE, OBJECT_NVMF_RDMA_IO, 0,
 					SPDK_TRACE_ARG_TYPE_PTR, "qpair");
 	spdk_trace_register_description("RDMA_REQ_NEED_ACCEL", TRACE_RDMA_REQUEST_STATE_NEED_ACCEL_TASK,
@@ -2667,6 +2673,11 @@ nvmf_rdma_request_process(struct spdk_nvmf_rdma_transport *rtransport,
 			}
 
 			STAILQ_REMOVE_HEAD(&rgroup->group.pending_buf_queue, buf_link);
+			rdma_req->state = RDMA_REQUEST_STATE_HAVE_BUFFER;
+			break;
+		case RDMA_REQUEST_STATE_HAVE_BUFFER:
+			spdk_trace_record(TRACE_RDMA_REQUEST_STATE_HAVE_BUFFER, 0, 0,
+					  (uintptr_t)rdma_req, (uintptr_t)rqpair);
 
 			if (rdma_req->req.use_accel_seq) {
 				STAILQ_INSERT_TAIL(&rgroup->pending_accel_queue, rdma_req, state_link);
