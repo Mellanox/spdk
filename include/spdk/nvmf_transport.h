@@ -269,7 +269,8 @@ struct spdk_nvmf_transport {
 	struct spdk_nvmf_tgt			*tgt;
 	const struct spdk_nvmf_transport_ops	*ops;
 	struct spdk_nvmf_transport_opts		opts;
-
+	uint32_t				large_iobuf_size;
+	uint32_t				small_iobuf_size;
 	char					iobuf_name[MAX_MEMPOOL_NAME_LENGTH];
 
 	TAILQ_HEAD(, spdk_nvmf_listener)	listeners;

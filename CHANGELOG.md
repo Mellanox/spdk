@@ -21,6 +21,16 @@ implementations.
 Changed the return behavior of `spdk_sock_flush`. The function now returns 0 on success, as relying
 on the number of bytes returned was not recommended.
 
+### nvmf
+
+Parameters of `nvmf_create_transport` and buffers caching logic has been updated. The following parameters
+are deprecated and will be removed: `buf-cache-size`, `num-shared-buffers`. New parameters to set the exact
+number of small or large buffers were added: `small-buf-cache-size` and `large-buf-cache-size`.
+A new parameter `enable-pool-selection` has been added. If set, nvmf transport picks a buffer from either
+small or large pool depending on IO size. E.g. with default iobuf config, for 4KiB IO a buffer from the small
+pool is used and for 16KiB IO a buffer from the large pool is used. By default this parameter is disabled and
+legacy behaviour is preserved - only one pool is selected depending on the io_unit_size parameter.
+
 ## v25.05
 
 ### accel_mlx5

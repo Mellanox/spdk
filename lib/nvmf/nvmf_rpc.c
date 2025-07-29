@@ -2564,6 +2564,10 @@ static const struct spdk_json_object_decoder nvmf_rpc_create_transport_decoder[]
 		"large_buf_cache_size", offsetof(struct nvmf_rpc_create_transport_ctx, opts.large_buf_cache_size),
 		spdk_json_decode_uint32, true
 	},
+	{
+		"enable_pool_selection", offsetof(struct nvmf_rpc_create_transport_ctx, opts.enable_pool_selection),
+		spdk_json_decode_bool, true
+	},
 };
 
 static void

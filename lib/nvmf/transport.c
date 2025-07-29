@@ -87,6 +87,7 @@ nvmf_transport_dump_opts(struct spdk_nvmf_transport *transport, struct spdk_json
 	spdk_json_write_named_uint32(w, "large_buf_cache_size", opts->large_buf_cache_size);
 	spdk_json_write_named_bool(w, "dif_insert_or_strip", opts->dif_insert_or_strip);
 	spdk_json_write_named_bool(w, "zcopy", opts->zcopy);
+	spdk_json_write_named_bool(w, "enable_pool_selection", opts->enable_pool_selection);
 
 	if (transport->ops->dump_opts) {
 		transport->ops->dump_opts(transport, w);
@@ -178,6 +179,7 @@ nvmf_transport_opts_copy(struct spdk_nvmf_transport_opts *opts,
 	SET_FIELD(association_timeout);
 	SET_FIELD(transport_specific);
 	SET_FIELD(acceptor_poll_rate);
+	SET_FIELD(enable_pool_selection);
 	SET_FIELD(zcopy);
 	SET_FIELD(ack_timeout);
 	SET_FIELD(msdbd);
@@ -230,6 +232,11 @@ nvmf_transport_create_async_done(void *cb_arg, struct spdk_nvmf_transport *trans
 	}
 
 	if (nvmf_transport_use_iobuf(transport)) {
+		struct spdk_iobuf_opts opts_iobuf = {};
+
+		spdk_iobuf_get_opts(&opts_iobuf, sizeof(opts_iobuf));
+		transport->large_iobuf_size = opts_iobuf.large_bufsize;
+		transport->small_iobuf_size = opts_iobuf.small_bufsize;
 		spdk_iobuf_register_module(transport->iobuf_name);
 	}
 
@@ -961,6 +968,14 @@ nvmf_request_get_buffers(struct spdk_nvmf_request *req,
 	uint32_t i = 0;
 	void *buffer;
 
+	if (transport->opts.enable_pool_selection) {
+		if (length > transport->small_iobuf_size) {
+			io_unit_size = transport->large_iobuf_size;
+		} else {
+			io_unit_size = transport->small_iobuf_size;
+		}
+	}
+
 	/* If the number of buffers is too large, then we know the I/O is larger than allowed.
 	 *  Fail it.
 	 */
@@ -1007,6 +1022,14 @@ nvmf_request_iobuf_get_cb(struct spdk_iobuf_entry *entry, void *buf)
 
 	assert(tgroup != NULL);
 
+	if (transport->opts.enable_pool_selection) {
+		if (length > transport->small_iobuf_size) {
+			io_unit_size = transport->large_iobuf_size;
+		} else {
+			io_unit_size = transport->small_iobuf_size;
+		}
+	}
+
 	length = nvmf_request_set_buffer(req, buf, length, io_unit_size);
 	rc = nvmf_request_get_buffers(req, tgroup, transport, length, io_unit_size, false);
 	if (rc == 0) {
@@ -1038,14 +1061,26 @@ nvmf_request_get_buffers_abort_cb(struct spdk_iobuf_channel *ch, struct spdk_iob
 				  void *cb_ctx)
 {
 	struct spdk_nvmf_request *req, *req_to_abort = cb_ctx;
+	struct spdk_nvmf_transport *transport;
+	uint32_t io_unit_size;
 
 	req = SPDK_CONTAINEROF(entry, struct spdk_nvmf_request, iobuf.entry);
 	if (req != req_to_abort) {
 		return 0;
 	}
 
-	spdk_iobuf_entry_abort(ch, entry, spdk_min(req->iobuf.remaining_length,
-			       req->qpair->transport->opts.io_unit_size));
+	transport = req->qpair->transport;
+	io_unit_size = transport->opts.io_unit_size;
+
+	if (transport->opts.enable_pool_selection) {
+		if (req->iobuf.remaining_length > transport->small_iobuf_size) {
+			io_unit_size = transport->large_iobuf_size;
+		} else {
+			io_unit_size = transport->small_iobuf_size;
+		}
+	}
+
+	spdk_iobuf_entry_abort(ch, entry, spdk_min(req->iobuf.remaining_length, io_unit_size));
 	return 1;
 }
 

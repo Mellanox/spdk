@@ -106,9 +106,10 @@ struct spdk_nvmf_transport_opts {
 	uint32_t acceptor_poll_rate;
 	/* Use zero-copy operations if the underlying bdev supports them */
 	bool zcopy;
-
-	/* Hole at bytes 61-63. */
-	uint8_t reserved61[3];
+	/* Enable small/large pool selection depending on the IO size and configured io_unit_size, if set then the preferred pool size is max(IO size, io_unit_size) */
+	bool enable_pool_selection;
+	/* Hole at bytes 62-63. */
+	uint8_t reserved62[2];
 	/* ACK timeout in milliseconds */
 	uint32_t ack_timeout;
 	/* Size of RDMA data WR pool */
