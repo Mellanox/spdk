@@ -2553,6 +2553,10 @@ static const struct spdk_json_object_decoder nvmf_rpc_create_transport_decoder[]
 		"small_buf_cache_size", offsetof(struct nvmf_rpc_create_transport_ctx, opts.small_buf_cache_size),
 		spdk_json_decode_uint32, true
 	},
+	{
+		"large_buf_cache_size", offsetof(struct nvmf_rpc_create_transport_ctx, opts.large_buf_cache_size),
+		spdk_json_decode_uint32, true
+	},
 };
 
 static void

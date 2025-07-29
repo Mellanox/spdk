@@ -123,8 +123,12 @@ struct spdk_nvmf_transport_opts {
 	uint32_t min_kato;
 	/* kas indicates the granularity of the Keep Alive Timer in 100ms units. */
 	uint16_t kas;
+	/* Hole at bytes 78-80. */
+	uint8_t reserved78[2];
+	/* The number of shared buffers from a large iobuf pool to reserve for each poll group. If set to UINT32_MAX then 50% of the large buffers will be used. */
+	uint32_t large_buf_cache_size;
 } __attribute__((packed));
-SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_transport_opts) == 82, "Incorrect size");
+SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_transport_opts) == 88, "Incorrect size");
 
 struct spdk_nvmf_listen_opts {
 	/**
