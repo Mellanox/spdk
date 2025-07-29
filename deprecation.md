@@ -91,3 +91,9 @@ are officially marked as such to ensure the library's deprecation is noticed.
 The SPDK rocksdb plugin is deprecated and will be removed in 25.09 release.
 This C++ plugin exports no public APIs, so none are listed here, but
 the pluging will emit deprecation warnings when usage is detected.
+
+### nvmf
+
+#### `nvmf_create_transport`
+
+buf-cache-size parameter is deprecated in favor of small-buf-cache-size and will be removed in 26.01 release

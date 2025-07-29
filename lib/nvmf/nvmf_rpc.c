@@ -2464,6 +2464,13 @@ nvmf_rpc_decode_max_io_qpairs(const struct spdk_json_val *val, void *out)
 	return rc;
 }
 
+static int
+decode_buf_cache_size(const struct spdk_json_val *val, void *out)
+{
+	SPDK_WARNLOG("buf_cache_size is deprecated, use small_buf_cache_size instead\n");
+	return spdk_json_decode_uint32(val, out);
+}
+
 static const struct spdk_json_object_decoder nvmf_rpc_create_transport_decoder[] = {
 	{	"trtype", offsetof(struct nvmf_rpc_create_transport_ctx, trtype), spdk_json_decode_string},
 	{
@@ -2496,7 +2503,7 @@ static const struct spdk_json_object_decoder nvmf_rpc_create_transport_decoder[]
 	},
 	{
 		"buf_cache_size", offsetof(struct nvmf_rpc_create_transport_ctx, opts.buf_cache_size),
-		spdk_json_decode_uint32, true
+		decode_buf_cache_size, true
 	},
 	{
 		"dif_insert_or_strip", offsetof(struct nvmf_rpc_create_transport_ctx, opts.dif_insert_or_strip),
@@ -2541,7 +2548,11 @@ static const struct spdk_json_object_decoder nvmf_rpc_create_transport_decoder[]
 	{
 		"min_kato", offsetof(struct nvmf_rpc_create_transport_ctx, opts.min_kato),
 		spdk_json_decode_uint32, true
-	}
+	},
+	{
+		"small_buf_cache_size", offsetof(struct nvmf_rpc_create_transport_ctx, opts.small_buf_cache_size),
+		spdk_json_decode_uint32, true
+	},
 };
 
 static void

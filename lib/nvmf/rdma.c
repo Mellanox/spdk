@@ -2989,7 +2989,7 @@ nvmf_rdma_request_process(struct spdk_nvmf_rdma_transport *rtransport,
 #define SPDK_NVMF_RDMA_DEFAULT_MAX_IO_SIZE 131072
 #define SPDK_NVMF_RDMA_MIN_IO_BUFFER_SIZE (SPDK_NVMF_RDMA_DEFAULT_MAX_IO_SIZE / SPDK_NVMF_MAX_SGL_ENTRIES)
 #define SPDK_NVMF_RDMA_DEFAULT_NUM_SHARED_BUFFERS 4095
-#define SPDK_NVMF_RDMA_DEFAULT_BUFFER_CACHE_SIZE UINT32_MAX
+#define SPDK_NVMF_RDMA_DEFAULT_SMALL_BUFFER_CACHE_SIZE UINT32_MAX
 #define SPDK_NVMF_RDMA_DEFAULT_NO_SRQ false
 #define SPDK_NVMF_RDMA_DIF_INSERT_OR_STRIP false
 #define SPDK_NVMF_RDMA_ACCEPTOR_BACKLOG 100
@@ -3007,7 +3007,7 @@ nvmf_rdma_opts_init(struct spdk_nvmf_transport_opts *opts)
 	opts->io_unit_size =		SPDK_NVMF_RDMA_MIN_IO_BUFFER_SIZE;
 	opts->max_aq_depth =		SPDK_NVMF_RDMA_DEFAULT_AQ_DEPTH;
 	opts->num_shared_buffers =	SPDK_NVMF_RDMA_DEFAULT_NUM_SHARED_BUFFERS;
-	opts->buf_cache_size =		SPDK_NVMF_RDMA_DEFAULT_BUFFER_CACHE_SIZE;
+	opts->small_buf_cache_size =	SPDK_NVMF_RDMA_DEFAULT_SMALL_BUFFER_CACHE_SIZE;
 	opts->dif_insert_or_strip =	SPDK_NVMF_RDMA_DIF_INSERT_OR_STRIP;
 	opts->abort_timeout_sec =	SPDK_NVMF_RDMA_DEFAULT_ABORT_TIMEOUT_SEC;
 	opts->msdbd =			NVMF_DEFAULT_MSDBD;
@@ -3242,8 +3242,8 @@ nvmf_rdma_create(struct spdk_nvmf_transport_opts *opts)
 	}
 
 	/* If buf_cache_size == UINT32_MAX, we will dynamically pick a cache size later that we know will fit. */
-	if (opts->buf_cache_size < UINT32_MAX) {
-		min_shared_buffers = spdk_env_get_core_count() * opts->buf_cache_size;
+	if (opts->small_buf_cache_size < UINT32_MAX) {
+		min_shared_buffers = spdk_env_get_core_count() * opts->small_buf_cache_size;
 		if (min_shared_buffers > opts->num_shared_buffers) {
 			SPDK_ERRLOG("There are not enough buffers to satisfy"
 				    "per-poll group caches for each thread. (%" PRIu32 ")"
