@@ -3298,7 +3298,7 @@ nvmf_non_offload_request_transfer_out(struct nvmf_non_offload_request *non_offlo
 	if (rsp->status.sc == SPDK_NVME_SC_SUCCESS &&
 	    req->xfer == SPDK_NVME_DATA_CONTROLLER_TO_HOST) {
 		*data_posted = 1;
-		SPDK_DEBUGLOG(rdma_offload, "RDMA_READ and SEND task, req %p\n", non_offload_req);
+		SPDK_DEBUGLOG(rdma_offload, "RDMA_WRITE and SEND task, req %p\n", non_offload_req);
 		drc = doca_sta_io_task_non_offload_rdma_write_send_alloc_init(oqpair->opoller->sta_io,
 				task_user_data,
 				oqpair->handle,
