@@ -592,6 +592,12 @@ struct spdk_nvmf_offload_qpair {
 	struct rdma_cm_id			*cm_id;
 	struct rdma_cm_id			*listen_id;
 
+	/* Stored transport information for when cm_id is destroyed */
+	struct sockaddr_storage			peer_addr;
+	struct sockaddr_storage			local_addr;
+	uint16_t				peer_port;
+	uint16_t				local_port;
+
 	/* The maximum number of I/O outstanding on this connection at one time */
 	uint16_t				max_queue_depth;
 
@@ -1808,6 +1814,28 @@ nvmf_rdma_event_reject(struct rdma_cm_id *id, enum spdk_nvmf_rdma_transport_erro
 	rdma_reject(id, &rej_data, sizeof(rej_data));
 }
 
+static void
+copy_sockaddr(const struct sockaddr *src, struct sockaddr_storage *dst)
+{
+	socklen_t len;
+
+	memset(dst, 0, sizeof(*dst));
+
+	switch (src->sa_family) {
+	case AF_INET:
+		len = sizeof(struct sockaddr_in);
+		break;
+	case AF_INET6:
+		len = sizeof(struct sockaddr_in6);
+		break;
+	default:
+		SPDK_ERRLOG("Unsupported sa_family %d\n", src->sa_family);
+		assert(0);
+		return;
+	}
+	memcpy(dst, src, len);
+}
+
 static int
 nvmf_rdma_connect(struct spdk_nvmf_transport *transport, struct rdma_cm_event *event)
 {
@@ -1937,6 +1965,13 @@ nvmf_rdma_connect(struct spdk_nvmf_transport *transport, struct rdma_cm_event *e
 		oqpair->max_read_depth = max_read_depth;
 		oqpair->cm_id = event->id;
 		oqpair->listen_id = event->listen_id;
+
+		/* Initialize transport info fields */
+		copy_sockaddr(rdma_get_peer_addr(oqpair->cm_id), &oqpair->peer_addr);
+		copy_sockaddr(rdma_get_local_addr(oqpair->cm_id), &oqpair->local_addr);
+		oqpair->peer_port = ntohs(rdma_get_dst_port(oqpair->cm_id));
+		oqpair->local_port = ntohs(rdma_get_src_port(oqpair->cm_id));
+
 		STAILQ_INIT(&oqpair->pending_rdma_read_queue);
 		STAILQ_INIT(&oqpair->pending_rdma_write_queue);
 		STAILQ_INIT(&oqpair->pending_rdma_send_queue);
@@ -8017,21 +8052,13 @@ nvmf_rdma_poll_group_poll(struct spdk_nvmf_transport_poll_group *group)
 }
 
 static int
-nvmf_rdma_trid_from_cm_id(struct rdma_cm_id *id,
-			  struct spdk_nvme_transport_id *trid,
-			  bool peer)
+nvmf_rdma_trid_from_sockaddr(struct sockaddr *saddr,
+			     uint16_t port,
+			     struct spdk_nvme_transport_id *trid)
 {
-	struct sockaddr *saddr;
-	uint16_t port;
-
 	trid->trtype = spdk_nvmf_transport_rdma_offload.type;
 	snprintf(trid->trstring, SPDK_NVMF_TRSTRING_MAX_LEN, "%s", spdk_nvmf_transport_rdma_offload.name);
 
-	if (peer) {
-		saddr = rdma_get_peer_addr(id);
-	} else {
-		saddr = rdma_get_local_addr(id);
-	}
 	switch (saddr->sa_family) {
 	case AF_INET: {
 		struct sockaddr_in *saddr_in = (struct sockaddr_in *)saddr;
@@ -8039,33 +8066,43 @@ nvmf_rdma_trid_from_cm_id(struct rdma_cm_id *id,
 		trid->adrfam = SPDK_NVMF_ADRFAM_IPV4;
 		inet_ntop(AF_INET, &saddr_in->sin_addr,
 			  trid->traddr, sizeof(trid->traddr));
-		if (peer) {
-			port = ntohs(rdma_get_dst_port(id));
-		} else {
-			port = ntohs(rdma_get_src_port(id));
-		}
 		snprintf(trid->trsvcid, sizeof(trid->trsvcid), "%u", port);
 		break;
 	}
 	case AF_INET6: {
-		struct sockaddr_in6 *saddr_in = (struct sockaddr_in6 *)saddr;
+		struct sockaddr_in6 *saddr_in6 = (struct sockaddr_in6 *)saddr;
+
 		trid->adrfam = SPDK_NVMF_ADRFAM_IPV6;
-		inet_ntop(AF_INET6, &saddr_in->sin6_addr,
+		inet_ntop(AF_INET6, &saddr_in6->sin6_addr,
 			  trid->traddr, sizeof(trid->traddr));
-		if (peer) {
-			port = ntohs(rdma_get_dst_port(id));
-		} else {
-			port = ntohs(rdma_get_src_port(id));
-		}
 		snprintf(trid->trsvcid, sizeof(trid->trsvcid), "%u", port);
 		break;
 	}
 	default:
+		SPDK_ERRLOG("Unsupported address family %d\n", saddr->sa_family);
 		return -1;
-
 	}
 
 	return 0;
+}
+
+static int
+nvmf_rdma_trid_from_cm_id(struct rdma_cm_id *id,
+			  struct spdk_nvme_transport_id *trid,
+			  bool peer)
+{
+	struct sockaddr *saddr;
+	uint16_t port;
+
+	if (peer) {
+		saddr = rdma_get_peer_addr(id);
+		port = ntohs(rdma_get_dst_port(id));
+	} else {
+		saddr = rdma_get_local_addr(id);
+		port = ntohs(rdma_get_src_port(id));
+	}
+
+	return nvmf_rdma_trid_from_sockaddr(saddr, port, trid);
 }
 
 static int
@@ -8075,22 +8112,19 @@ nvmf_rdma_qpair_get_peer_trid(struct spdk_nvmf_qpair *qpair,
 	struct spdk_nvmf_common_qpair	*cqpair;
 	struct spdk_nvmf_rdma_qpair	*rqpair;
 	struct spdk_nvmf_offload_qpair	*oqpair;
-	struct rdma_cm_id		*cm_id;
 
 	cqpair = SPDK_CONTAINEROF(qpair, struct spdk_nvmf_common_qpair, qpair);
 
 	if (cqpair->type == SPDK_NVMF_COMMON_QPAIR_RDMA) {
 		rqpair = nvmf_rdma_qpair_get(qpair);
-		cm_id = rqpair->cm_id;
+		return nvmf_rdma_trid_from_cm_id(rqpair->cm_id, trid, true);
 	} else if (cqpair->type == SPDK_NVMF_COMMON_QPAIR_OFFLOAD) {
 		oqpair = nvmf_offload_qpair_get(qpair);
-		cm_id = oqpair->cm_id;
-	} else {
-		SPDK_ERRLOG("Unknown qpair type %d\n", cqpair->type);
-		return -EINVAL;
+		return nvmf_rdma_trid_from_sockaddr((struct sockaddr *)&oqpair->peer_addr, oqpair->peer_port, trid);
 	}
 
-	return nvmf_rdma_trid_from_cm_id(cm_id, trid, true);
+	SPDK_ERRLOG("Unknown qpair type %d\n", cqpair->type);
+	return -1;
 }
 
 static int
@@ -8100,22 +8134,19 @@ nvmf_rdma_qpair_get_local_trid(struct spdk_nvmf_qpair *qpair,
 	struct spdk_nvmf_common_qpair	*cqpair;
 	struct spdk_nvmf_rdma_qpair	*rqpair;
 	struct spdk_nvmf_offload_qpair	*oqpair;
-	struct rdma_cm_id		*cm_id;
 
 	cqpair = SPDK_CONTAINEROF(qpair, struct spdk_nvmf_common_qpair, qpair);
 
 	if (cqpair->type == SPDK_NVMF_COMMON_QPAIR_RDMA) {
 		rqpair = nvmf_rdma_qpair_get(qpair);
-		cm_id = rqpair->cm_id;
+		return nvmf_rdma_trid_from_cm_id(rqpair->cm_id, trid, false);
 	} else if (cqpair->type == SPDK_NVMF_COMMON_QPAIR_OFFLOAD) {
 		oqpair = nvmf_offload_qpair_get(qpair);
-		cm_id = oqpair->cm_id;
-	} else {
-		SPDK_ERRLOG("Unknown qpair type %d\n", cqpair->type);
-		return -EINVAL;
+		return nvmf_rdma_trid_from_sockaddr((struct sockaddr *)&oqpair->local_addr, oqpair->local_port, trid);
 	}
 
-	return nvmf_rdma_trid_from_cm_id(cm_id, trid, false);
+	SPDK_ERRLOG("Unknown qpair type %d\n", cqpair->type);
+	return -1;
 }
 
 static int
