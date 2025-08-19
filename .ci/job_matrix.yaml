@@ -55,6 +55,14 @@ steps:
       sudo chown -R $uid:$gid $WORKSPACE
       git config --global --add safe.directory "*"
 
+  - name: Install XLIO
+    containerSelector:
+      - "{name: 'ubuntu22_04', variant:1, arch: 'aarch64'}"
+    run: |
+      sudo echo "deb [trusted=yes] https://urm.nvidia.com/artifactory/sw-nbu-swx-ci-debian-local jammy libxlio" | sudo tee /etc/apt/sources.list.d/xlio.list
+      sudo apt update 
+      sudo apt install libxlio=3.60.1-1 libxlio-dev=3.60.1-1 libxlio-utils=3.60.1-1 libxlio-dbg=3.60.1-1 dpcp -y
+
   - name: Build distro package
     run: |
       if [[ -e /etc/redhat-release || -e /etc/openEuler-release ]]; then
