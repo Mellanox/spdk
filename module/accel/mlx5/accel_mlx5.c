@@ -67,7 +67,7 @@ struct accel_mlx5_dev_ctx {
 	bool crypto_mkeys;
 	bool sig_mkeys;
 	bool crypto_sig_mkeys;
-	bool crypto_multi_block;
+	struct spdk_mlx5_device_caps caps;
 };
 
 enum accel_mlx5_opcode {
@@ -4508,7 +4508,8 @@ accel_mlx5_create_cb(void *io_device, void *ctx_buf)
 		dev_ctx = &g_accel_mlx5.dev_ctxs[i];
 		dev = &ch->devs[i];
 		dev->dev_ctx = dev_ctx;
-		dev->crypto_multi_block = dev_ctx->crypto_multi_block;
+		dev->crypto_multi_block = (dev_ctx->caps.crypto_supported == 1) ?
+					  dev_ctx->caps.crypto.multi_block_be_tweak : false;
 		dev->ch = spdk_io_channel_from_ctx(ctx_buf);
 		RB_INIT(&dev->qpairs_map);
 
@@ -4580,7 +4581,7 @@ accel_mlx5_create_cb(void *io_device, void *ctx_buf)
 			rc = -ENOMEM;
 			goto err_out;
 		}
-		dev->crypto_split_blocks = dev_ctx->crypto_multi_block ? g_accel_mlx5.attr.crypto_split_blocks : 0;
+		dev->crypto_split_blocks = dev->crypto_multi_block ? g_accel_mlx5.attr.crypto_split_blocks : 0;
 		dev->wrs_in_cq_max = g_accel_mlx5.attr.qp_size;
 		dev->ch = spdk_io_channel_from_ctx(ctx_buf);
 		STAILQ_INIT(&dev->nomem);
@@ -4931,6 +4932,7 @@ accel_mlx5_dev_ctx_init(struct accel_mlx5_dev_ctx *dev_ctx, struct ibv_context *
 	}
 	dev_ctx->context = dev;
 	dev_ctx->pd = pd;
+	dev_ctx->caps = *caps;
 	dev_ctx->map = spdk_rdma_utils_create_mem_map(dev_ctx->pd, NULL,
 			IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_READ | IBV_ACCESS_REMOTE_WRITE);
 	if (!dev_ctx->map) {
@@ -4949,8 +4951,7 @@ accel_mlx5_dev_ctx_init(struct accel_mlx5_dev_ctx *dev_ctx, struct ibv_context *
 	dev_ctx->mkeys = true;
 
 	if (g_accel_mlx5.crypto_supported) {
-		dev_ctx->crypto_multi_block = caps->crypto.multi_block_be_tweak;
-		if (!dev_ctx->crypto_multi_block && g_accel_mlx5.attr.crypto_split_blocks) {
+		if (!dev_ctx->caps.crypto.multi_block_be_tweak && g_accel_mlx5.attr.crypto_split_blocks) {
 			SPDK_WARNLOG("\"crypto_split_blocks\" is set but dev %s doesn't support multi block crypto\n",
 				     dev->device->name);
 		}
