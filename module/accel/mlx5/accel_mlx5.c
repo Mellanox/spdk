@@ -4580,7 +4580,6 @@ accel_mlx5_create_cb(void *io_device, void *ctx_buf)
 			rc = -ENOMEM;
 			goto err_out;
 		}
-		dev->crypto_multi_block = dev_ctx->crypto_multi_block;
 		dev->crypto_split_blocks = dev_ctx->crypto_multi_block ? g_accel_mlx5.attr.crypto_split_blocks : 0;
 		dev->wrs_in_cq_max = g_accel_mlx5.attr.qp_size;
 		dev->ch = spdk_io_channel_from_ctx(ctx_buf);
