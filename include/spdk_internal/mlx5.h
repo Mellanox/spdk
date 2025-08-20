@@ -262,21 +262,21 @@ struct spdk_mlx5_umr_block_sig_attr {
 };
 
 struct spdk_mlx5_device_crypto_caps {
-	bool wrapped_crypto_operational;
-	bool wrapped_crypto_going_to_commissioning;
-	bool wrapped_import_method_aes_xts;
-	bool single_block_le_tweak;
-	bool multi_block_be_tweak;
-	bool multi_block_le_tweak;
-	bool tweak_inc_64;
-	bool large_mtu_tweak;
+	uint8_t wrapped_crypto_operational : 1;
+	uint8_t wrapped_crypto_going_to_commissioning : 1;
+	uint8_t wrapped_import_method_aes_xts : 1;
+	uint8_t single_block_le_tweak : 1;
+	uint8_t multi_block_be_tweak : 1;
+	uint8_t multi_block_le_tweak : 1;
+	uint8_t tweak_inc_64 : 1;
+	uint8_t large_mtu_tweak : 1;
 };
 
 struct spdk_mlx5_device_caps {
-	/* Content of this structure is valid only if crypto_supported is true */
+	/* Content of this structure is valid only if crypto_supported is 1 */
 	struct spdk_mlx5_device_crypto_caps crypto;
-	bool crypto_supported;
-	bool crc32c_supported;
+	uint8_t crypto_supported : 1;
+	uint8_t crc32c_supported : 1;
 };
 
 /**
