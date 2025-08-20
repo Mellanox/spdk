@@ -124,7 +124,6 @@ mlx5_qp_init(struct ibv_pd *pd, const struct spdk_mlx5_qp_attr *attr, struct ibv
 {
 	struct mlx5dv_qp dv_qp;
 	struct mlx5dv_obj dv_obj;
-	struct spdk_mlx5_device_caps caps = {};
 	struct ibv_qp_init_attr_ex dv_qp_attr = {
 		.qp_context = attr->qp_context,
 		.cap = attr->cap,
@@ -151,11 +150,6 @@ mlx5_qp_init(struct ibv_pd *pd, const struct spdk_mlx5_qp_attr *attr, struct ibv
 	if (attr->srq && attr->cap.max_recv_wr) {
 		SPDK_ERRLOG("SRQ and RQ can't be enabled simultaneously\n");
 		return -EINVAL;
-	}
-	rc = spdk_mlx5_device_query_caps(pd->context, &caps);
-	if (rc) {
-		SPDK_ERRLOG("Failed to query dev %s crypto caps\n", pd->context->device->name);
-		return rc;
 	}
 
 	qp->verbs_qp = mlx5dv_create_qp(pd->context, &dv_qp_attr, &mlx5_qp_attr);
@@ -203,7 +197,7 @@ mlx5_qp_init(struct ibv_pd *pd, const struct spdk_mlx5_qp_attr *attr, struct ibv
 	qp->max_send_sge = attr->cap.max_send_sge;
 	qp->rx_available = qp->hw.rq_wqe_cnt;
 	qp->max_recv_sge = attr->cap.max_recv_sge;
-	qp->aes_xts_inc_64 = caps.crypto.tweak_inc_64;
+	qp->aes_xts_inc_64 = attr->aes_xts_inc_64;
 	rc = posix_memalign((void **)&qp->sq_completions, 4096,
 			    qp->hw.sq_wqe_cnt * sizeof(*qp->sq_completions));
 	if (rc) {

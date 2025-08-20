@@ -4395,6 +4395,8 @@ accel_mlx5_create_qp(struct accel_mlx5_dev *dev, struct accel_mlx5_qp *qp)
 	mlx5_qp_attr.cap.max_recv_wr = 0;
 	mlx5_qp_attr.cap.max_send_sge = ACCEL_MLX5_MAX_SGE;
 	mlx5_qp_attr.cap.max_inline_data = sizeof(struct ibv_sge) * ACCEL_MLX5_MAX_SGE;
+	mlx5_qp_attr.aes_xts_inc_64 = (dev->dev_ctx->caps.crypto_supported == 1) ?
+				      dev->dev_ctx->caps.crypto.tweak_inc_64 : false;
 
 	rc = spdk_mlx5_qp_create(dev->dev_ctx->pd, dev->cq, &mlx5_qp_attr, &qp->qp);
 	if (rc) {

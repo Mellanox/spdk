@@ -90,6 +90,7 @@ struct spdk_mlx5_qp_attr {
 	/* If set then CQ_UPDATE will be cleared for every ctrl WQE and only last ctrl WQE before ringing the doorbell
 	 * will be updated with CQ_UPDATE flag */
 	bool siglast;
+	bool aes_xts_inc_64;
 };
 
 struct spdk_mlx5_cq_completion {
