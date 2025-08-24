@@ -7749,7 +7749,8 @@ nvmf_rdma_qpair_get_local_trid(struct spdk_nvmf_qpair *qpair,
 		return nvmf_rdma_trid_from_cm_id(rqpair->cm_id, trid, false);
 	} else if (cqpair->type == SPDK_NVMF_COMMON_QPAIR_OFFLOAD) {
 		oqpair = nvmf_offload_qpair_get(qpair);
-		return nvmf_rdma_trid_from_sockaddr((struct sockaddr *)&oqpair->local_addr, oqpair->local_port, trid);
+		return nvmf_rdma_trid_from_sockaddr((struct sockaddr *)&oqpair->local_addr, oqpair->local_port,
+						    trid);
 	}
 
 	SPDK_ERRLOG("Unknown qpair type %d\n", cqpair->type);
