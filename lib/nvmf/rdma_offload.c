@@ -6118,13 +6118,13 @@ nvmf_sta_io_event_transport_err_cb(const struct doca_sta_event_transport_err *ev
 }
 
 static void
-nvmf_sta_io_non_offload_handler(struct doca_sta_qp_handle *qp_handle,
-				union doca_data user_data,
-				const uint8_t *nvme_cmd,
-				uint8_t *payload,
-				uint32_t payload_len,
-				bool payload_valid,
-				union doca_data non_offload_user_data)
+nvmf_sta_io_non_offload_cb(struct doca_sta_qp_handle *qp_handle,
+			   union doca_data user_data,
+			   const uint8_t *nvme_cmd,
+			   uint8_t *payload,
+			   uint32_t payload_len,
+			   bool payload_valid,
+			   union doca_data non_offload_user_data)
 {
 	struct spdk_nvmf_offload_poller *opoller = user_data.ptr;
 	struct spdk_nvmf_offload_qpair *oqpair;
@@ -6166,8 +6166,8 @@ nvmf_sta_io_non_offload_handler(struct doca_sta_qp_handle *qp_handle,
 }
 
 static void
-nvmf_sta_io_rdma_write_comp(struct doca_sta_producer_task_send *task,
-			    union doca_data task_user_data)
+nvmf_sta_io_rdma_write_send_comp_cb(struct doca_sta_producer_task_send *task,
+				    union doca_data task_user_data)
 {
 	struct nvmf_non_offload_request *non_offload_req = task_user_data.ptr;
 
@@ -6181,8 +6181,8 @@ nvmf_sta_io_rdma_write_comp(struct doca_sta_producer_task_send *task,
 }
 
 static void
-nvmf_sta_io_rdma_write_error(struct doca_sta_producer_task_send *task,
-			     union doca_data task_user_data)
+nvmf_sta_io_rdma_write_send_error_cb(struct doca_sta_producer_task_send *task,
+				     union doca_data task_user_data)
 {
 	struct nvmf_non_offload_request *non_offload_req = task_user_data.ptr;
 
@@ -6195,8 +6195,8 @@ nvmf_sta_io_rdma_write_error(struct doca_sta_producer_task_send *task,
 }
 
 static void
-nvmf_sta_io_rdma_read_comp(struct doca_sta_producer_task_send *task,
-			   union doca_data task_user_data)
+nvmf_sta_io_rdma_read_comp_cb(struct doca_sta_producer_task_send *task,
+			      union doca_data task_user_data)
 {
 	struct nvmf_non_offload_request *non_offload_req = task_user_data.ptr;
 
@@ -6210,8 +6210,8 @@ nvmf_sta_io_rdma_read_comp(struct doca_sta_producer_task_send *task,
 }
 
 static void
-nvmf_sta_io_rdma_read_error(struct doca_sta_producer_task_send *task,
-			    union doca_data task_user_data)
+nvmf_sta_io_rdma_read_error_cb(struct doca_sta_producer_task_send *task,
+			       union doca_data task_user_data)
 {
 	struct nvmf_non_offload_request *non_offload_req = task_user_data.ptr;
 
@@ -6392,7 +6392,7 @@ nvmf_offload_poller_create(struct spdk_nvmf_rdma_transport *rtransport,
 		return -EINVAL;
 	}
 
-	drc = doca_sta_io_non_offload_register_cb(opoller->sta_io, nvmf_sta_io_non_offload_handler, udata);
+	drc = doca_sta_io_non_offload_register_cb(opoller->sta_io, nvmf_sta_io_non_offload_cb, udata);
 	if (DOCA_IS_ERROR(drc)) {
 		SPDK_ERRLOG("Failed to set non-offload handler doca_sta_io: %s\n", doca_error_get_descr(drc));
 		nvmf_offload_poller_destroy(opoller);
@@ -6400,8 +6400,8 @@ nvmf_offload_poller_create(struct spdk_nvmf_rdma_transport *rtransport,
 	}
 
 	drc = doca_sta_io_task_non_offload_set_rdma_write_send_conf(opoller->sta_io,
-			nvmf_sta_io_rdma_write_comp,
-			nvmf_sta_io_rdma_write_error);
+			nvmf_sta_io_rdma_write_send_comp_cb,
+			nvmf_sta_io_rdma_write_send_error_cb);
 	if (DOCA_IS_ERROR(drc)) {
 		SPDK_ERRLOG("Failed to set rdma_write completio handler doca_sta_io: %s\n",
 			    doca_error_get_descr(drc));
@@ -6409,8 +6409,9 @@ nvmf_offload_poller_create(struct spdk_nvmf_rdma_transport *rtransport,
 		return -EINVAL;
 	}
 
-	drc = doca_sta_io_task_non_offload_set_rdma_read_conf(opoller->sta_io, nvmf_sta_io_rdma_read_comp,
-			nvmf_sta_io_rdma_read_error);
+	drc = doca_sta_io_task_non_offload_set_rdma_read_conf(opoller->sta_io,
+			nvmf_sta_io_rdma_read_comp_cb,
+			nvmf_sta_io_rdma_read_error_cb);
 	if (DOCA_IS_ERROR(drc)) {
 		SPDK_ERRLOG("Failed to set rdma_read completio handler doca_sta_io: %s\n",
 			    doca_error_get_descr(drc));
