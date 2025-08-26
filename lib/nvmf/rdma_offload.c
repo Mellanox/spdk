@@ -3219,7 +3219,11 @@ nvmf_sta_fabric_connect(struct nvmf_non_offload_request *non_offload_req)
 		}
 	}
 
-	drc = doca_sta_io_qp_connect_set_sq_size(oqpair->opoller->sta_io, oqpair->handle, cmd->sqsize);
+	/*
+	 * The SQ size is zero-based in the command, but doca_sta_io_qp_connect_set_sq_size() expects a regular
+	 * (non-zero-based) value.
+	 */
+	drc = doca_sta_io_qp_connect_set_sq_size(oqpair->opoller->sta_io, oqpair->handle, cmd->sqsize + 1);
 	if (DOCA_IS_ERROR(drc)) {
 		SPDK_ERRLOG("Failed to set sq_size for qpair: %s\n", doca_error_get_descr(drc));
 		return -1;
