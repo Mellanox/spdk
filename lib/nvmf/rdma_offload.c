@@ -3351,6 +3351,18 @@ nvmf_sta_io_non_offload_request_process(struct nvmf_non_offload_request *non_off
 	if (spdk_unlikely(oqpair->state != SPDK_NVMF_OFFLOAD_QPAIR_STATE_CONNECTED ||
 			  !spdk_nvmf_qpair_is_active(&oqpair->common.qpair))) {
 		switch (non_offload_req->state) {
+		/* The request cannot be completed while a non-offload task is in progress. */
+		case RDMA_REQUEST_STATE_TRANSFERRING_HOST_TO_CONTROLLER:
+		case RDMA_REQUEST_STATE_TRANSFERRING_CONTROLLER_TO_HOST:
+		case RDMA_REQUEST_STATE_COMPLETING:
+		/* The I/O buffer provided by DOCA STA might be in use while the bdev is executing the request.
+		 * That's why the request cannot be completed at this stage.
+		 */
+		case RDMA_REQUEST_STATE_EXECUTING:
+			goto end_processing;
+		/* Free the request in the regular way because it is already completed. */
+		case RDMA_REQUEST_STATE_COMPLETED:
+			goto start_processing;
 		case RDMA_REQUEST_STATE_DATA_TRANSFER_TO_CONTROLLER_PENDING:
 			STAILQ_REMOVE(&oqpair->pending_rdma_read_queue, non_offload_req,
 				      nvmf_non_offload_request, state_link);
@@ -3359,16 +3371,21 @@ nvmf_sta_io_non_offload_request_process(struct nvmf_non_offload_request *non_off
 			STAILQ_REMOVE(&oqpair->pending_rdma_write_queue, non_offload_req,
 				      nvmf_non_offload_request, state_link);
 			break;
-		case RDMA_REQUEST_STATE_READY_TO_COMPLETE_PENDING:
-			STAILQ_REMOVE(&oqpair->pending_rdma_send_queue, non_offload_req,
-				      nvmf_non_offload_request, state_link);
-			break;
 		default:
 			break;
 		}
-		non_offload_req->state = RDMA_REQUEST_STATE_COMPLETED;
+		/* DOCA STA cannot complete the non-offload I/O while it is in use by the software.
+		 * Submit a send task with an error status to allow DOCA STA to complete the I/O.
+		 */
+		rsp->status.sct = SPDK_NVME_SCT_GENERIC;
+		rsp->status.sc = SPDK_NVME_SC_INTERNAL_DEVICE_ERROR;
+		if (non_offload_req->state != RDMA_REQUEST_STATE_DATA_TRANSFER_TO_CONTROLLER_PENDING) {
+			STAILQ_INSERT_TAIL(&oqpair->pending_rdma_send_queue, non_offload_req, state_link);
+			non_offload_req->state = RDMA_REQUEST_STATE_READY_TO_COMPLETE_PENDING;
+		}
 	}
 
+start_processing:
 	do {
 		prev_state = non_offload_req->state;
 
@@ -3580,6 +3597,7 @@ nvmf_sta_io_non_offload_request_process(struct nvmf_non_offload_request *non_off
 		}
 	} while (non_offload_req->state != prev_state);
 
+end_processing:
 	return progress;
 }
 
@@ -6195,6 +6213,9 @@ nvmf_sta_io_rdma_write_send_error_cb(struct doca_sta_producer_task_send *task,
 	doca_task_free(doca_sta_producer_send_task_as_task(non_offload_req->task));
 	non_offload_req->task = NULL;
 
+	non_offload_req->state = RDMA_REQUEST_STATE_COMPLETED;
+	nvmf_sta_io_non_offload_request_process(non_offload_req);
+
 	nvmf_rdma_offload_qpair_disconnect(nvmf_offload_qpair_get(non_offload_req->common.req.qpair));
 }
 
@@ -6218,11 +6239,21 @@ nvmf_sta_io_rdma_read_error_cb(struct doca_sta_producer_task_send *task,
 			       union doca_data task_user_data)
 {
 	struct nvmf_non_offload_request *non_offload_req = task_user_data.ptr;
+	struct spdk_nvmf_request *req = &non_offload_req->common.req;
+	struct spdk_nvme_cpl *rsp = &req->rsp->nvme_cpl;
+	struct spdk_nvmf_offload_qpair *oqpair = nvmf_offload_qpair_get(req->qpair);
 
 	SPDK_ERRLOG("RDMA_READ task error, req %p\n", non_offload_req);
 	assert(non_offload_req->task == task);
 	doca_task_free(doca_sta_producer_send_task_as_task(non_offload_req->task));
 	non_offload_req->task = NULL;
+
+	rsp->status.sct = SPDK_NVME_SCT_GENERIC;
+	rsp->status.sc = SPDK_NVME_SC_INTERNAL_DEVICE_ERROR;
+	/* Submit a non-offload IO send task to let DOCA STA free the IO context. */
+	STAILQ_INSERT_TAIL(&oqpair->pending_rdma_send_queue, non_offload_req, state_link);
+	non_offload_req->state = RDMA_REQUEST_STATE_READY_TO_COMPLETE_PENDING;
+	nvmf_sta_io_non_offload_request_process(non_offload_req);
 
 	nvmf_rdma_offload_qpair_disconnect(nvmf_offload_qpair_get(non_offload_req->common.req.qpair));
 }
