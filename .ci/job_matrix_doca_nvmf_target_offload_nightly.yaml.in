@@ -106,7 +106,7 @@ steps:
           --docker-registry-path=$DOCKER_REGISTRY_PATH \
           --docker-image-name=doca_nvmf_target_offload_nightly_asan \
           --doca-sta-url=$doca_sta_url \
-          --configure-args='--enable-asan --enable-ubsan' \
+          --configure-args='--enable-asan' \
           --artifact-prop-name=DOCKER_IMAGE_ASAN \
           --push
       else
