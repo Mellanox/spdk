@@ -15,7 +15,8 @@ kubernetes:
   privileged: true
 
 env:
-  MOFED_VER: 25.04-0.6.0.0
+  MOFED_VER: 25.10-0.3.3.0
+  DOCKER_TAG: 23.01.5
   REGISTRY_AUTH_FILE: '/mnt/secret_podman/config_podman.json'
   GIT_SSH_COMMAND: 'ssh -o StrictHostKeyChecking=no'
 
@@ -25,14 +26,13 @@ secret_volumes:
   - {secretName: 'mellanox-github-rsa', mountPath: '/var/home/swx-jenkins/.ssh'}
 
 runs_on_dockers:
-  - {file: '.ci/Dockerfile.ubuntu20.04', name: 'ubuntu20_04', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
-  - {file: '.ci/Dockerfile.ubuntu22.04', name: 'ubuntu22_04', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
-  - {file: '.ci/Dockerfile.ubuntu24.04', name: 'ubuntu24_04', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
-  # - {file: '.ci/Dockerfile.centos7.9.2009', name: 'centos7_9', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
-  - {file: '.ci/Dockerfile.centos8', name: 'centos8_stream', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
-  - {file: '.ci/Dockerfile.openeuler.20.03', name: 'openeuler20_03', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
-  - {file: '.ci/Dockerfile.openeuler.22.03', name: 'openeuler22_03', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
-  - {file: '.ci/Dockerfile.rockylinux9.2', name: 'rockylinux9_2', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
+  - {file: '.ci/Dockerfile.ubuntu20.04', name: 'ubuntu20_04', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$DOCKER_TAG-$MOFED_VER'}
+  - {file: '.ci/Dockerfile.ubuntu22.04', name: 'ubuntu22_04', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$DOCKER_TAG-$MOFED_VER'}
+  - {file: '.ci/Dockerfile.ubuntu24.04', name: 'ubuntu24_04', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$DOCKER_TAG-$MOFED_VER'}
+  - {file: '.ci/Dockerfile.centos8', name: 'centos8_stream', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$DOCKER_TAG-$MOFED_VER'}
+  - {file: '.ci/Dockerfile.openeuler.20.03', name: 'openeuler20_03', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$DOCKER_TAG-$MOFED_VER'}
+  - {file: '.ci/Dockerfile.openeuler.22.03', name: 'openeuler22_03', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$DOCKER_TAG-$MOFED_VER'}
+  - {file: '.ci/Dockerfile.rockylinux9.2', name: 'rockylinux9_2', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$DOCKER_TAG-$MOFED_VER'}
 
 steps:
   - name: Set correct rights

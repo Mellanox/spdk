@@ -14,10 +14,6 @@ CONF_OPTS = --prefix=$(pkg_prefix) --disable-tests --disable-unit-tests --with-c
 CONF_OPTS += --without-fio --with-vhost --without-pmdk --without-rbd --with-rdma=mlx5_dv
 CONF_OPTS += --without-vtune --with-iscsi-initiator --with-shared --with-uring --with-raid5f
 
-ifeq ($(OS), Ubuntu)
-  CONF_OPTS += --with-xlio
-endif
-
 export DEB_LDFLAGS_MAINT_APPEND = -Wl,-rpath,$(pkg_prefix)/lib
 
 %:
@@ -30,8 +26,6 @@ override_dh_auto_configure:
 	sed -i 's#CONFIG_PREFIX="/usr.*"#CONFIG_PREFIX="'$(pkg_prefix)'"#' CONFIG
 	# Use armv8-a on aarch64
 	test $(ARCH) != aarch64 || sed -i 's#CONFIG_ARCH=.*#CONFIG_ARCH=armv8-a#' CONFIG
-	# XLIO
-	test $(OS) != Ubuntu || sed -i 's#CONFIG_XLIO=.*#CONFIG_XLIO=y#' CONFIG
 	LDFLAGS="$$LDFLAGS -Wl,-rpath,$(pkg_prefix)/lib" ./configure $(CONF_OPTS)
 
 override_dh_auto_clean:

@@ -68,7 +68,7 @@ BuildRequires: numactl-devel
 BuildRequires: libiscsi-devel
 
 # SPDK build dependencies
-BuildRequires:	make gcc gcc-c++
+BuildRequires:	make gcc gcc-c++ automake autoconf libtool
 BuildRequires:	CUnit-devel, libaio-devel, openssl-devel, libuuid-devel 
 BuildRequires:	libiscsi-devel
 
@@ -130,9 +130,6 @@ export LDFLAGS
 %ifarch aarch64
         --target-arch=armv8-a \
         --with-crypto \
-%endif
-%if %{defined ctyunos}
-        --with-xlio \
 %endif
         --disable-tests \
         --disable-unit-tests \

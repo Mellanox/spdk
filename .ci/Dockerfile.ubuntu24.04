@@ -42,8 +42,7 @@ RUN apt-get update && \
 RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | \
     sudo apt-key add - && \
     echo "deb [trusted=yes] http://nbu-nfs.gtm.nvidia.com/auto/mswg/release/MLNX_OFED/MLNX_OFED_LINUX-${MOFED_VER}/MLNX_OFED_LINUX-${MOFED_VER}-ubuntu24.04-$(dpkg-architecture -qDEB_HOST_GNU_CPU)/DEBS/ ./" > /etc/apt/sources.list.d/ofed.list && \
-    apt update && KVERSION=$(ls /lib/modules) apt install -y mlnx-ofed-basic-user-only && \
-    apt-get download libxlio-dev && dpkg --force-all -i libxlio-dev*
+    apt update && KVERSION=$(ls /lib/modules) apt install -y mlnx-ofed-basic-user-only
 
 RUN echo "${_LOGIN} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 RUN mkdir -p $_HOME
