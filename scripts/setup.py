@@ -25,7 +25,7 @@ setup(
     description='SPDK RPC modules',
     long_description=long_description,
     url='https://spdk.io/',
-    packages=['spdk.rpc', 'spdk.spdkcli'],
+    packages=['spdk.rpc', 'spdk.spdkcli', 'spdk.cli'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
