@@ -7011,13 +7011,13 @@ nvmf_rdma_offload_request_complete(struct spdk_nvmf_request *req)
 }
 
 static void
-nvmf_rdma_close_qpair_rdma(struct spdk_nvmf_qpair *qpair, bool qpair_initialized)
+nvmf_rdma_close_qpair_rdma(struct spdk_nvmf_qpair *qpair)
 {
 	struct spdk_nvmf_rdma_qpair *rqpair = nvmf_rdma_qpair_get(qpair);
 
 	rqpair->to_close = true;
 
-	if (!qpair_initialized) {
+	if (qpair->state == SPDK_NVMF_QPAIR_UNINITIALIZED) {
 		nvmf_rdma_qpair_reject_connection(rqpair);
 	}
 	if (rqpair->rdma_qp) {
@@ -7227,19 +7227,18 @@ nvmf_rdma_close_qpair(struct spdk_nvmf_qpair *qpair,
 		      spdk_nvmf_transport_qpair_fini_cb cb_fn, void *cb_arg)
 {
 	struct spdk_nvmf_common_qpair *cqpair;
-	bool qpair_initialized = (qpair->state != SPDK_NVMF_QPAIR_UNINITIALIZED);
 
 	cqpair = SPDK_CONTAINEROF(qpair, struct spdk_nvmf_common_qpair, qpair);
 
 	if (cqpair->type == SPDK_NVMF_COMMON_QPAIR_RDMA) {
-		nvmf_rdma_close_qpair_rdma(qpair, qpair_initialized);
+		nvmf_rdma_close_qpair_rdma(qpair);
 	} else if (cqpair->type == SPDK_NVMF_COMMON_QPAIR_OFFLOAD) {
 		nvmf_rdma_close_qpair_offload(qpair);
 	} else {
 		SPDK_ERRLOG("Unknown qpair type %d\n", cqpair->type);
 	}
 
-	if (qpair_initialized && cb_fn) {
+	if (cb_fn) {
 		cb_fn(cb_arg);
 	}
 }
