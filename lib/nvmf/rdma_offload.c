@@ -1500,13 +1500,18 @@ nvmf_offload_qpair_initialize(struct spdk_nvmf_qpair *qpair)
 	accept_data.recfmt = 0;
 	accept_data.crqsize = oqpair->max_queue_depth;
 
-	drc = doca_sta_io_qp_connect(opoller->sta_io, oqpair->device->doca_dev, oqpair->cm_id,
-				     &accept_data, sizeof(accept_data),
-				     oqpair->rsubsystem ? oqpair->rsubsystem->handle : 0,
-				     &oqpair->handle);
+	drc = doca_sta_io_qp_alloc(opoller->sta_io, oqpair->device->doca_dev, &oqpair->handle);
+	if (DOCA_IS_ERROR(drc)) {
+		SPDK_ERRLOG("Failed to alloc offload qpair: %s\n", doca_error_get_descr(drc));
+		return -1;
+	}
+
+	drc = doca_sta_io_qp_accept(opoller->sta_io, oqpair->handle, oqpair->device->doca_dev,
+				    oqpair->cm_id, &accept_data, sizeof(accept_data),
+				    oqpair->rsubsystem ? oqpair->rsubsystem->handle : 0);
 	/*
 	 * DOCA STA will call rdma_destroy_id for cm_id. It happens
-	 * regardless of the doca_sta_io_qp_connect() return code.
+	 * regardless of the doca_sta_io_qp_accept() return code.
 	 */
 	oqpair->cm_id = NULL;
 	if (DOCA_IS_ERROR(drc)) {
