@@ -558,15 +558,16 @@ struct nvmf_sta_non_offload_resources {
 struct spdk_nvmf_offload_poller;
 
 enum spdk_nvmf_offload_qpair_state {
-	SPDK_NVMF_OFFLOAD_QPAIR_STATE_INIT = 0,
+	SPDK_NVMF_OFFLOAD_QPAIR_STATE_UNINITIALIZED = 0,
+	SPDK_NVMF_OFFLOAD_QPAIR_STATE_REJECT,
 	SPDK_NVMF_OFFLOAD_QPAIR_STATE_CONNECTED,
 	SPDK_NVMF_OFFLOAD_QPAIR_STATE_DISCONNECTING,
 	SPDK_NVMF_OFFLOAD_QPAIR_STATE_DISCONNECT_FAILED,
 	SPDK_NVMF_OFFLOAD_QPAIR_STATE_DISCONNECTED,
 	SPDK_NVMF_OFFLOAD_QPAIR_STATE_DRAINING,
 	SPDK_NVMF_OFFLOAD_QPAIR_STATE_DRAINED,
-	SPDK_NVMF_OFFLOAD_QPAIR_STATE_READY_TO_CLOSE,
-	SPDK_NVMF_OFFLOAD_QPAIR_STATE_READY_TO_FREE
+	SPDK_NVMF_OFFLOAD_QPAIR_STATE_PENDING_TO_CLOSE,
+	SPDK_NVMF_OFFLOAD_QPAIR_STATE_CLOSE
 };
 
 struct spdk_nvmf_offload_qpair {
@@ -606,7 +607,9 @@ struct spdk_nvmf_offload_qpair {
 	enum spdk_nvmf_offload_qpair_state	state;
 
 	/* Indicate that nvmf_rdma_close_qpair is called */
-	bool					to_close;
+	uint8_t					to_close : 1;
+	uint8_t					in_close : 1;
+	uint8_t					in_error_state : 1;
 	struct doca_sta_producer_task_send	*destroy_task;
 
 	RB_ENTRY(spdk_nvmf_offload_qpair)	node;
@@ -906,7 +909,7 @@ static void _nvmf_rdma_remove_destroyed_device(void *c);
 
 static int nvmf_rdma_bdev_destroy(struct spdk_nvmf_rdma_bdev *rbdev);
 
-static void nvmf_rdma_offload_qpair_destroy(struct spdk_nvmf_offload_qpair *oqpair);
+static void nvmf_rdma_offload_qpair_close_process(struct spdk_nvmf_offload_qpair *oqpair);
 
 static void nvmf_sta_io_disconnect_comp_hadler(struct doca_sta_producer_task_send *task,
 		union doca_data task_user_data);
@@ -1918,7 +1921,6 @@ nvmf_rdma_connect(struct spdk_nvmf_transport *transport, struct rdma_cm_event *e
 		STAILQ_INIT(&oqpair->pending_rdma_read_queue);
 		STAILQ_INIT(&oqpair->pending_rdma_write_queue);
 		STAILQ_INIT(&oqpair->pending_rdma_send_queue);
-		oqpair->state = SPDK_NVMF_OFFLOAD_QPAIR_STATE_INIT;
 
 		qpair = &oqpair->common.qpair;
 		qpair->numa.id_valid = 1;
@@ -3353,8 +3355,7 @@ nvmf_sta_io_non_offload_request_process(struct nvmf_non_offload_request *non_off
 
 	assert(non_offload_req->state != RDMA_REQUEST_STATE_FREE);
 
-	if (spdk_unlikely(oqpair->state != SPDK_NVMF_OFFLOAD_QPAIR_STATE_CONNECTED ||
-			  !spdk_nvmf_qpair_is_active(&oqpair->common.qpair))) {
+	if (spdk_unlikely(oqpair->in_error_state || !spdk_nvmf_qpair_is_active(&oqpair->common.qpair))) {
 		switch (non_offload_req->state) {
 		/* The request cannot be completed while a non-offload task is in progress. */
 		case RDMA_REQUEST_STATE_TRANSFERRING_HOST_TO_CONTROLLER:
@@ -6130,8 +6131,6 @@ nvmf_rdma_offload_qpair_disconnect(struct spdk_nvmf_offload_qpair *oqpair)
 {
 	if (spdk_nvmf_qpair_is_active(&oqpair->common.qpair)) {
 		spdk_nvmf_qpair_disconnect(&oqpair->common.qpair);
-	} else {
-		nvmf_rdma_offload_qpair_destroy(oqpair);
 	}
 }
 
@@ -6212,6 +6211,8 @@ nvmf_sta_io_rdma_write_send_error_cb(struct doca_sta_producer_task_send *task,
 				     union doca_data task_user_data)
 {
 	struct nvmf_non_offload_request *non_offload_req = task_user_data.ptr;
+	struct spdk_nvmf_request *req = &non_offload_req->common.req;
+	struct spdk_nvmf_offload_qpair *oqpair = nvmf_offload_qpair_get(req->qpair);;
 
 	SPDK_ERRLOG("RDMA_WRITE/SEND task error, req %p\n", non_offload_req);
 	assert(non_offload_req->task == task);
@@ -6219,9 +6220,10 @@ nvmf_sta_io_rdma_write_send_error_cb(struct doca_sta_producer_task_send *task,
 	non_offload_req->task = NULL;
 
 	non_offload_req->state = RDMA_REQUEST_STATE_COMPLETED;
+	oqpair->in_error_state = 1;
 	nvmf_sta_io_non_offload_request_process(non_offload_req);
 
-	nvmf_rdma_offload_qpair_disconnect(nvmf_offload_qpair_get(non_offload_req->common.req.qpair));
+	nvmf_rdma_offload_qpair_disconnect(oqpair);
 }
 
 static void
@@ -6258,9 +6260,10 @@ nvmf_sta_io_rdma_read_error_cb(struct doca_sta_producer_task_send *task,
 	/* Submit a non-offload IO send task to let DOCA STA free the IO context. */
 	STAILQ_INSERT_TAIL(&oqpair->pending_rdma_send_queue, non_offload_req, state_link);
 	non_offload_req->state = RDMA_REQUEST_STATE_READY_TO_COMPLETE_PENDING;
+	oqpair->in_error_state = 1;
 	nvmf_sta_io_non_offload_request_process(non_offload_req);
 
-	nvmf_rdma_offload_qpair_disconnect(nvmf_offload_qpair_get(non_offload_req->common.req.qpair));
+	nvmf_rdma_offload_qpair_disconnect(oqpair);
 }
 
 static int
@@ -6915,6 +6918,11 @@ nvmf_non_offload_request_free(struct nvmf_non_offload_request *non_offload_req)
 	non_offload_req->state = RDMA_REQUEST_STATE_FREE;
 	oqpair->qd--;
 
+	if (spdk_unlikely(oqpair->state == SPDK_NVMF_OFFLOAD_QPAIR_STATE_DRAINING && oqpair->qd == 0)) {
+		oqpair->state = SPDK_NVMF_OFFLOAD_QPAIR_STATE_DRAINED;
+		nvmf_rdma_offload_qpair_close_process(oqpair);
+	}
+
 	return 0;
 }
 
@@ -7028,102 +7036,54 @@ nvmf_rdma_close_qpair_rdma(struct spdk_nvmf_qpair *qpair)
 }
 
 static void
-nvmf_rdma_dump_non_offload_request(struct nvmf_non_offload_request *non_offload_req)
-{
-	// TODO: Print more useful information
-	SPDK_ERRLOG("\t\treq %p\n", non_offload_req);
-}
-
-static void
-nvmf_rdma_dump_offload_qpair_contents(struct spdk_nvmf_offload_qpair *oqpair)
-{
-	uint32_t i;
-
-	SPDK_ERRLOG("Dumping contents of offload queue pair (QID %d)\n", oqpair->common.qpair.qid);
-	for (i = 0; i < oqpair->opoller->max_queue_depth; i++) {
-		if (oqpair->opoller->resources->reqs[i].state != RDMA_REQUEST_STATE_FREE) {
-			nvmf_rdma_dump_non_offload_request(&oqpair->opoller->resources->reqs[i]);
-		}
-	}
-}
-
-static void
 nvmf_rdma_offload_qpair_drain(struct spdk_nvmf_offload_qpair *oqpair)
 {
-	struct nvmf_sta_non_offload_resources *resorces;
-	struct nvmf_non_offload_request *non_offload_req;
-	uint32_t i, max_queue_depth;
-
 	nvmf_offload_qpair_process_pending(oqpair, true);
 
 	if (oqpair->qd == 0) {
+		oqpair->state = SPDK_NVMF_OFFLOAD_QPAIR_STATE_DRAINED;
 		return;
 	}
-
-	assert(oqpair->opoller);
-	resorces = oqpair->opoller->resources;
-	max_queue_depth = oqpair->opoller->max_queue_depth;
-
-	SPDK_WARNLOG("Destroying offload qpair when queue depth is %u\n", oqpair->qd);
-	nvmf_rdma_dump_offload_qpair_contents(oqpair);
-
-	for (i = 0; i < max_queue_depth; i++) {
-		non_offload_req = &resorces->reqs[i];
-
-		if (non_offload_req->common.req.qpair == &oqpair->common.qpair &&
-		    non_offload_req->state != RDMA_REQUEST_STATE_FREE) {
-			/*
-			 * nvmf_sta_io_non_offload_request_process qpair state
-			 * and completes a request
-			 */
-			nvmf_sta_io_non_offload_request_process(non_offload_req);
-		}
-	}
-	assert(oqpair->qd == 0);
-}
-
-static void
-nvmf_sta_io_disconnect_comp_hadler(struct doca_sta_producer_task_send *task,
-				   union doca_data task_user_data)
-{
-	struct spdk_nvmf_offload_qpair *oqpair = task_user_data.ptr;
-
-	assert(oqpair);
-	assert(oqpair->destroy_task == task);
-	assert(oqpair->state == SPDK_NVMF_OFFLOAD_QPAIR_STATE_DISCONNECTING);
-
-	doca_task_free(doca_sta_producer_send_task_as_task(task));
-	oqpair->destroy_task = NULL;
-
-	SPDK_DEBUGLOG(rdma_offload, "Disconect task completed for IO QP %p\n", oqpair->handle);
-	oqpair->state = SPDK_NVMF_OFFLOAD_QPAIR_STATE_DISCONNECTED;
-	nvmf_rdma_offload_qpair_destroy(oqpair);
-}
-
-static void
-nvmf_sta_io_disconnect_error_hadler(struct doca_sta_producer_task_send *task,
-				    union doca_data task_user_data)
-{
-	struct spdk_nvmf_offload_qpair *oqpair = task_user_data.ptr;
-
-	assert(oqpair);
-	assert(oqpair->destroy_task == task);
-	assert(oqpair->state == SPDK_NVMF_OFFLOAD_QPAIR_STATE_DISCONNECTING);
-
-	doca_task_free(doca_sta_producer_send_task_as_task(task));
-	oqpair->destroy_task = NULL;
-
-	SPDK_ERRLOG("Disconect task failed for IO QP %p\n", oqpair->handle);
-	oqpair->state = SPDK_NVMF_OFFLOAD_QPAIR_STATE_DISCONNECT_FAILED;
-	nvmf_rdma_offload_qpair_destroy(oqpair);
 }
 
 static void
 nvmf_rdma_offload_qpair_destroy(struct spdk_nvmf_offload_qpair *oqpair)
 {
+	doca_error_t drc;
+
+	if (oqpair->opoller) {
+		if (oqpair->handle) {
+			drc = doca_sta_io_qp_destroy(oqpair->opoller->sta_io, oqpair->handle);
+			if (DOCA_IS_ERROR(drc)) {
+				SPDK_ERRLOG("Unable to destroy DOCA STA IO QP: %s\n",
+					    doca_error_get_descr(drc));
+			}
+		}
+		RB_REMOVE(offload_qpairs_tree, &oqpair->opoller->qpairs, oqpair);
+	}
+	if (oqpair->destruct_channel) {
+		spdk_put_io_channel(oqpair->destruct_channel);
+	}
+	if (oqpair->opoller && oqpair->opoller->need_destroy && RB_EMPTY(&oqpair->opoller->qpairs)) {
+		nvmf_offload_poller_destroy(oqpair->opoller);
+	}
+	if (oqpair->cm_id) {
+		rdma_destroy_id(oqpair->cm_id);
+	}
+}
+
+static void
+nvmf_rdma_offload_qpair_close_process(struct spdk_nvmf_offload_qpair *oqpair)
+{
 	enum spdk_nvmf_offload_qpair_state prev_state;
 	union doca_data task_user_data;
 	doca_error_t drc;
+
+	/* Prevent recursive calls from nvmf_rdma_offload_qpair_drain(). */
+	if (oqpair->in_close) {
+		return;
+	}
+	oqpair->in_close = 1;
 
 	do {
 		prev_state = oqpair->state;
@@ -7131,11 +7091,13 @@ nvmf_rdma_offload_qpair_destroy(struct spdk_nvmf_offload_qpair *oqpair)
 		SPDK_DEBUGLOG(rdma_offload, "offload qpair state %d\n", oqpair->state);
 
 		switch (oqpair->state) {
-		case SPDK_NVMF_OFFLOAD_QPAIR_STATE_INIT:
-			if (oqpair->cm_id) {
-				nvmf_rdma_event_reject(oqpair->cm_id, SPDK_NVMF_RDMA_ERROR_NO_RESOURCES);
-			}
-			oqpair->state = SPDK_NVMF_OFFLOAD_QPAIR_STATE_READY_TO_FREE;
+		case SPDK_NVMF_OFFLOAD_QPAIR_STATE_UNINITIALIZED:
+			oqpair->state = SPDK_NVMF_OFFLOAD_QPAIR_STATE_REJECT;
+			break;
+		case SPDK_NVMF_OFFLOAD_QPAIR_STATE_REJECT:
+			assert(oqpair->cm_id);
+			nvmf_rdma_event_reject(oqpair->cm_id, SPDK_NVMF_RDMA_ERROR_NO_RESOURCES);
+			oqpair->state = SPDK_NVMF_OFFLOAD_QPAIR_STATE_PENDING_TO_CLOSE;
 			break;
 		case SPDK_NVMF_OFFLOAD_QPAIR_STATE_CONNECTED:
 			task_user_data.ptr = oqpair;
@@ -7171,39 +7133,17 @@ nvmf_rdma_offload_qpair_destroy(struct spdk_nvmf_offload_qpair *oqpair)
 			break;
 		case SPDK_NVMF_OFFLOAD_QPAIR_STATE_DRAINING:
 			nvmf_rdma_offload_qpair_drain(oqpair);
-			oqpair->state = SPDK_NVMF_OFFLOAD_QPAIR_STATE_DRAINED;
 			break;
 		case SPDK_NVMF_OFFLOAD_QPAIR_STATE_DRAINED:
+			oqpair->state = SPDK_NVMF_OFFLOAD_QPAIR_STATE_PENDING_TO_CLOSE;
+			break;
+		case SPDK_NVMF_OFFLOAD_QPAIR_STATE_PENDING_TO_CLOSE:
 			if (oqpair->to_close) {
-				oqpair->state = SPDK_NVMF_OFFLOAD_QPAIR_STATE_READY_TO_CLOSE;
+				oqpair->state = SPDK_NVMF_OFFLOAD_QPAIR_STATE_CLOSE;
 			}
 			break;
-		case SPDK_NVMF_OFFLOAD_QPAIR_STATE_READY_TO_CLOSE:
-			if (oqpair->opoller) {
-				if (oqpair->handle) {
-					drc = doca_sta_io_qp_destroy(oqpair->opoller->sta_io, oqpair->handle);
-					if (DOCA_IS_ERROR(drc)) {
-						SPDK_ERRLOG("Unable to destroy DOCA STA IO QP: %s\n",
-							    doca_error_get_descr(drc));
-						break;
-					}
-					oqpair->handle = 0;
-				}
-				RB_REMOVE(offload_qpairs_tree, &oqpair->opoller->qpairs, oqpair);
-			}
-			if (oqpair->destruct_channel) {
-				spdk_put_io_channel(oqpair->destruct_channel);
-				oqpair->destruct_channel = NULL;
-			}
-			if (oqpair->opoller && oqpair->opoller->need_destroy &&  RB_EMPTY(&oqpair->opoller->qpairs)) {
-				nvmf_offload_poller_destroy(oqpair->opoller);
-			}
-			oqpair->state = SPDK_NVMF_OFFLOAD_QPAIR_STATE_READY_TO_FREE;
-			break;
-		case SPDK_NVMF_OFFLOAD_QPAIR_STATE_READY_TO_FREE:
-			if (oqpair->cm_id) {
-				rdma_destroy_id(oqpair->cm_id);
-			}
+		case SPDK_NVMF_OFFLOAD_QPAIR_STATE_CLOSE:
+			nvmf_rdma_offload_qpair_destroy(oqpair);
 			free(oqpair);
 			return;
 		default:
@@ -7211,6 +7151,44 @@ nvmf_rdma_offload_qpair_destroy(struct spdk_nvmf_offload_qpair *oqpair)
 			assert(0);
 		}
 	} while (prev_state != oqpair->state);
+
+	oqpair->in_close = 0;
+}
+
+static void
+nvmf_sta_io_disconnect_comp_hadler(struct doca_sta_producer_task_send *task,
+				   union doca_data task_user_data)
+{
+	struct spdk_nvmf_offload_qpair *oqpair = task_user_data.ptr;
+
+	assert(oqpair);
+	assert(oqpair->destroy_task == task);
+	assert(oqpair->state == SPDK_NVMF_OFFLOAD_QPAIR_STATE_DISCONNECTING);
+
+	doca_task_free(doca_sta_producer_send_task_as_task(task));
+	oqpair->destroy_task = NULL;
+
+	SPDK_DEBUGLOG(rdma_offload, "Disconect task completed for IO QP %p\n", oqpair->handle);
+	oqpair->state = SPDK_NVMF_OFFLOAD_QPAIR_STATE_DISCONNECTED;
+	nvmf_rdma_offload_qpair_close_process(oqpair);
+}
+
+static void
+nvmf_sta_io_disconnect_error_hadler(struct doca_sta_producer_task_send *task,
+				    union doca_data task_user_data)
+{
+	struct spdk_nvmf_offload_qpair *oqpair = task_user_data.ptr;
+
+	assert(oqpair);
+	assert(oqpair->destroy_task == task);
+	assert(oqpair->state == SPDK_NVMF_OFFLOAD_QPAIR_STATE_DISCONNECTING);
+
+	doca_task_free(doca_sta_producer_send_task_as_task(task));
+	oqpair->destroy_task = NULL;
+
+	SPDK_ERRLOG("Disconect task failed for IO QP %p\n", oqpair->handle);
+	oqpair->state = SPDK_NVMF_OFFLOAD_QPAIR_STATE_DISCONNECT_FAILED;
+	nvmf_rdma_offload_qpair_close_process(oqpair);
 }
 
 static void
@@ -7218,8 +7196,8 @@ nvmf_rdma_close_qpair_offload(struct spdk_nvmf_qpair *qpair)
 {
 	struct spdk_nvmf_offload_qpair *oqpair = nvmf_offload_qpair_get(qpair);
 
-	oqpair->to_close = true;
-	nvmf_rdma_offload_qpair_destroy(oqpair);
+	oqpair->to_close = 1;
+	nvmf_rdma_offload_qpair_close_process(oqpair);
 }
 
 static void
