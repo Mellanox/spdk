@@ -1050,10 +1050,9 @@ nvmf_request_get_buffers_abort_cb(struct spdk_iobuf_channel *ch, struct spdk_iob
 }
 
 bool
-nvmf_request_get_buffers_abort(struct spdk_nvmf_request *req)
+nvmf_request_get_buffers_abort(struct spdk_nvmf_request *req,
+			       struct spdk_nvmf_transport_poll_group *tgroup)
 {
-	struct spdk_nvmf_transport_poll_group *tgroup = nvmf_get_transport_poll_group(req->qpair->group,
-			req->qpair->transport);
 	int rc;
 
 	assert(tgroup != NULL);
