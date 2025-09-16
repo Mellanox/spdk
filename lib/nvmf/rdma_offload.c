@@ -801,6 +801,7 @@ struct spdk_nvmf_rdma_sta {
 	struct spdk_poller			*poller;
 	struct nvmf_rdma_sta_caps		caps;
 	enum doca_ctx_states			state;
+	uint32_t				num_cq_handlers;
 	TAILQ_HEAD(, spdk_nvmf_rdma_bdev)	bdevs;
 };
 
@@ -4120,6 +4121,41 @@ nvmf_rdma_sta_progress(void *ctx)
 	return (rc == 0) ? SPDK_POLLER_IDLE : SPDK_POLLER_BUSY;
 }
 
+static doca_error_t
+nvmf_rdma_sta_get_num_cq_handlers(struct spdk_nvmf_rdma_sta *sta)
+{
+	struct doca_sta_eu_handle **eu_handles;
+	uint32_t num_eu_handles, num_cq_handles, i;
+	enum dpa_sta_eu_type eu_type;
+	doca_error_t drc;
+
+	num_eu_handles = sta->caps.max_eus;
+	eu_handles = calloc(num_eu_handles, sizeof(*eu_handles));
+	if (!eu_handles) {
+		return DOCA_ERROR_NO_MEMORY;
+	}
+
+	drc = doca_sta_get_eu_handle(sta->sta, eu_handles, &num_eu_handles);
+	if (DOCA_IS_ERROR(drc)) {
+		goto cleanup;
+	}
+
+	num_cq_handles = 0;
+	for (i = 0; i < num_eu_handles; i++) {
+		drc = doca_sta_get_eu_type(eu_handles[i], &eu_type);
+		if (DOCA_IS_ERROR(drc)) {
+			goto cleanup;
+		}
+		if (eu_type == DOCA_STA_EU_COMP) {
+			num_cq_handles++;
+		}
+	}
+	sta->num_cq_handlers = num_cq_handles;
+cleanup:
+	free(eu_handles);
+	return drc;
+}
+
 static int
 nvmf_rdma_sta_start(struct spdk_nvmf_rdma_transport *rtransport)
 {
@@ -4231,6 +4267,14 @@ nvmf_rdma_sta_start(struct spdk_nvmf_rdma_transport *rtransport)
 			return -EINVAL;
 		}
 	}
+
+	rc = nvmf_rdma_sta_get_num_cq_handlers(&rtransport->sta);
+	if (DOCA_IS_ERROR(rc)) {
+		SPDK_ERRLOG("Unable to get number of CQ EUs: %s\n", doca_error_get_descr(rc));
+		return -EINVAL;
+	}
+	SPDK_DEBUGLOG(rdma_offload, "Number of DOCA STA CQ handlers: %u\n",
+		      rtransport->sta.num_cq_handlers);
 
 	rtransport->sta.poller = SPDK_POLLER_REGISTER(nvmf_rdma_sta_progress, &rtransport->transport,
 				 NVMF_RDMA_STA_DEFAULT_POLL_RATE_US);
@@ -6357,13 +6401,12 @@ nvmf_offload_poller_create(struct spdk_nvmf_rdma_transport *rtransport,
 	opoller->notification_handle = doca_event_invalid_handle;
 	opoller->state = DOCA_CTX_STATE_IDLE;
 
-	opoller->max_queue_depth = rtransport->sta.caps.max_ios;
-	SPDK_DEBUGLOG(rdma_offload, "max_io_num per io thread: %u\n", opoller->max_queue_depth);
-	/* FIXME: max_queue_depth must be multiplied by the number of threads. The workaround below
-	 * is applied because there is no API to get that number. So far, assume that the number
-	 * of threads is 32 or lower.
+	/* The max_ios capability is specified per CQ handler. DOCA STA balances IOs among STA
+	 * IOs, and this cannot be controlled outside of DOCA. Let's assume the worst case,
+	 * where all IOs can be forwarded to the same STA IO.
 	 */
-	opoller->max_queue_depth *= 32;
+	opoller->max_queue_depth = rtransport->sta.caps.max_ios * rtransport->sta.num_cq_handlers;
+	SPDK_DEBUGLOG(rdma_offload, "max_io_num per poller: %u\n", opoller->max_queue_depth);
 
 	drc = doca_sta_io_create(rtransport->sta.sta, &opoller->sta_io);
 	if (DOCA_IS_ERROR(drc)) {
