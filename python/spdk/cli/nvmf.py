@@ -53,7 +53,8 @@ def add_parser(subparsers):
     p.add_argument('-i', '--max-io-size', help='Max I/O size (bytes)', type=int)
     p.add_argument('-u', '--io-unit-size', help='I/O unit size (bytes)', type=int)
     p.add_argument('-a', '--max-aq-depth', help='Max number of admin cmds per AQ', type=int)
-    p.add_argument('-n', '--num-shared-buffers', help='The number of pooled data buffers available to the transport', type=int)
+    p.add_argument('-n', '--num-shared-buffers', help="""The number of pooled data buffers available to the transport.
+    Deprecated, use iobuf_set_options instead""", type=int)
     p.add_argument('-b', '--buf-cache-size', help="""The number of shared buffers to reserve for each poll group.
     Deprecated, use small_buf_cache_size instead""", type=int)
     p.add_argument('--small-buf-cache-size', help="""The number of shared buffers from a small iobuf pool to reserve

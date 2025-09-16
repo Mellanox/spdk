@@ -2988,7 +2988,6 @@ nvmf_rdma_request_process(struct spdk_nvmf_rdma_transport *rtransport,
 #define SPDK_NVMF_RDMA_DEFAULT_IN_CAPSULE_DATA_SIZE 4096
 #define SPDK_NVMF_RDMA_DEFAULT_MAX_IO_SIZE 131072
 #define SPDK_NVMF_RDMA_MIN_IO_BUFFER_SIZE (SPDK_NVMF_RDMA_DEFAULT_MAX_IO_SIZE / SPDK_NVMF_MAX_SGL_ENTRIES)
-#define SPDK_NVMF_RDMA_DEFAULT_NUM_SHARED_BUFFERS 4095
 #define SPDK_NVMF_RDMA_DEFAULT_SMALL_BUFFER_CACHE_SIZE UINT32_MAX
 #define SPDK_NVMF_RDMA_DEFAULT_LARGE_BUFFER_CACHE_SIZE 0
 #define SPDK_NVMF_RDMA_DEFAULT_NO_SRQ false
@@ -3007,7 +3006,6 @@ nvmf_rdma_opts_init(struct spdk_nvmf_transport_opts *opts)
 	opts->max_io_size =		SPDK_NVMF_RDMA_DEFAULT_MAX_IO_SIZE;
 	opts->io_unit_size =		SPDK_NVMF_RDMA_MIN_IO_BUFFER_SIZE;
 	opts->max_aq_depth =		SPDK_NVMF_RDMA_DEFAULT_AQ_DEPTH;
-	opts->num_shared_buffers =	SPDK_NVMF_RDMA_DEFAULT_NUM_SHARED_BUFFERS;
 	opts->small_buf_cache_size =	SPDK_NVMF_RDMA_DEFAULT_SMALL_BUFFER_CACHE_SIZE;
 	opts->large_buf_cache_size =	SPDK_NVMF_RDMA_DEFAULT_LARGE_BUFFER_CACHE_SIZE;
 	opts->dif_insert_or_strip =	SPDK_NVMF_RDMA_DIF_INSERT_OR_STRIP;
@@ -3200,7 +3198,7 @@ nvmf_rdma_create(struct spdk_nvmf_transport_opts *opts)
 		     "  Transport opts:  max_ioq_depth=%d, max_io_size=%d,\n"
 		     "  max_io_qpairs_per_ctrlr=%d, io_unit_size=%d,\n"
 		     "  in_capsule_data_size=%d, max_aq_depth=%d,\n"
-		     "  num_shared_buffers=%d, num_cqe=%d, max_srq_depth=%d, no_srq=%d,"
+		     "  num_cqe=%d, max_srq_depth=%d, no_srq=%d,"
 		     "  acceptor_backlog=%d, no_wr_batching=%d abort_timeout_sec=%d\n",
 		     opts->max_queue_depth,
 		     opts->max_io_size,
@@ -3208,7 +3206,6 @@ nvmf_rdma_create(struct spdk_nvmf_transport_opts *opts)
 		     opts->io_unit_size,
 		     opts->in_capsule_data_size,
 		     opts->max_aq_depth,
-		     opts->num_shared_buffers,
 		     rtransport->rdma_opts.num_cqe,
 		     rtransport->rdma_opts.max_srq_depth,
 		     rtransport->rdma_opts.no_srq,
@@ -3232,14 +3229,6 @@ nvmf_rdma_create(struct spdk_nvmf_transport_opts *opts)
 		rtransport->transport.opts.msdbd = NVMF_DEFAULT_MSDBD;
 	} else if (!rtransport->transport.opts.msdbd) {
 		rtransport->transport.opts.msdbd = NVMF_DEFAULT_MSDBD;
-	}
-
-	if (opts->num_shared_buffers < (SPDK_NVMF_MAX_SGL_ENTRIES * 2)) {
-		SPDK_ERRLOG("The number of shared data buffers (%d) is less than"
-			    "the minimum number required to guarantee that forward progress can be made (%d)\n",
-			    opts->num_shared_buffers, (SPDK_NVMF_MAX_SGL_ENTRIES * 2));
-		nvmf_rdma_destroy(&rtransport->transport, NULL, NULL);
-		return NULL;
 	}
 
 	sge_count = opts->max_io_size / opts->io_unit_size;

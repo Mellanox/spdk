@@ -96,4 +96,7 @@ the pluging will emit deprecation warnings when usage is detected.
 
 #### `nvmf_create_transport`
 
-buf-cache-size parameter is deprecated in favor of small-buf-cache-size and will be removed in 26.01 release
+buf-cache-size parameter is deprecated in favor of small-buf-cache-size and will be removed in 26.01 release.
+num-shared-bufs parameter is deprecated and will be removed in 26.01 release. Instead the use can use
+`iobuf_set_options` to specify the number of small and large pool entries and use `small-buf-cache-size` and
+`large-buf-cache-size` parameters of `nvmf_create_transport` RPC configure desired buffers caches.

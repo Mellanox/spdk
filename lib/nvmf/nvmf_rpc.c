@@ -2465,6 +2465,13 @@ nvmf_rpc_decode_max_io_qpairs(const struct spdk_json_val *val, void *out)
 }
 
 static int
+decode_num_shared_buffers(const struct spdk_json_val *val, void *out)
+{
+	SPDK_WARNLOG("num_shared_buffers is deprecated, use iobuf_set_options instead\n");
+	return spdk_json_decode_uint32(val, out);
+}
+
+static int
 decode_buf_cache_size(const struct spdk_json_val *val, void *out)
 {
 	SPDK_WARNLOG("buf_cache_size is deprecated, use small_buf_cache_size instead\n");
@@ -2499,7 +2506,7 @@ static const struct spdk_json_object_decoder nvmf_rpc_create_transport_decoder[]
 	},
 	{
 		"num_shared_buffers", offsetof(struct nvmf_rpc_create_transport_ctx, opts.num_shared_buffers),
-		spdk_json_decode_uint32, true
+		decode_num_shared_buffers, true
 	},
 	{
 		"buf_cache_size", offsetof(struct nvmf_rpc_create_transport_ctx, opts.buf_cache_size),
