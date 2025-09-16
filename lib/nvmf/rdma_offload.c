@@ -6416,7 +6416,7 @@ nvmf_rdma_offload_poller_interrupt(void *ctx)
 {
 	struct spdk_nvmf_offload_poller *opoller = ctx;
 	doca_error_t drc;
-	int num_events;
+	int rc, num_events = 0;
 
 	drc = doca_pe_clear_notification(opoller->pe, opoller->notification_handle);
 	if (DOCA_IS_ERROR(drc)) {
@@ -6424,7 +6424,14 @@ nvmf_rdma_offload_poller_interrupt(void *ctx)
 		return -1;
 	}
 
-	num_events = doca_pe_progress(opoller->pe);
+	/*
+	 * The doca_pe_progress() function returns 1 if progress was made, 0 otherwise.
+	 * Call it untill all pendind events are handled.
+	 */
+	do {
+		rc = doca_pe_progress(opoller->pe);
+		num_events += rc;
+	} while (rc != 0);
 
 	drc = doca_pe_request_notification(opoller->pe);
 	if (DOCA_IS_ERROR(drc)) {
