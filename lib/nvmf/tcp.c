@@ -968,7 +968,6 @@ nvmf_tcp_create(struct spdk_nvmf_transport_opts *opts)
 	struct spdk_nvmf_tcp_transport *ttransport;
 	struct spdk_sock_group_opts sgroup_opts = {};
 	uint32_t sge_count;
-	uint32_t min_shared_buffers;
 	uint64_t period;
 
 	ttransport = calloc(1, sizeof(*ttransport));
@@ -1070,19 +1069,6 @@ nvmf_tcp_create(struct spdk_nvmf_transport_opts *opts)
 		SPDK_ERRLOG("Unsupported IO Unit size specified, %d bytes\n", opts->io_unit_size);
 		free(ttransport);
 		return NULL;
-	}
-
-	/* If buf_cache_size == UINT32_MAX, we will dynamically pick a cache size later that we know will fit. */
-	if (opts->small_buf_cache_size < UINT32_MAX) {
-		min_shared_buffers = spdk_env_get_core_count() * opts->small_buf_cache_size;
-		if (min_shared_buffers > opts->num_shared_buffers) {
-			SPDK_ERRLOG("There are not enough buffers to satisfy "
-				    "per-poll group caches for each thread. (%" PRIu32 ") "
-				    "supplied. (%" PRIu32 ") required\n", opts->num_shared_buffers, min_shared_buffers);
-			SPDK_ERRLOG("Please specify a larger number of shared buffers\n");
-			free(ttransport);
-			return NULL;
-		}
 	}
 
 	period = spdk_interrupt_mode_is_enabled() ? 0 : opts->acceptor_poll_rate;
