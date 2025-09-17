@@ -3152,7 +3152,9 @@ nvmf_non_offload_request_parse_sgl(struct nvmf_non_offload_request *non_offload_
 
 		return 0;
 	}
-	// TODO: Should we support multi sgl here? (DOCA STA does not support multi sgl)
+	/* SPDK_NVME_SGL_TYPE_LAST_SEGMENT is not implemented here because DOCA STA does not support it.
+	 * MSDBD is set to 1 to prevent an initiator from using the unsupported SGL type.
+	 */
 
 	SPDK_ERRLOG("Invalid NVMf I/O Command SGL:  Type 0x%x, Subtype 0x%x\n",
 		    sgl->generic.type, sgl->generic.subtype);
@@ -3630,6 +3632,8 @@ end_processing:
 #define SPDK_NVMF_RDMA_DEFAULT_DATA_WR_POOL_SIZE 4095
 #define SPDK_NVMF_RDMA_DEFAULT_DOCA_DEVICE "mlx5_0"
 #define SPDK_NVMF_RDMA_DEFAULT_RDMA_DEVICE "mlx5_2"
+/* MSDBD is limited by DOCA STA. */
+#define SPDK_NVMF_RDMA_MSDBD 1
 
 static void
 nvmf_rdma_opts_init(struct spdk_nvmf_transport_opts *opts)
@@ -3644,7 +3648,7 @@ nvmf_rdma_opts_init(struct spdk_nvmf_transport_opts *opts)
 	opts->buf_cache_size =		SPDK_NVMF_RDMA_DEFAULT_BUFFER_CACHE_SIZE;
 	opts->dif_insert_or_strip =	SPDK_NVMF_RDMA_DIF_INSERT_OR_STRIP;
 	opts->abort_timeout_sec =	SPDK_NVMF_RDMA_DEFAULT_ABORT_TIMEOUT_SEC;
-	opts->msdbd =			NVMF_DEFAULT_MSDBD;
+	opts->msdbd =			SPDK_NVMF_RDMA_MSDBD;
 	opts->transport_specific =      NULL;
 	opts->data_wr_pool_size	=	SPDK_NVMF_RDMA_DEFAULT_DATA_WR_POOL_SIZE;
 }
@@ -4523,12 +4527,12 @@ nvmf_rdma_create(struct spdk_nvmf_transport_opts *opts)
 			    SPDK_NVMF_RDMA_ACCEPTOR_BACKLOG);
 		rtransport->rdma_opts.acceptor_backlog = SPDK_NVMF_RDMA_ACCEPTOR_BACKLOG;
 	}
-	if (rtransport->transport.opts.msdbd > NVMF_DEFAULT_MSDBD) {
+	if (rtransport->transport.opts.msdbd > SPDK_NVMF_RDMA_MSDBD) {
 		SPDK_WARNLOG("Configured MSDBD %u exceeds max supported value, result is limited by %u\n",
-			     rtransport->transport.opts.msdbd, NVMF_DEFAULT_MSDBD);
-		rtransport->transport.opts.msdbd = NVMF_DEFAULT_MSDBD;
+			     rtransport->transport.opts.msdbd, SPDK_NVMF_RDMA_MSDBD);
+		rtransport->transport.opts.msdbd = SPDK_NVMF_RDMA_MSDBD;
 	} else if (!rtransport->transport.opts.msdbd) {
-		rtransport->transport.opts.msdbd = NVMF_DEFAULT_MSDBD;
+		rtransport->transport.opts.msdbd = SPDK_NVMF_RDMA_MSDBD;
 	}
 
 	if (opts->num_shared_buffers < (SPDK_NVMF_MAX_SGL_ENTRIES * 2)) {
@@ -4699,7 +4703,7 @@ nvmf_rdma_dump_opts(struct spdk_nvmf_transport *transport, struct spdk_json_writ
 	}
 	spdk_json_write_named_int32(w, "acceptor_backlog", rtransport->rdma_opts.acceptor_backlog);
 	spdk_json_write_named_bool(w, "no_wr_batching", rtransport->rdma_opts.no_wr_batching);
-	if (transport->opts.msdbd != NVMF_DEFAULT_MSDBD) {
+	if (transport->opts.msdbd != SPDK_NVMF_RDMA_MSDBD) {
 		spdk_json_write_named_bool(w, "msdbd", transport->opts.msdbd);
 	}
 	spdk_json_write_named_string(w, "doca_device", rtransport->rdma_opts.doca_device);
