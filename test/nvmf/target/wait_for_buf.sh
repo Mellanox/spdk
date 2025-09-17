@@ -45,7 +45,7 @@ $rpc_py nvmf_subsystem_add_listener "$subnqn" -t "$TEST_TRANSPORT" -a "$NVMF_FIR
 if [ "$CLEAN_FLOW" -eq 1 ]; then
 	# Clean flow tests if everything works fine with regular traffic scenario.
 	$perf "${perf_opt[@]}" -t 1
-	retry_count=$($rpc_py iobuf_get_stats | jq -r '.[] | select(.module == "nvmf_TCP") | .small_pool.retry')
+	retry_count=$($rpc_py iobuf_get_stats | jq -r ".[] | select(.module == "\"nvmf_${TEST_TRANSPORT^^}\"") | .small_pool.retry")
 	if [[ $retry_count -eq 0 ]]; then
 		return 1
 	fi
