@@ -6213,8 +6213,6 @@ nvmf_sta_io_non_offload_cb(struct doca_sta_qp_handle *qp_handle,
 	oqpair = get_offload_qpair_from_qp_handle(opoller, qp_handle);
 	if (!oqpair) {
 		SPDK_ERRLOG("qpair is not found for qp_handle %p\n", qp_handle);
-		// TODO: Any idea how to handle this error?
-		assert(0);
 		return;
 	}
 
@@ -7165,8 +7163,10 @@ nvmf_rdma_offload_qpair_close_process(struct spdk_nvmf_offload_qpair *oqpair)
 			 */
 			break;
 		case SPDK_NVMF_OFFLOAD_QPAIR_STATE_DISCONNECT_FAILED:
-			// TODO: Any idea on how to handle the error?
-			assert(0);
+			/* There is no good option to handle this error. Retrying to disconnect is unlikely to help.
+			 * Try to close the QP anyway.
+			 */
+			oqpair->state = SPDK_NVMF_OFFLOAD_QPAIR_STATE_DRAINING;
 			break;
 		case SPDK_NVMF_OFFLOAD_QPAIR_STATE_DISCONNECTED:
 			oqpair->state = SPDK_NVMF_OFFLOAD_QPAIR_STATE_DRAINING;
