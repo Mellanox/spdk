@@ -4355,7 +4355,7 @@ static int
 nvmf_parse_rdma_device_list(const char *rdma_devices_str, char ***rdma_devices,
 			    int *num_rdma_devices)
 {
-	char *str, *tmp, **devices;
+	char *str, *tmp, *sp, **devices;
 	int i;
 
 	str = strdup(rdma_devices_str);
@@ -4377,7 +4377,7 @@ nvmf_parse_rdma_device_list(const char *rdma_devices_str, char ***rdma_devices,
 	}
 
 	i = 0;
-	tmp = strtok(str, ",");
+	tmp = strtok_r(str, ",", &sp);
 	while (tmp) {
 		devices[i] = strdup(tmp);
 		if (!devices[i]) {
@@ -4386,7 +4386,7 @@ nvmf_parse_rdma_device_list(const char *rdma_devices_str, char ***rdma_devices,
 			return -ENOMEM;
 		}
 		i++;
-		tmp = strtok(NULL, ",");
+		tmp = strtok_r(NULL, ",", &sp);
 	}
 
 	free(str);
