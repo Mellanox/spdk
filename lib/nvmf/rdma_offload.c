@@ -3098,9 +3098,11 @@ static int
 nvmf_non_offload_request_parse_sgl(struct nvmf_non_offload_request *non_offload_req)
 {
 	struct spdk_nvmf_request	*req = &non_offload_req->common.req;
+	struct spdk_nvmf_transport	*transport = req->qpair->transport;
 	struct spdk_nvme_cpl		*rsp;
 	struct spdk_nvme_sgl_descriptor	*sgl;
 	uint32_t			length;
+	uint32_t			max_len;
 
 	rsp = &req->rsp->nvme_cpl;
 	sgl = &req->cmd->nvme_cmd.dptr.sgl1;
@@ -3108,13 +3110,11 @@ nvmf_non_offload_request_parse_sgl(struct nvmf_non_offload_request *non_offload_
 	if (sgl->generic.type == SPDK_NVME_SGL_TYPE_KEYED_DATA_BLOCK &&
 	    (sgl->keyed.subtype == SPDK_NVME_SGL_SUBTYPE_ADDRESS ||
 	     sgl->keyed.subtype == SPDK_NVME_SGL_SUBTYPE_INVALIDATE_KEY)) {
+
+		max_len = spdk_min(transport->opts.max_io_size, non_offload_req->payload_len);
 		length = sgl->keyed.length;
-
-		// TODO: check transport max_io_size
-
-		if (length > non_offload_req->payload_len) {
-			SPDK_ERRLOG("SGL length 0x%x exceeds non-offload IO buffer size 0x%x\n",
-				    length, non_offload_req->payload_len);
+		if (spdk_unlikely(length > max_len)) {
+			SPDK_ERRLOG("SGL length 0x%x exceeds the max I/O size 0x%x\n", length, max_len);
 			rsp->status.sc = SPDK_NVME_SC_DATA_SGL_LENGTH_INVALID;
 			return -1;
 		}
@@ -3124,19 +3124,23 @@ nvmf_non_offload_request_parse_sgl(struct nvmf_non_offload_request *non_offload_
 		req->iovcnt = 1;
 
 		return 0;
-	}
-	if (sgl->generic.type == SPDK_NVME_SGL_TYPE_DATA_BLOCK &&
-	    sgl->unkeyed.subtype == SPDK_NVME_SGL_SUBTYPE_OFFSET) {
+	} else if (sgl->generic.type == SPDK_NVME_SGL_TYPE_DATA_BLOCK &&
+		   sgl->unkeyed.subtype == SPDK_NVME_SGL_SUBTYPE_OFFSET) {
 		uint64_t offset = sgl->address;
 
 		SPDK_DEBUGLOG(rdma_offload, "In-capsule data: offset 0x%" PRIx64 ", length 0x%x\n",
 			      offset, sgl->unkeyed.length);
 
-		// TODO: check (offset + sgl->unkeyed.length) <= transport.opts.in_capsule_data_size
+		max_len = spdk_min(transport->opts.in_capsule_data_size, non_offload_req->payload_len);
+		if (spdk_unlikely(offset > max_len)) {
+			SPDK_ERRLOG("In-capsule offset 0x%" PRIx64 " exceeds capsule length 0x%x\n",
+				    offset, max_len);
+		}
+		max_len -= (uint32_t)offset;
 
-		if ((offset + sgl->unkeyed.length) > non_offload_req->payload_len) {
-			SPDK_ERRLOG("In-capsule + SGL length 0x%lx exceeds non-offload IO buffer size 0x%x\n",
-				    offset + sgl->unkeyed.length, non_offload_req->payload_len);
+		if (spdk_unlikely(sgl->unkeyed.length > max_len)) {
+			SPDK_ERRLOG("In-capsule + SGL length 0x%lx exceeds the maximum size 0x%x\n",
+				    offset + sgl->unkeyed.length, max_len);
 			rsp->status.sc = SPDK_NVME_SC_DATA_SGL_LENGTH_INVALID;
 			return -1;
 		}
