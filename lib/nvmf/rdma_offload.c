@@ -784,10 +784,15 @@ struct nvmf_rdma_sta_caps {
 	uint32_t max_io_size;
 	uint32_t max_ios;
 	uint32_t max_io_queue_size;
+	/* Minimum supported I/O Queue Command Capsule Size in 16-byte units */
 	uint32_t min_ioccsz;
+	/* Maximum supported I/O Queue Command Capsule Size in 16-byte units */
 	uint32_t max_ioccsz;
+	/* Minimum supported I/O Queue Response Capsule Size in 16-byte units */
 	uint32_t min_iorcsz;
+	/* Maximum supported I/O Queue Response Capsule Size in 16-byte units */
 	uint32_t max_iorcsz;
+	/* Maximum supported In-Capsule Data Offset in 16-byte units */
 	uint32_t max_icdoff;
 	uint32_t max_be;
 	uint32_t max_qs_per_be;
@@ -4048,30 +4053,40 @@ nvmf_rdma_sta_get_caps(struct doca_sta *sta, struct nvmf_rdma_sta_caps *caps)
 		SPDK_ERRLOG("doca_sta_cap_get_min_ioccsz(): %s\n", doca_error_get_descr(drc));
 		return -1;
 	}
+	/* Convert the returned value from bytes to 16-byte units. */
+	caps->min_ioccsz = spdk_divide_round_up(caps->min_ioccsz, 16);
 
 	drc = doca_sta_get_max_ioccsz(&caps->max_ioccsz);
 	if (DOCA_IS_ERROR(drc)) {
 		SPDK_ERRLOG("doca_sta_cap_get_max_ioccsz(): %s\n", doca_error_get_descr(drc));
 		return -1;
 	}
+	/* Convert the returned value from bytes to 16-byte units. */
+	caps->max_ioccsz /= 16;
 
 	drc = doca_sta_get_min_iorcsz(&caps->min_iorcsz);
 	if (DOCA_IS_ERROR(drc)) {
 		SPDK_ERRLOG("doca_sta_cap_get_min_iorcsz(): %s\n", doca_error_get_descr(drc));
 		return -1;
 	}
+	/* Convert the returned value from bytes to 16-byte units. */
+	caps->min_iorcsz = spdk_divide_round_up(caps->min_iorcsz, 16);
 
 	drc = doca_sta_get_max_iorcsz(&caps->max_iorcsz);
 	if (DOCA_IS_ERROR(drc)) {
 		SPDK_ERRLOG("doca_sta_cap_get_max_iorcsz(): %s\n", doca_error_get_descr(drc));
 		return -1;
 	}
+	/* Convert the returned value from bytes to 16-byte units. */
+	caps->max_iorcsz /= 16;
 
 	drc = doca_sta_get_max_icdoff(&caps->max_icdoff);
 	if (DOCA_IS_ERROR(drc)) {
 		SPDK_ERRLOG("doca_sta_cap_get_max_icdoff(): %s\n", doca_error_get_descr(drc));
 		return -1;
 	}
+	/* Convert the returned value from bytes to 16-byte units. */
+	caps->max_icdoff /= 16;
 
 	drc = doca_sta_get_max_be(&caps->max_be);
 	if (DOCA_IS_ERROR(drc)) {
@@ -5957,6 +5972,10 @@ static void
 nvmf_rdma_cdata_init(struct spdk_nvmf_transport *transport, struct spdk_nvmf_subsystem *subsystem,
 		     struct spdk_nvmf_ctrlr_data *cdata)
 {
+	struct spdk_nvmf_rdma_transport *rtransport = SPDK_CONTAINEROF(transport,
+			struct spdk_nvmf_rdma_transport, transport);
+	uint32_t adjusted_capability;
+
 	cdata->nvmf_specific.msdbd = transport->opts.msdbd;
 
 	/* Disable in-capsule data transfer for RDMA controller when dif_insert_or_strip is enabled
@@ -5965,12 +5984,35 @@ nvmf_rdma_cdata_init(struct spdk_nvmf_transport *transport, struct spdk_nvmf_sub
 		cdata->nvmf_specific.ioccsz = sizeof(struct spdk_nvme_cmd) / 16;
 	}
 
+	adjusted_capability = spdk_max(cdata->nvmf_specific.ioccsz, rtransport->sta.caps.min_ioccsz);
+	adjusted_capability = spdk_min(adjusted_capability, rtransport->sta.caps.max_ioccsz);
+	if (cdata->nvmf_specific.ioccsz != adjusted_capability) {
+		SPDK_NOTICELOG("IOCCSZ changed from %u to %u due to DOCA STA capabilities.\n",
+			       cdata->nvmf_specific.ioccsz, adjusted_capability);
+		cdata->nvmf_specific.ioccsz = adjusted_capability;
+	}
+
 	if (cdata->nvmf_specific.ioccsz > ((sizeof(struct spdk_nvme_cmd) + 0x1000) / 16)) {
 		SPDK_WARNLOG("RDMA is configured to support up to 16 SGL entries while in capsule"
 			     " data is greater than 4KiB.\n");
 		SPDK_WARNLOG("When used in conjunction with the NVMe-oF initiator from the Linux "
 			     "kernel between versions 5.4 and 5.12 data corruption may occur for "
 			     "writes that are not a multiple of 4KiB in size.\n");
+	}
+
+	adjusted_capability = spdk_max(cdata->nvmf_specific.iorcsz, rtransport->sta.caps.min_iorcsz);
+	adjusted_capability = spdk_min(adjusted_capability, rtransport->sta.caps.max_iorcsz);
+	if (cdata->nvmf_specific.iorcsz != adjusted_capability) {
+		SPDK_NOTICELOG("IORCSZ changed from %u to %u due to DOCA STA capabilities.\n",
+			       cdata->nvmf_specific.iorcsz, adjusted_capability);
+		cdata->nvmf_specific.iorcsz = adjusted_capability;
+	}
+
+	adjusted_capability = spdk_min(cdata->nvmf_specific.icdoff, rtransport->sta.caps.max_icdoff);
+	if (cdata->nvmf_specific.icdoff != adjusted_capability) {
+		SPDK_NOTICELOG("ICDOFF changed from %u to %u due to DOCA STA capabilities.\n",
+			       cdata->nvmf_specific.icdoff, adjusted_capability);
+		cdata->nvmf_specific.icdoff = adjusted_capability;
 	}
 }
 
