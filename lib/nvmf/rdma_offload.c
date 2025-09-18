@@ -5489,8 +5489,6 @@ nvmf_rdma_disconnect(struct rdma_cm_event *evt, bool *event_acked)
 		spdk_trace_record(TRACE_RDMA_OFFLOAD_QP_DISCONNECT, 0, 0, (uintptr_t)rqpair);
 	}
 
-	spdk_trace_record(TRACE_RDMA_OFFLOAD_QP_DISCONNECT, 0, 0, (uintptr_t)rqpair);
-
 	spdk_nvmf_qpair_disconnect(qpair);
 
 	return 0;
