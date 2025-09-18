@@ -5424,7 +5424,10 @@ nvmf_rdma_destroy_drained_qpair(struct spdk_nvmf_rdma_qpair *rqpair)
 	}
 	rqpair->in_destroy = true;
 
-	nvmf_rdma_qpair_process_pending(rtransport, rqpair, true);
+	if (rqpair->poller) {
+		/* a qpair might be destroyed before being added to a poll group */
+		nvmf_rdma_qpair_process_pending(rtransport, rqpair, true);
+	}
 
 	/* nvmf_rdma_close_qpair is not called */
 	if (!rqpair->to_close) {
