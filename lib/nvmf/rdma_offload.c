@@ -2683,7 +2683,10 @@ nvmf_rdma_create_doca_mmap(struct doca_dev *dev, void *addr, size_t len, int dma
 	return mmap;
 
 err:
-	doca_mmap_destroy(mmap);
+	drc = doca_mmap_destroy(mmap);
+	if (DOCA_IS_ERROR(drc)) {
+		SPDK_ERRLOG("Failed to destroy doca_mmap: %s\n", doca_error_get_descr(drc));
+	}
 	return NULL;
 }
 
