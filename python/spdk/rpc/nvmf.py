@@ -123,7 +123,7 @@ def nvmf_create_transport(client, **params):
         c2h_success: Boolean flag to disable the C2H success optimization - TCP specific (optional)
         dif_insert_or_strip: Boolean flag to enable DIF insert/strip for I/O - TCP specific (optional)
         acceptor_backlog: Pending connections allowed at one time - RDMA specific (optional)
-        doca_log_level: Set log level for DOCA internal libs (disable, critical, error, warning, info, debug, trace) - RDMA_OFFLOAD specific (optional)
+        doca_log_level: Set DOCA log level (disable, critical, error, warning, info, debug, trace) - RDMA_OFFLOAD specific (optional)
         doca_device: DOCA device with STA capabilities - RDMA_OFFLOAD specific (optional)
         rdma_device_list: Allowed list of RDMA devices - RDMA_OFFLOAD specific (optional)
         abort_timeout_sec: Abort execution timeout value, in seconds (optional)

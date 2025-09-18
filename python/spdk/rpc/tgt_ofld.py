@@ -84,6 +84,7 @@ def tgt_ofld_connect_qp_count(client, group=None):
         params['group'] = group
     return client.call('tgt_ofld_connect_qp_count', params)
 
+
 def tgt_ofld_get_backend_ctrl_stat(client, name=None):
     """Get statistics for offload backend controllers.
 
@@ -98,6 +99,7 @@ def tgt_ofld_get_backend_ctrl_stat(client, name=None):
         params['name'] = name
     return client.call('tgt_ofld_get_backend_ctrl_stat', params)
 
+
 def tgt_ofld_get_bdev_stat(client, name=None):
     """Get statistics for offload bdevs.
 
@@ -111,6 +113,7 @@ def tgt_ofld_get_bdev_stat(client, name=None):
     if name:
         params['name'] = name
     return client.call('tgt_ofld_get_bdev_stat', params)
+
 
 def tgt_ofld_get_bdev_queue_mapping(client, name=None):
     """Display a mapping of the backend queue to an event handler for all the offload bdevs or specified bdev.
