@@ -41,6 +41,7 @@ run_test "nvmf_auth_target" "$rootdir/test/nvmf/target/auth.sh" "${TEST_ARGS[@]}
 run_test "nvmf_wait_for_buf_clean_flow" $rootdir/test/nvmf/target/wait_for_buf.sh clean_flow "${TEST_ARGS[@]}"
 run_test "nvmf_wait_for_buf_dirty_flow" $rootdir/test/nvmf/target/wait_for_buf.sh dirty_flow "${TEST_ARGS[@]}"
 run_test "nvmf_buf_cache" $rootdir/test/nvmf/target/buf_cache.sh "${TEST_ARGS[@]}"
+run_test "nvmf_bdev_bypass" "$rootdir/test/nvmf/target/bdev_bypass.sh" "${TEST_ARGS[@]}"
 
 if [ "$SPDK_TEST_NVMF_TRANSPORT" = "tcp" ]; then
 	# FIXME: Disabling. #4600932
