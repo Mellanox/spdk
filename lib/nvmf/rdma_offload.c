@@ -3318,7 +3318,7 @@ nvmf_non_offload_request_transfer_out(struct nvmf_non_offload_request *non_offlo
 	oqpair = nvmf_offload_qpair_get(req->qpair);
 	task_user_data.ptr = non_offload_req;
 
-	SPDK_STATIC_ASSERT(sizeof(*rsp) == sizeof(doca_sta_nvmef_completion_t), "size mismatch");
+	SPDK_STATIC_ASSERT(sizeof(*rsp) == sizeof(doca_sta_nvme_completion_t), "size mismatch");
 
 	if (rsp->status.sc == SPDK_NVME_SC_SUCCESS &&
 	    req->xfer == SPDK_NVME_DATA_CONTROLLER_TO_HOST) {
@@ -3955,6 +3955,54 @@ nvmf_sta_event_eu_err_cb(const struct doca_sta_event_eu_err *event, union doca_d
 	}
 }
 
+static void
+nvmf_sta_event_cqe_notify_cb(const struct doca_sta_event_cqe_notify *event,
+			     union doca_data user_data)
+{
+	doca_error_t drc;
+	enum doca_sta_cqe_notify_type error_type;
+	doca_sta_nvme_completion_t cqe;
+	const struct doca_sta_subs_handle *subsystem_handle;
+	const struct doca_sta_qp_handle *qp_handle;
+	uint8_t opcode;
+	uint16_t cid;
+	uint16_t nsid;
+	uint64_t lba;
+
+	drc = doca_sta_event_cqe_notify_get_cqe_notify_type(event, &error_type);
+	if (DOCA_IS_ERROR(drc)) {
+		SPDK_ERRLOG("CQE cqe_error_type occurred\n");
+		return;
+	}
+
+	drc = doca_sta_event_cqe_notify_get_cqe(event, cqe);
+	if (DOCA_IS_ERROR(drc)) {
+		SPDK_ERRLOG("CQE cqe_error_get_cqe occurred\n");
+		return;
+	}
+
+	drc = doca_sta_event_cqe_notify_get_subsystem_handle(event, &subsystem_handle);
+	if (DOCA_IS_ERROR(drc)) {
+		SPDK_ERRLOG("CQE cqe_error_get_subsystem_handle occurred\n");
+		return;
+	}
+
+	drc = doca_sta_event_cqe_notify_get_qp_handle(event, &qp_handle);
+	if (DOCA_IS_ERROR(drc)) {
+		SPDK_ERRLOG("CQE cqe_error_get_qp_handle occurred\n");
+		return;
+	}
+
+	drc = doca_sta_event_cqe_notify_get_capsule_params(event, &opcode, &cid, &nsid, &lba);
+	if (DOCA_IS_ERROR(drc)) {
+		SPDK_ERRLOG("CQE cqe_error_get_capsule_params occurred\n");
+		return;
+	}
+
+	SPDK_NOTICELOG("CQE capsule params: opcode=0x%x, cid=0x%x, nsid=0x%x, lba=0x%lx\n", opcode, cid,
+		       nsid, lba);
+}
+
 static void *
 nvmf_sta_zmalloc(size_t size, size_t align, uint64_t *phys_addr)
 {
@@ -4274,6 +4322,13 @@ nvmf_rdma_sta_start(struct spdk_nvmf_rdma_transport *rtransport)
 	rc = doca_sta_event_eu_err_register_cb(rtransport->sta.sta, nvmf_sta_event_eu_err_cb, udata);
 	if (rc != DOCA_SUCCESS) {
 		SPDK_ERRLOG("Failed to register event_eu_err_cb: %s", doca_error_get_name(rc));
+		return -EINVAL;
+	}
+
+	rc = doca_sta_event_cqe_notify_register_cb(rtransport->sta.sta, nvmf_sta_event_cqe_notify_cb,
+			udata);
+	if (rc != DOCA_SUCCESS) {
+		SPDK_ERRLOG("Failed to register event_cqe_notify_cb: %s", doca_error_get_name(rc));
 		return -EINVAL;
 	}
 
