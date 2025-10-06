@@ -65,7 +65,7 @@ LABEL doca_sta_version=$DOCA_STA_VERSION
 ENV LD_LIBRARY_PATH="${NVMF_TARGET_OFFLOAD_PATH}/lib:$LD_LIBRARY_PATH"
 ENV PYTHONPATH="${NVMF_TARGET_OFFLOAD_PATH}/local/lib/python3.10/dist-packages:$PYTHONPATH"
 ENV PKG_CONFIG_PATH="${NVMF_TARGET_OFFLOAD_PATH}/lib/pkgconfig:$PKG_CONFIG_PATH"
-ENV PATH="${NVMF_TARGET_OFFLOAD_PATH}/bin:$PATH"
+ENV PATH="${NVMF_TARGET_OFFLOAD_PATH}/bin:${NVMF_TARGET_OFFLOAD_PATH}/local/bin:$PATH"
 ENV COVFILE=/nvmf-target-offload.cov
 
 RUN apt update && apt install -y supervisor libjson-c5 fuse3 libasan6 libubsan1 libaio1
@@ -78,7 +78,7 @@ COPY --from=builder /nvmf-target-offload.cov /nvmf-target-offload.cov
 COPY ./container/entrypoint.sh /usr/bin/entrypoint.sh
 COPY ./container/set_environment_variables.sh ${NVMF_TARGET_OFFLOAD_PATH}/bin/set_environment_variables.sh
 
-RUN ln -sfT ${NVMF_TARGET_OFFLOAD_PATH}/bin/spdk_rpc ${NVMF_TARGET_OFFLOAD_PATH}/bin/spdk_rpc.py
+RUN ln -sfT ${NVMF_TARGET_OFFLOAD_PATH}/local/bin/spdk-rpc ${NVMF_TARGET_OFFLOAD_PATH}/bin/spdk_rpc.py
 
 # Supervisord
 RUN mkdir -p /var/log/supervisor
