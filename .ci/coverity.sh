@@ -3,7 +3,7 @@ set -o pipefail
 
 progname=$(basename $0)
 
-DEFECTS_EXPECTED=8
+DEFECTS_EXPECTED=0
 
 function usage()
 {
@@ -138,7 +138,7 @@ fi
 
 cov-format-errors --dir $cov_build --html-output $cov_build/html
 
-nerrors=$(cov-format-errors --dir $cov_build --emacs-style |& tee $cov_build/coverity.log | grep 'Type:' | wc -l )
+nerrors=$(cov-format-errors --dir $cov_build --emacs-style |& tee $cov_build/coverity.log | grep -c 'Type:'||true)
 
 echo -e "Number of Defects: ${nerrors} (expected $DEFECTS_EXPECTED)\n"
 
