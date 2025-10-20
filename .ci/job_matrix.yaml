@@ -18,6 +18,11 @@ kubernetes:
   runAsUser: "6213"
   runAsGroup: "11429"
   privileged: true
+  arch_table:
+    aarch64:
+      dockerImage: "urm.nvidia.com/quay-remote/podman/stable:v5.5.1"
+    x86_64:
+      dockerImage: "urm.nvidia.com/quay-remote/podman/stable:v5.5.1"
 
 env:
   MOFED_VER: 24.07-0.6.1.0
