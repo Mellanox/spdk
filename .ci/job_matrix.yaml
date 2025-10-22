@@ -20,8 +20,10 @@ kubernetes:
   privileged: true
   arch_table:
     aarch64:
+      jnlpImage: "nbu-harbor.gtm.nvidia.com/toolbox/c3po-jnlp"
       dockerImage: "urm.nvidia.com/quay-remote/podman/stable:v5.5.1"
     x86_64:
+      jnlpImage: "nbu-harbor.gtm.nvidia.com/toolbox/c3po-jnlp"
       dockerImage: "urm.nvidia.com/quay-remote/podman/stable:v5.5.1"
 
 env:
