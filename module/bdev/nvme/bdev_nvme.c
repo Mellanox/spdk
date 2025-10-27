@@ -2461,6 +2461,12 @@ bdev_nvme_check_op_after_reset(struct nvme_ctrlr *nvme_ctrlr, bool success,
 	if (nvme_ctrlr_can_be_unregistered(nvme_ctrlr)) {
 		/* Complete pending destruct after reset completes. */
 		return OP_COMPLETE_PENDING_DESTRUCT;
+	} else if (nvme_ctrlr->destruct) {
+		/* If destruct is requested but ref. count is non-zero,
+		 * we should not start any recovery operation and just wait
+		 * until all ctrlr_channels are closed.
+		 */
+		return OP_NONE;
 	} else if (success || nvme_ctrlr->opts.reconnect_delay_sec == 0) {
 		if (pending_failover) {
 			/* This is a fix for a race condition that failover was lost
@@ -2600,6 +2606,9 @@ bdev_nvme_reset_ctrlr_complete(struct nvme_ctrlr *nvme_ctrlr, bool success)
 	nvme_ctrlr->ctrlr_op_cb_arg = NULL;
 
 	op_after_reset = bdev_nvme_check_op_after_reset(nvme_ctrlr, success, pending_failover);
+	NVME_CTRLR_INFOLOG(nvme_ctrlr, "op after reset: %d, destruct %d\n", op_after_reset,
+			   nvme_ctrlr->destruct);
+
 	pthread_mutex_unlock(&nvme_ctrlr->mutex);
 
 	/* Delay callbacks when the next operation is a failover. */
@@ -2674,12 +2683,13 @@ exit:
 static void
 bdev_nvme_reset_create_qpairs_done(struct nvme_ctrlr *nvme_ctrlr, void *ctx, int status)
 {
-	if (status == 0) {
+	if (status == 0 && !nvme_ctrlr->destruct) {
 		NVME_CTRLR_INFOLOG(nvme_ctrlr, "qpairs were created after ctrlr reset.\n");
 
 		bdev_nvme_reset_ctrlr_complete(nvme_ctrlr, true);
 	} else {
-		NVME_CTRLR_INFOLOG(nvme_ctrlr, "qpairs were failed to create after ctrlr reset.\n");
+		NVME_CTRLR_INFOLOG(nvme_ctrlr, "re-create qpairs rc %d, destruct %d\n", status,
+				   nvme_ctrlr->destruct);
 
 		/* Delete the added qpairs and quiesce ctrlr to make the states clean. */
 		nvme_ctrlr_for_each_channel(nvme_ctrlr,
@@ -2740,6 +2750,12 @@ bdev_nvme_reset_create_qpair(struct nvme_ctrlr_channel_iter *i,
 	int rc = 0;
 
 	if (nvme_qpair == NULL) {
+		goto exit;
+	}
+
+	if (nvme_ctrlr->destruct) {
+		NVME_CTRLR_INFOLOG(nvme_ctrlr, "ctrlr is destructing\n");
+		rc = -EIO;
 		goto exit;
 	}
 
@@ -2804,7 +2820,10 @@ bdev_nvme_reconnect_ctrlr_poll(void *arg)
 	}
 
 	spdk_poller_unregister(&nvme_ctrlr->reset_detach_poller);
-	if (rc == 0) {
+
+	NVME_CTRLR_INFOLOG(nvme_ctrlr, "reconnect done, rc %d, destruct %d\n", rc,
+			   nvme_ctrlr->destruct);
+	if (rc == 0 && !nvme_ctrlr->destruct) {
 		trid = &nvme_ctrlr->active_path_id->trid;
 
 		if (spdk_nvme_trtype_is_fabrics(trid->trtype)) {
@@ -2832,7 +2851,13 @@ bdev_nvme_reconnect_ctrlr_poll(void *arg)
 static void
 bdev_nvme_reconnect_ctrlr(struct nvme_ctrlr *nvme_ctrlr)
 {
-	NVME_CTRLR_INFOLOG(nvme_ctrlr, "Start reconnecting ctrlr.\n");
+	NVME_CTRLR_INFOLOG(nvme_ctrlr, "Start reconnecting ctrlr, destruct %d\n",
+			   nvme_ctrlr->destruct);
+
+	if (nvme_ctrlr->destruct) {
+		bdev_nvme_reset_ctrlr_complete(nvme_ctrlr, false);
+		return;
+	}
 
 	spdk_nvme_ctrlr_reconnect_async(nvme_ctrlr->ctrlr);
 
@@ -2848,7 +2873,12 @@ bdev_nvme_reset_destroy_qpair_done(struct nvme_ctrlr *nvme_ctrlr, void *ctx, int
 	SPDK_DTRACE_PROBE1(bdev_nvme_ctrlr_reset, nvme_ctrlr->nbdev_ctrlr->name);
 	assert(status == 0);
 
-	NVME_CTRLR_INFOLOG(nvme_ctrlr, "qpairs were deleted.\n");
+	NVME_CTRLR_INFOLOG(nvme_ctrlr, "delete qpairs done, destruct %d\n", nvme_ctrlr->destruct);
+
+	if (nvme_ctrlr->destruct) {
+		bdev_nvme_reset_ctrlr_complete(nvme_ctrlr, false);
+		return;
+	}
 
 	if (!spdk_nvme_ctrlr_is_fabrics(nvme_ctrlr->ctrlr)) {
 		bdev_nvme_reconnect_ctrlr(nvme_ctrlr);
@@ -2999,6 +3029,8 @@ bdev_nvme_disable_ctrlr_complete(struct nvme_ctrlr *nvme_ctrlr)
 	nvme_ctrlr->pending_failover = false;
 
 	op_after_disable = bdev_nvme_check_op_after_reset(nvme_ctrlr, true, false);
+
+	NVME_CTRLR_INFOLOG(nvme_ctrlr, "op after disable: %d\n", op_after_disable);
 
 	nvme_ctrlr->disabled = true;
 	spdk_poller_pause(nvme_ctrlr->adminq_timer_poller);
