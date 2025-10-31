@@ -14,7 +14,9 @@
 #define RDMA_UT_LKEY 123
 #define RDMA_UT_RKEY 312
 
-struct spdk_nvme_transport_opts g_spdk_nvme_transport_opts = {};
+struct spdk_nvme_transport_opts g_spdk_nvme_transport_opts = {
+	.rdma_initial_cq_size = 4096,
+};
 struct spdk_rdma_provider_qp g_spdk_rdma_qp = {};
 struct spdk_rdma_provider_srq g_spdk_rdma_srq = {};
 

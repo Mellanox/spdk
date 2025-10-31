@@ -4992,6 +4992,13 @@ struct spdk_nvme_transport_opts {
 	 * Time in msec to wait until connection is done (0 = no timeout).
 	 */
 	uint32_t tcp_connect_timeout_ms;
+
+	/**
+	 * It is used for RDMA transport.
+	 *
+	 * The initial size of a shared rdma completion queue, must be greater than 0.
+	 */
+	uint32_t rdma_initial_cq_size;
 };
 SPDK_STATIC_ASSERT(sizeof(struct spdk_nvme_transport_opts) == 40, "Incorrect size");
 

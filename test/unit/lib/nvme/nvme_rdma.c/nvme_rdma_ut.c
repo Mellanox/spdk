@@ -625,7 +625,7 @@ test_nvme_rdma_poller_create(void)
 	CU_ASSERT(poller_1->refcnt == 1);
 	CU_ASSERT(poller_1->device == &context);
 	CU_ASSERT(poller_1->cq == (struct spdk_rdma_provider_cq *)0xFEEDBEEF);
-	CU_ASSERT(poller_1->current_num_wc == DEFAULT_NVME_RDMA_CQ_SIZE);
+	CU_ASSERT(poller_1->current_num_wc == (int)g_spdk_nvme_transport_opts.rdma_initial_cq_size);
 	CU_ASSERT(poller_1->required_num_wc == 0);
 
 	poller_2 = nvme_rdma_poll_group_get_poller(&group, &context_2);
@@ -1215,8 +1215,8 @@ test_nvme_rdma_poll_group_get_stats(void)
 	CU_ASSERT(tpoller2->device == &contexts1);
 	CU_ASSERT(strcmp(tpoller1->device->device->name, "/dev/test2") == 0);
 	CU_ASSERT(strcmp(tpoller2->device->device->name, "/dev/test1") == 0);
-	CU_ASSERT(tpoller1->current_num_wc == DEFAULT_NVME_RDMA_CQ_SIZE);
-	CU_ASSERT(tpoller2->current_num_wc == DEFAULT_NVME_RDMA_CQ_SIZE);
+	CU_ASSERT(tpoller1->current_num_wc == (int)g_spdk_nvme_transport_opts.rdma_initial_cq_size);
+	CU_ASSERT(tpoller2->current_num_wc == (int)g_spdk_nvme_transport_opts.rdma_initial_cq_size);
 	CU_ASSERT(tpoller1->required_num_wc == 0);
 	CU_ASSERT(tpoller2->required_num_wc == 0);
 
@@ -1339,7 +1339,7 @@ test_nvme_rdma_qpair_set_poller(void)
 	SPDK_CU_ASSERT_FATAL(poller != NULL);
 	CU_ASSERT(STAILQ_NEXT(poller, link) == NULL);
 	CU_ASSERT(poller->device == (struct ibv_context *)0xFEEDBEEF);
-	CU_ASSERT(poller->current_num_wc == DEFAULT_NVME_RDMA_CQ_SIZE);
+	CU_ASSERT(poller->current_num_wc == (int)g_spdk_nvme_transport_opts.rdma_initial_cq_size);
 	CU_ASSERT(poller->required_num_wc == 0);
 	CU_ASSERT(rqpair.poller == poller);
 
@@ -1352,7 +1352,7 @@ test_nvme_rdma_qpair_set_poller(void)
 
 	/* Test4: Match cq success, function spdk_rdma_provider_cq_resize failed */
 	rqpair.cq = NULL;
-	rqpair.num_entries = DEFAULT_NVME_RDMA_CQ_SIZE - 1;
+	rqpair.num_entries = g_spdk_nvme_transport_opts.rdma_initial_cq_size - 1;
 	MOCK_SET(spdk_rdma_provider_cq_resize, -1);
 
 	rc = nvme_rdma_qpair_set_poller(&rqpair.qpair);
@@ -1367,8 +1367,9 @@ test_nvme_rdma_qpair_set_poller(void)
 
 	poller = STAILQ_FIRST(&group->pollers);
 	SPDK_CU_ASSERT_FATAL(poller != NULL);
-	CU_ASSERT(poller->current_num_wc == DEFAULT_NVME_RDMA_CQ_SIZE * 2);
-	CU_ASSERT(poller->required_num_wc == (DEFAULT_NVME_RDMA_CQ_SIZE - 1) * 2);
+	CU_ASSERT(poller->current_num_wc == (int)g_spdk_nvme_transport_opts.rdma_initial_cq_size * 2);
+	CU_ASSERT(poller->required_num_wc == (int)(g_spdk_nvme_transport_opts.rdma_initial_cq_size - 1) *
+		  2);
 	CU_ASSERT(rqpair.cq == poller->cq);
 	CU_ASSERT(rqpair.poller == poller);
 
@@ -1376,22 +1377,24 @@ test_nvme_rdma_qpair_set_poller(void)
 
 	/* Test 6: Add and remove on more qpair, check required_num_wc */
 	rqpair_2.cq = NULL;
-	rqpair_2.num_entries = DEFAULT_NVME_RDMA_CQ_SIZE - 1;
+	rqpair_2.num_entries = g_spdk_nvme_transport_opts.rdma_initial_cq_size - 1;
 
 	rc = nvme_rdma_qpair_set_poller(&rqpair_2.qpair);
 	CU_ASSERT(rc == 0);
 	poller = STAILQ_FIRST(&group->pollers);
 	SPDK_CU_ASSERT_FATAL(poller != NULL);
-	CU_ASSERT(poller->current_num_wc == DEFAULT_NVME_RDMA_CQ_SIZE * 4);
-	CU_ASSERT(poller->required_num_wc == (DEFAULT_NVME_RDMA_CQ_SIZE - 1) * 4);
+	CU_ASSERT(poller->current_num_wc == (int)g_spdk_nvme_transport_opts.rdma_initial_cq_size * 4);
+	CU_ASSERT(poller->required_num_wc == (int)(g_spdk_nvme_transport_opts.rdma_initial_cq_size - 1) *
+		  4);
 	CU_ASSERT(rqpair_2.cq == poller->cq);
 	CU_ASSERT(rqpair_2.poller == poller);
 
 	nvme_rdma_qpair_release_poller(&rqpair_2);
 	poller = STAILQ_FIRST(&group->pollers);
 	SPDK_CU_ASSERT_FATAL(poller != NULL);
-	CU_ASSERT(poller->current_num_wc == DEFAULT_NVME_RDMA_CQ_SIZE * 4);
-	CU_ASSERT(poller->required_num_wc == (DEFAULT_NVME_RDMA_CQ_SIZE - 1) * 2);
+	CU_ASSERT(poller->current_num_wc == (int)g_spdk_nvme_transport_opts.rdma_initial_cq_size * 4);
+	CU_ASSERT(poller->required_num_wc == ((int)g_spdk_nvme_transport_opts.rdma_initial_cq_size - 1) *
+		  2);
 	CU_ASSERT(rqpair.cq == poller->cq);
 	CU_ASSERT(rqpair.poller == poller);
 

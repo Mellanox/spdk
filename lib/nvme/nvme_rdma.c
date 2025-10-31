@@ -42,9 +42,6 @@
 /* number of STAILQ entries for holding pending RDMA CM events. */
 #define NVME_RDMA_NUM_CM_EVENTS			256
 
-/* The default size for a shared rdma completion queue. */
-#define DEFAULT_NVME_RDMA_CQ_SIZE		4096
-
 /*
  * In the special case of a stale connection we don't expose a mechanism
  * for the user to retry the connection so we need to handle it internally.
@@ -3442,7 +3439,7 @@ nvme_rdma_poller_create(struct nvme_rdma_poll_group *group, struct ibv_context *
 		 */
 		num_cqe = g_spdk_nvme_transport_opts.rdma_srq_size * 2;
 	} else {
-		num_cqe = DEFAULT_NVME_RDMA_CQ_SIZE;
+		num_cqe = g_spdk_nvme_transport_opts.rdma_initial_cq_size;
 	}
 
 	max_num_cqe = g_spdk_nvme_transport_opts.rdma_max_cq_size;

@@ -6780,6 +6780,7 @@ spdk_bdev_nvme_get_opts(struct spdk_bdev_nvme_opts *opts, size_t opts_size)
 	g_opts.poll_group_requests = drv_opts.poll_group_requests;
 	g_opts.rdma_umr_per_io = drv_opts.rdma_umr_per_io;
 	g_opts.tcp_connect_timeout_ms = drv_opts.tcp_connect_timeout_ms;
+	g_opts.rdma_initial_cq_size = drv_opts.rdma_initial_cq_size;
 
 	opts->opts_size = opts_size;
 
@@ -6821,12 +6822,13 @@ spdk_bdev_nvme_get_opts(struct spdk_bdev_nvme_opts *opts, size_t opts_size)
 	SET_FIELD(rdma_umr_per_io, false);
 	SET_FIELD(tcp_connect_timeout_ms, 0);
 	SET_FIELD(enable_flush, false);
+	SET_FIELD(rdma_initial_cq_size, 0);
 
 #undef SET_FIELD
 
 	/* Do not remove this statement, you should always update this statement when you adding a new field,
 	 * and do not forget to add the SET_FIELD statement for your added field. */
-	SPDK_STATIC_ASSERT(sizeof(struct spdk_bdev_nvme_opts) == 144, "Incorrect size");
+	SPDK_STATIC_ASSERT(sizeof(struct spdk_bdev_nvme_opts) == 152, "Incorrect size");
 }
 
 static bool bdev_nvme_check_io_error_resiliency_params(int32_t ctrlr_loss_timeout_sec,
@@ -6850,6 +6852,10 @@ bdev_nvme_validate_opts(const struct spdk_bdev_nvme_opts *opts)
 	if (!bdev_nvme_check_io_error_resiliency_params(opts->ctrlr_loss_timeout_sec,
 			opts->reconnect_delay_sec,
 			opts->fast_io_fail_timeout_sec)) {
+		return -EINVAL;
+	}
+	if (opts->rdma_initial_cq_size == 0 && opts->rdma_srq_size == 0) {
+		SPDK_WARNLOG("Invalid option: rdma_initial_cq_size cannot be zero when SRQ is disabled.\n");
 		return -EINVAL;
 	}
 
@@ -6889,6 +6895,7 @@ spdk_bdev_nvme_set_opts(const struct spdk_bdev_nvme_opts *opts)
 	if (opts->rdma_max_cq_size != 0) {
 		drv_opts.rdma_max_cq_size = opts->rdma_max_cq_size;
 	}
+	drv_opts.rdma_initial_cq_size = opts->rdma_initial_cq_size;
 	if (opts->rdma_cm_event_timeout_ms != 0) {
 		drv_opts.rdma_cm_event_timeout_ms = opts->rdma_cm_event_timeout_ms;
 	}
@@ -6945,6 +6952,7 @@ spdk_bdev_nvme_set_opts(const struct spdk_bdev_nvme_opts *opts)
 	SET_FIELD(rdma_umr_per_io, 0);
 	SET_FIELD(tcp_connect_timeout_ms, 0);
 	SET_FIELD(enable_flush, false);
+	SET_FIELD(rdma_initial_cq_size, 0);
 
 	g_opts.opts_size = opts->opts_size;
 
@@ -8399,6 +8407,12 @@ static int
 bdev_nvme_library_init(void)
 {
 	g_bdev_nvme_init_thread = spdk_get_thread();
+	struct spdk_nvme_transport_opts drv_opts = {};
+
+	spdk_nvme_transport_get_opts(&drv_opts, sizeof(drv_opts));
+	g_opts.rdma_initial_cq_size = drv_opts.rdma_initial_cq_size;
+	g_opts.rdma_max_cq_size = drv_opts.rdma_max_cq_size;
+	g_opts.rdma_srq_size = drv_opts.rdma_srq_size;
 
 	spdk_iobuf_register_module("nvme");
 	spdk_io_device_register(&g_nvme_bdev_ctrlrs, bdev_nvme_create_poll_group_cb,
@@ -9687,6 +9701,7 @@ bdev_nvme_opts_config_json(struct spdk_json_write_ctx *w)
 	spdk_json_write_named_bool(w, "rdma_umr_per_io", g_opts.rdma_umr_per_io);
 	spdk_json_write_named_uint32(w, "tcp_connect_timeout_ms", g_opts.tcp_connect_timeout_ms);
 	spdk_json_write_named_bool(w, "enable_flush", g_opts.enable_flush);
+	spdk_json_write_named_uint32(w, "rdma_initial_cq_size", g_opts.rdma_initial_cq_size);
 
 	spdk_json_write_object_end(w);
 

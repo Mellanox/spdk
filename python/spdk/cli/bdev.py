@@ -527,6 +527,8 @@ def add_parser(subparsers):
                    help='Time to wait until TCP connection is done. Default: 0 (no timeout).', type=int)
     p.add_argument('--enable-flush', help='Pass flush to NVMe when volatile write cache is present',
                    action='store_true')
+    p.add_argument('--rdma-initial-cq-size',
+                   help='The initial size of a rdma completion queue, must be greater than 0.', type=int)
 
     p.set_defaults(func=bdev_nvme_set_options)
 

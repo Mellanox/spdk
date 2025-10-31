@@ -112,8 +112,11 @@ struct spdk_bdev_nvme_opts {
 	uint8_t reserved133[3];
 	uint32_t tcp_connect_timeout_ms;
 	bool enable_flush;
+	/* Hole at bytes 141-143. */
+	uint8_t reserved141[3];
+	uint32_t rdma_initial_cq_size;
 };
-SPDK_STATIC_ASSERT(sizeof(struct spdk_bdev_nvme_opts) == 144, "Incorrect size");
+SPDK_STATIC_ASSERT(sizeof(struct spdk_bdev_nvme_opts) == 152, "Incorrect size");
 
 /**
  * Connect to the NVMe controller and populate namespaces as bdevs.
