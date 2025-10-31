@@ -26,7 +26,7 @@ static struct spdk_nvme_transport g_transports[SPDK_MAX_NUM_OF_TRANSPORTS] = {};
 static int g_current_transport_index = 0;
 
 struct spdk_nvme_transport_opts g_spdk_nvme_transport_opts = {
-	.rdma_srq_size = 4096,
+	.rdma_srq_size = 0,
 	.rdma_max_cq_size = 0,
 	.poll_group_requests = 1024,
 	.rdma_cm_event_timeout_ms = 1000,
