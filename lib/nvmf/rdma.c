@@ -253,6 +253,7 @@ struct spdk_nvmf_rdma_request {
 
 	/* Uses enum spdk_nvmf_rdma_request_state */
 	uint8_t					state;
+	uint8_t					num_wrs;
 
 	/* Data offset in req.iov */
 	uint32_t				offset;
@@ -1675,8 +1676,7 @@ static int
 nvmf_rdma_fill_wr_sgl_with_dif(struct spdk_nvmf_rdma_device *device,
 			       struct spdk_nvmf_rdma_request *rdma_req,
 			       struct ibv_send_wr *wr,
-			       uint32_t total_length,
-			       uint32_t num_extra_wrs)
+			       uint32_t total_length)
 {
 	struct spdk_rdma_utils_memory_translation mem_translation;
 	struct spdk_dif_ctx *dif_ctx = &rdma_req->req.dif.dif_ctx;
@@ -1686,9 +1686,12 @@ nvmf_rdma_fill_wr_sgl_with_dif(struct spdk_nvmf_rdma_device *device,
 	uint32_t lkey, remaining;
 	uint32_t remaining_data_block, data_block_size, md_size;
 	uint32_t sge_len;
+	uint32_t num_extra_wrs;
 	int rc;
 
 	data_block_size = dif_ctx->block_size - dif_ctx->md_size;
+	assert(rdma_req->num_wrs > 0);
+	num_extra_wrs = rdma_req->num_wrs - 1;
 
 	if (spdk_likely(!rdma_req->req.stripped_data)) {
 		rdma_iov = rdma_req->req.iov;
@@ -1797,7 +1800,6 @@ nvmf_rdma_request_fill_iovs(struct spdk_nvmf_rdma_transport *rtransport,
 	struct spdk_nvmf_request		*req = &rdma_req->req;
 	struct ibv_send_wr			*wr = &rdma_req->data.wr;
 	int					rc = 0;
-	uint32_t				num_wrs = 1;
 
 	rqpair = SPDK_CONTAINEROF(req->qpair, struct spdk_nvmf_rdma_qpair, qpair);
 	rgroup = rqpair->poller->group;
@@ -1822,22 +1824,20 @@ nvmf_rdma_request_fill_iovs(struct spdk_nvmf_rdma_transport *rtransport,
 	}
 
 	if (spdk_unlikely(req->dif_enabled)) {
-		num_wrs = nvmf_rdma_calc_num_wrs(length, rtransport->transport.opts.io_unit_size,
-						 req->dif.dif_ctx.block_size);
-		if (num_wrs > 1) {
-			rc = nvmf_request_alloc_wrs(rtransport, rdma_req, num_wrs - 1);
+		if (rdma_req->num_wrs > 1) {
+			rc = nvmf_request_alloc_wrs(rtransport, rdma_req, rdma_req->num_wrs - 1);
 			if (spdk_unlikely(rc != 0)) {
 				goto err_exit;
 			}
 		}
 
-		rc = nvmf_rdma_fill_wr_sgl_with_dif(device, rdma_req, wr, length, num_wrs - 1);
+		rc = nvmf_rdma_fill_wr_sgl_with_dif(device, rdma_req, wr, length);
 		if (spdk_unlikely(rc != 0)) {
 			goto err_exit;
 		}
 
-		if (num_wrs > 1) {
-			nvmf_rdma_update_remote_addr(rdma_req, num_wrs);
+		if (rdma_req->num_wrs > 1) {
+			nvmf_rdma_update_remote_addr(rdma_req, rdma_req->num_wrs);
 		}
 	} else {
 		rc = nvmf_rdma_fill_wr_sgl(device, rdma_req, wr, length);
@@ -1848,7 +1848,7 @@ nvmf_rdma_request_fill_iovs(struct spdk_nvmf_rdma_transport *rtransport,
 
 out:
 	/* set the number of outstanding data WRs for this request. */
-	rdma_req->num_outstanding_data_wr = num_wrs;
+	rdma_req->num_outstanding_data_wr = rdma_req->num_wrs;
 
 	return rc;
 
@@ -1943,7 +1943,7 @@ nvmf_rdma_request_fill_iovs_multi_sgl(struct spdk_nvmf_rdma_transport *rtranspor
 			rc = nvmf_rdma_fill_wr_sgl(device, rdma_req, current_wr, lengths[i]);
 		} else {
 			rc = nvmf_rdma_fill_wr_sgl_with_dif(device, rdma_req, current_wr,
-							    lengths[i], 0);
+							    lengths[i]);
 		}
 		if (spdk_unlikely(rc != 0)) {
 			rc = -ENOMEM;
@@ -2599,6 +2599,7 @@ nvmf_rdma_request_process(struct spdk_nvmf_rdma_transport *rtransport,
 			rdma_req->req.cmd = (union nvmf_h2c_msg *)rdma_recv->sgl[0].addr;
 			memset(rdma_req->req.rsp, 0, sizeof(*rdma_req->req.rsp));
 			rdma_req->transfer_wr = &rdma_req->data.wr;
+			rdma_req->num_wrs = 1;
 
 			if (spdk_unlikely(rqpair->ibv_in_error_state || !spdk_nvmf_qpair_is_active(&rqpair->qpair))) {
 				rdma_req->state = RDMA_REQUEST_STATE_COMPLETED;
@@ -2664,6 +2665,20 @@ nvmf_rdma_request_process(struct spdk_nvmf_rdma_transport *rtransport,
 				}
 				rdma_req->state = RDMA_REQUEST_STATE_READY_TO_EXECUTE;
 				break;
+			}
+
+			if (sgl->generic.type == SPDK_NVME_SGL_TYPE_LAST_SEGMENT &&
+			    sgl->unkeyed.subtype == SPDK_NVME_SGL_SUBTYPE_OFFSET) {
+				rdma_req->num_wrs = sgl->unkeyed.length / sizeof(struct spdk_nvme_sgl_descriptor);
+				assert(rdma_req->num_wrs > 1);
+				break;
+			} else if (spdk_unlikely(rdma_req->req.dif_enabled &&
+						 sgl->generic.type == SPDK_NVME_SGL_TYPE_KEYED_DATA_BLOCK &&
+						 (sgl->keyed.subtype == SPDK_NVME_SGL_SUBTYPE_ADDRESS ||
+						  sgl->keyed.subtype == SPDK_NVME_SGL_SUBTYPE_INVALIDATE_KEY))) {
+				rdma_req->num_wrs = nvmf_rdma_calc_num_wrs(spdk_dif_get_length_with_md(sgl->keyed.length,
+						    &rdma_req->req.dif.dif_ctx), rtransport->transport.opts.io_unit_size,
+						    rdma_req->req.dif.dif_ctx.block_size);
 			}
 			rdma_req->state = RDMA_REQUEST_STATE_NEED_BUFFER;
 			nvmf_rdma_poll_group_insert_need_buffer_req(rgroup, rdma_req);
