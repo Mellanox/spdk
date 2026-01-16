@@ -193,6 +193,7 @@ struct nvme_tcp_req {
 	struct nvme_request			req;
 	struct spdk_iobuf_entry			iobuf_entry;
 	struct iovec				iobuf_iov;
+	struct iovec				accel_iov;
 	TAILQ_ENTRY(nvme_tcp_req)		link;
 	struct xlio_sock_buf			*sock_buf;
 	/* Used to hold a value received from subsequent R2T while we are still
@@ -2430,7 +2431,7 @@ nvme_tcp_handle_accel_sequence_in_capsule(struct nvme_tcp_req *tcp_req)
 		if (task->op_code == SPDK_ACCEL_OPC_ENCRYPT && spdk_accel_sequence_next_task(task) == NULL) {
 			task->dst_domain = NULL;
 			task->dst_domain_ctx = NULL;
-			task->d.iovs = &tcp_req->iobuf_iov;
+			task->d.iovs = &tcp_req->accel_iov;
 			task->d.iovcnt = 1;
 			skip_copy = true;
 		}
@@ -2441,7 +2442,7 @@ nvme_tcp_handle_accel_sequence_in_capsule(struct nvme_tcp_req *tcp_req)
 
 		if (!skip_copy) {
 			rc = group->accel_fn_table.append_copy_crc32c(group->ctx, (void **)&accel_seq, ddgst,
-					&tcp_req->iobuf_iov, 1, NULL, NULL,
+					&tcp_req->accel_iov, 1, NULL, NULL,
 					pdu->iovs, pdu->data_iovcnt,
 					req->payload.opts->memory_domain,
 					req->payload.opts->memory_domain_ctx,
@@ -2449,7 +2450,7 @@ nvme_tcp_handle_accel_sequence_in_capsule(struct nvme_tcp_req *tcp_req)
 			skip_copy = true;
 		} else {
 			rc = group->accel_fn_table.append_crc32c(group->ctx, (void **)&accel_seq, ddgst,
-					&tcp_req->iobuf_iov, 1, NULL, NULL, 0, NULL, NULL);
+					&tcp_req->accel_iov, 1, NULL, NULL, 0, NULL, NULL);
 		}
 		if (spdk_unlikely(rc)) {
 			if (rc != -ENOMEM) {
@@ -2463,7 +2464,7 @@ nvme_tcp_handle_accel_sequence_in_capsule(struct nvme_tcp_req *tcp_req)
 	}
 
 	if (!skip_copy) {
-		rc = group->accel_fn_table.append_copy(group->ctx, (void **)&accel_seq, &tcp_req->iobuf_iov, 1,
+		rc = group->accel_fn_table.append_copy(group->ctx, (void **)&accel_seq, &tcp_req->accel_iov, 1,
 						       NULL, NULL, pdu->iovs, pdu->data_iovcnt,
 						       req->payload.opts->memory_domain,
 						       req->payload.opts->memory_domain_ctx, NULL, NULL);
@@ -2841,6 +2842,8 @@ nvme_tcp_qpair_submit_request(struct spdk_nvme_qpair *qpair,
 			SPDK_DEBUGLOG(nvme, "no buffer, in progress\n");
 			return 0;
 		}
+		tcp_req->accel_iov = tcp_req->iobuf_iov;
+		tcp_req->accel_iov.iov_len -= SPDK_NVME_TCP_DIGEST_LEN * tqpair->flags.host_ddgst_enable;
 		rc = nvme_tcp_handle_accel_sequence_in_capsule(tcp_req);
 		if (spdk_unlikely(rc)) {
 			nvme_tcp_req_put(tqpair, tcp_req);
@@ -3949,7 +3952,7 @@ nvme_tcp_apply_accel_sequence_h2c(struct nvme_tcp_req *tcp_req)
 		if (task->op_code == SPDK_ACCEL_OPC_ENCRYPT && spdk_accel_sequence_next_task(task) == NULL) {
 			task->dst_domain = NULL;
 			task->dst_domain_ctx = NULL;
-			task->d.iovs = &tcp_req->iobuf_iov;
+			task->d.iovs = &tcp_req->accel_iov;
 			task->d.iovcnt = 1;
 			skip_copy = true;
 		}
@@ -3965,7 +3968,7 @@ nvme_tcp_apply_accel_sequence_h2c(struct nvme_tcp_req *tcp_req)
 		if (!skip_copy) {
 			rc = group->accel_fn_table.append_copy_crc32c(group->ctx, (void **)&accel_seq,
 					ddgst,
-					&tcp_req->iobuf_iov, 1, NULL, NULL,
+					&tcp_req->accel_iov, 1, NULL, NULL,
 					tcp_req->pdu.iovs, tcp_req->pdu.data_iovcnt,
 					req->payload.opts->memory_domain,
 					req->payload.opts->memory_domain_ctx,
@@ -3973,7 +3976,7 @@ nvme_tcp_apply_accel_sequence_h2c(struct nvme_tcp_req *tcp_req)
 			skip_copy = true;
 		} else {
 			rc = group->accel_fn_table.append_crc32c(group->ctx, (void **)&accel_seq, ddgst,
-					&tcp_req->iobuf_iov, 1, NULL, NULL, 0, NULL, NULL);
+					&tcp_req->accel_iov, 1, NULL, NULL, 0, NULL, NULL);
 		}
 		if (spdk_unlikely(rc)) {
 			if (rc != -ENOMEM) {
@@ -3987,7 +3990,7 @@ nvme_tcp_apply_accel_sequence_h2c(struct nvme_tcp_req *tcp_req)
 	}
 
 	if (!skip_copy) {
-		rc = group->accel_fn_table.append_copy(group->ctx, (void **)&accel_seq, &tcp_req->iobuf_iov, 1,
+		rc = group->accel_fn_table.append_copy(group->ctx, (void **)&accel_seq, &tcp_req->accel_iov, 1,
 						       NULL, NULL, tcp_req->pdu.iovs, tcp_req->pdu.data_iovcnt,
 						       req->payload.opts->memory_domain,
 						       req->payload.opts->memory_domain_ctx, NULL, NULL);
@@ -4124,6 +4127,9 @@ nvme_tcp_send_h2c_data(struct nvme_tcp_req *tcp_req)
 				SPDK_DEBUGLOG(nvme, "no buffer, in progress\n");
 				return;
 			}
+
+			tcp_req->accel_iov = tcp_req->iobuf_iov;
+			tcp_req->accel_iov.iov_len -= SPDK_NVME_TCP_DIGEST_LEN;
 
 			rc = nvme_tcp_apply_accel_sequence_h2c(tcp_req);
 			if (spdk_unlikely(rc)) {
