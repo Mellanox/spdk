@@ -63,10 +63,10 @@
 
 - project:
     name: proj_name
-    jjb_email: 'andiih@nvidia.com'
+    jjb_email: 'mchomnicki@nvidia.com'
     jjb_proj: 'spdk'
     git_branch:
-      - v25.05.3.nvda:
+      - v25.05.4.nvda:
           conf_file: '.ci/job_matrix.yaml'
     jjb_git: 'git@github.com:Mellanox/spdk.git'
     jjb_owner: 'andriih@nvidia.com'
