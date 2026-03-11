@@ -166,7 +166,7 @@ DEPDIRS-bdev_null := $(BDEV_DEPS_THREAD)
 ifeq ($(CONFIG_RDMA),y)
 DEPDIRS-bdev_null += dma rdma_utils
 endif
-DEPDIRS-bdev_nvme = $(BDEV_DEPS_THREAD) accel keyring nvme trace telemetry
+DEPDIRS-bdev_nvme = $(BDEV_DEPS_THREAD) accel dma keyring nvme trace telemetry
 DEPDIRS-bdev_ocf := $(BDEV_DEPS_THREAD)
 DEPDIRS-bdev_passthru := $(BDEV_DEPS_THREAD)
 DEPDIRS-bdev_raid := $(BDEV_DEPS_THREAD) trace
