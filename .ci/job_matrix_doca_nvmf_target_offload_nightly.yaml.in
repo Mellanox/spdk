@@ -19,20 +19,21 @@ credentials:
   - {credentialsId: 'svc-nbu-swx-repos', usernameVariable: 'REPO_USER', passwordVariable: 'REPO_PASS'}
   - {credentialsId: 'svc-nbu-swx-repos-ngc-token', usernameVariable: 'NGC_CLI_USER', passwordVariable: 'NGC_CLI_API_KEY'}
   - {credentialsId: '3s-bf3-dpa-prod-role', usernameVariable: 'DPA_SIGN_USER', passwordVariable: 'DPA_SIGN_PASS'}
+  - {credentialsId: 'gerrit-http-svc-nbu-swx-snap', usernameVariable: 'GERRIT_USERNAME', passwordVariable: 'GERRIT_PASSWORD'}
 
 
 timeout_minutes: 120
 
 env:
-  DOCKER_REGISTRY_HOST: '${CI_ENV_HARBOR_REGISTRY_HOST}' 
+  DOCKER_REGISTRY_HOST: '${CI_ENV_HARBOR_REGISTRY_HOST}'
   DOCKER_REGISTRY_PATH: '${CI_ENV_HARBOR_REGISTRY_PATH}'
-  DOCA_IMAGE: '${CI_ENV_DOCA_BUILDER_IMAGE}' 
+  DOCA_IMAGE: '${CI_ENV_DOCA_BUILDER_IMAGE}'
   DOCA_BUILDER_TAG: '${CI_ENV_DOCA_BUILDER_TAG}'
   DOCA_RUNTIME_TAG: '${CI_ENV_DOCA_RUNTIME_TAG}'
   artifact_properties: '${CI_ENV_ARTIFACT_PROPERTIES}'
   REGISTRY_AUTH_FILE: '${CI_ENV_REGISTRY_AUTH_FILE}'
   GIT_SSH_COMMAND: '${CI_ENV_GIT_SSH_COMMAND}'
-  STORAGE_DRIVER: '${CI_ENV_STORAGE_DRIVER}' 
+  STORAGE_DRIVER: '${CI_ENV_STORAGE_DRIVER}'
 
 failFast: false
 kubernetes:
@@ -68,6 +69,12 @@ runs_on_dockers:
     }
 
 steps:
+  - name: Clone DPA sign tool
+    containerSelector: "{name: 'doca_ci'}"
+    credentialsId: 'gerrit-http-svc-nbu-swx-snap'
+    run: |
+      git clone "https://$GERRIT_USERNAME:$GERRIT_PASSWORD@git-nbu.nvidia.com/r/a/DevOps/3S/sign-tool.git" --depth=1
+
   - name: Build generic docker image
     containerSelector: "{name: 'doca_ci'}"
     credentialsId: '3s-bf3-dpa-prod-role'
