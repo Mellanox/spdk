@@ -33,4 +33,4 @@ export CI_ENV_DOCKER_AARCH64="urm.nvidia.com/quay-remote/podman/stable:v5.3.2"
 # changes that affect components in CI builder images.
 # CI builder images use it as docker tag.
 # Format=<YYMMDD>-<ID>
-export CI_ENV_CI_REV="260105-1"
+export CI_ENV_CI_REV="260312-1"
