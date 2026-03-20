@@ -42,8 +42,7 @@ RUN printf "[storage.options]\nignore_chown_errors = \"true\"\n" > /etc/containe
 ### TOOLS INSTALL ###
 RUN set -eux; \
     pip3 --no-cache-dir --quiet install gitlint codespell \
-    packaging==21.3 \
-    semver==2.13.0 && \
+    semver==2.13.0 --break-system-packages && \
     cd /usr/local/bin/ && \
     wget https://raw.githubusercontent.com/torvalds/linux/master/scripts/checkpatch.pl && \
     chmod +x checkpatch.pl && \
