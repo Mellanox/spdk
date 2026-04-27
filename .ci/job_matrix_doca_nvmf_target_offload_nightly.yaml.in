@@ -49,7 +49,7 @@ kubernetes:
 
 
 volumes:
-  - {mountPath: /auto/app/BullsEye, hostPath: /auto/app/BullsEye}
+  - {mountPath: /auto/sw/work/swx_devops/coverage/bullseye, hostPath: /auto/sw/work/swx_devops/coverage/bullseye}
 
 empty_volumes:
   - {mountPath: /var/home/swx-jenkins/.local/share/containers, memory: false}
@@ -139,7 +139,7 @@ steps:
           --doca-sta-url=$doca_sta_url \
           --artifact-prop-name=DOCKER_IMAGE_COVERAGE \
           --docker-file=container/Dockerfile.nvmf_target_offload_coverage \
-          --docker-build-opts="-v /auto/app/BullsEye/BullseyeCoverage-9.6.10-arm64:/auto/app/BullsEye/BullseyeCoverage-Latest-arm64:ro" \
+          --docker-build-opts="-v /auto/sw/work/swx_devops/coverage/bullseye/linux64/9.23.3/aarch64/:/auto/app/BullsEye/BullseyeCoverage-Latest-arm64:ro" \
           --push
       else
         echo "Skip generic container build"
