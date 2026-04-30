@@ -271,6 +271,11 @@ spdk_nvmf_subsystem_create(struct spdk_nvmf_tgt *tgt,
 	TAILQ_INIT(&subsystem->hosts);
 	TAILQ_INIT(&subsystem->ctrlrs);
 	TAILQ_INIT(&subsystem->state_changes);
+	/* Empty subsystem advertises VWC.Present so a cache-backed namespace
+	 * can be attached after a controller connects. The flag is refreshed
+	 * from the actual namespace topology on every change while no
+	 * controllers are attached. */
+	subsystem->vwc_present = true;
 	subsystem->used_listener_ids = spdk_bit_array_create(NVMF_MAX_LISTENERS_PER_SUBSYSTEM);
 	if (subsystem->used_listener_ids == NULL) {
 		pthread_mutex_destroy(&subsystem->mutex);
@@ -1751,6 +1756,29 @@ nvmf_subsystem_ns_changed(struct spdk_nvmf_subsystem *subsystem, uint32_t nsid)
 
 static uint32_t nvmf_ns_reservation_clear_all_registrants(struct spdk_nvmf_ns *ns);
 
+static void
+nvmf_subsystem_refresh_vwc_present(struct spdk_nvmf_subsystem *subsystem)
+{
+	struct spdk_nvmf_ns *ns;
+	bool any_ns = false, present = false;
+
+	for (ns = spdk_nvmf_subsystem_get_first_ns(subsystem); ns != NULL;
+	     ns = spdk_nvmf_subsystem_get_next_ns(subsystem, ns)) {
+		if (ns->bdev == NULL) {
+			continue;
+		}
+		any_ns = true;
+		if (spdk_bdev_has_write_cache(ns->bdev)) {
+			present = true;
+			break;
+		}
+	}
+
+	/* Empty subsystem reports true to allow adding a cached namespace when hosts are connected.
+	 * Otherwise reports the backend write cache state. */
+	subsystem->vwc_present = !any_ns || present;
+}
+
 int
 spdk_nvmf_subsystem_remove_ns(struct spdk_nvmf_subsystem *subsystem, uint32_t nsid)
 {
@@ -1795,6 +1823,10 @@ spdk_nvmf_subsystem_remove_ns(struct spdk_nvmf_subsystem *subsystem, uint32_t ns
 		subsystem->fdp_supported = false;
 		SPDK_DEBUGLOG(nvmf, "Subsystem with id: %u doesn't have FDP capability.\n",
 			      subsystem->id);
+	}
+
+	if (TAILQ_EMPTY(&subsystem->ctrlrs)) {
+		nvmf_subsystem_refresh_vwc_present(subsystem);
 	}
 
 	for (transport = spdk_nvmf_transport_get_first(subsystem->tgt); transport;
@@ -2272,6 +2304,14 @@ spdk_nvmf_subsystem_add_ns_ext(struct spdk_nvmf_subsystem *subsystem, const char
 		}
 	}
 
+	if (!TAILQ_EMPTY(&subsystem->ctrlrs) &&
+	    !subsystem->vwc_present && spdk_bdev_has_write_cache(ns->bdev)) {
+		SPDK_ERRLOG("Subsystem with id: %u cannot add a namespace with a write cache "
+			    "while controllers are attached and the controller advertises "
+			    "no volatile write cache.\n", subsystem->id);
+		goto err;
+	}
+
 	ns->opts = opts;
 	ns->subsystem = subsystem;
 	subsystem->ns[opts.nsid - 1] = ns;
@@ -2333,6 +2373,10 @@ spdk_nvmf_subsystem_add_ns_ext(struct spdk_nvmf_subsystem *subsystem, const char
 	}
 
 	nvmf_subsystem_ns_changed(subsystem, opts.nsid);
+
+	if (TAILQ_EMPTY(&subsystem->ctrlrs)) {
+		nvmf_subsystem_refresh_vwc_present(subsystem);
+	}
 
 	SPDK_DTRACE_PROBE2(nvmf_subsystem_add_ns, subsystem->subnqn, ns->nsid);
 
@@ -2624,6 +2668,10 @@ nvmf_subsystem_remove_ctrlr(struct spdk_nvmf_subsystem *subsystem,
 	SPDK_DEBUGLOG(nvmf, "remove ctrlr %p id 0x%x from subsys %p %s\n", ctrlr, ctrlr->cntlid, subsystem,
 		      subsystem->subnqn);
 	TAILQ_REMOVE(&subsystem->ctrlrs, ctrlr, link);
+
+	if (TAILQ_EMPTY(&subsystem->ctrlrs)) {
+		nvmf_subsystem_refresh_vwc_present(subsystem);
+	}
 }
 
 struct spdk_nvmf_ctrlr *
