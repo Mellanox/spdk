@@ -68,7 +68,7 @@ ENV PKG_CONFIG_PATH="${NVMF_TARGET_OFFLOAD_PATH}/lib/pkgconfig:$PKG_CONFIG_PATH"
 ENV PATH="${NVMF_TARGET_OFFLOAD_PATH}/bin:${NVMF_TARGET_OFFLOAD_PATH}/local/bin:$PATH"
 ENV COVFILE=/nvmf-target-offload.cov
 
-RUN apt update && apt install -y supervisor libjson-c5 fuse3 libasan6 libubsan1 libaio1t64
+RUN apt update && apt install -y supervisor libjson-c5 fuse3 libasan8 libubsan1 libaio1t64
 RUN apt clean && rm -rf /var/lib/apt/lists/*
 RUN dpkg --force-all -r spdk spdk-rpc mlnx-dpdk
 
