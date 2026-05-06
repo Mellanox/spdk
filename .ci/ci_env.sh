@@ -15,8 +15,8 @@ export CI_ENV_HARBOR_REGISTRY_PATH="swx-storage/doca_nvmf_target_offload"
 export CI_ENV_ARTIFACT_PROPERTIES="/mnt/pvc/doca-sta-artifact.properties"
 
 export CI_ENV_DOCA_BUILDER_IMAGE="nvcr.io/nvstaging/doca/doca"
-export CI_ENV_DOCA_RUNTIME_TAG="full-rt-3.4.0097-ubuntu24.04-dev"
-export CI_ENV_DOCA_BUILDER_TAG="devel-3.4.0097-ubuntu24.04-dev"
+export CI_ENV_DOCA_RUNTIME_TAG="full-rt-3.4.0106-ubuntu24.04-dev"
+export CI_ENV_DOCA_BUILDER_TAG="devel-3.4.0106-ubuntu24.04-dev"
 
 # Jenkins JNLP image
 # https://nvbugspro.nvidia.com/bug/5115436
@@ -33,4 +33,4 @@ export CI_ENV_DOCKER_AARCH64="urm.nvidia.com/quay-remote/podman/stable:v5.3.2"
 # changes that affect components in CI builder images.
 # CI builder images use it as docker tag.
 # Format=<YYMMDD>-<ID>
-export CI_ENV_CI_REV="260428-1"
+export CI_ENV_CI_REV="260506-1"
