@@ -9,6 +9,7 @@
 
 #include "util/crc32.c"
 #include "util/crc32c.c"
+#include "util/crc32c_combine.c"
 
 static void
 test_crc32c(void)
@@ -164,6 +165,89 @@ test_crc32c_nvme(void)
 	CU_ASSERT(crc == 0x214941A8);
 }
 
+/* Compute the CRC of a deterministic buffer two ways -- linearly with
+ * spdk_crc32c_update, and by chunking + spdk_crc32c_combine -- and assert
+ * they match. Inputs use the raw convention (no init/final XOR), since
+ * that's what spdk_crc32c_combine operates on. */
+static void
+combine_check(size_t chunk_size, size_t n_chunks, uint32_t seed)
+{
+	struct spdk_crc32c_combiner *combiner;
+	uint8_t *buf;
+	uint32_t *crcs;
+	uint32_t reference, combined;
+	size_t total = chunk_size * n_chunks;
+	size_t i;
+
+	buf = malloc(total);
+	SPDK_CU_ASSERT_FATAL(buf != NULL);
+	crcs = malloc(n_chunks * sizeof(*crcs));
+	SPDK_CU_ASSERT_FATAL(crcs != NULL);
+
+	/* CRC is linear over GF(2), so the data pattern is irrelevant for
+	 * validating the combine math; we just want non-zero, varying data.
+	 * Fill in 32-bit words for less awkwardness than the byte form. */
+	SPDK_CU_ASSERT_FATAL(total % sizeof(uint32_t) == 0);
+	for (i = 0; i < total / sizeof(uint32_t); i++) {
+		((uint32_t *)buf)[i] = (uint32_t)i * 2654435761u + seed;
+	}
+
+	reference = spdk_crc32c_update(buf, total, 0);
+
+	for (i = 0; i < n_chunks; i++) {
+		crcs[i] = spdk_crc32c_update(buf + i * chunk_size, chunk_size, 0);
+	}
+
+	combiner = spdk_crc32c_combiner_create(chunk_size, n_chunks);
+	SPDK_CU_ASSERT_FATAL(combiner != NULL);
+
+	combined = spdk_crc32c_combine(combiner, crcs, n_chunks);
+	CU_ASSERT(combined == reference);
+
+	spdk_crc32c_combiner_free(combiner);
+	free(crcs);
+	free(buf);
+}
+
+static void
+test_crc32c_combine(void)
+{
+	struct spdk_crc32c_combiner *combiner;
+	uint32_t crc;
+
+	/* Edge cases: 1 chunk, 2 chunks, odd chunk count (exercises the
+	 * scalar tail in the PMULL/PCLMUL paths). */
+	combine_check(4096, 1, 0);
+	combine_check(4096, 2, 1);
+	combine_check(512, 17, 2);
+
+	/* The motivating workload: 64 chunks of 128 KiB. */
+	combine_check(128 * 1024, 64, 3);
+
+	/* Larger n_chunks to exercise both accumulator chains heavily. */
+	combine_check(8192, 129, 4);
+
+	/* n_crcs == 0 returns 0; create/free with various args. */
+	combiner = spdk_crc32c_combiner_create(4096, 8);
+	SPDK_CU_ASSERT_FATAL(combiner != NULL);
+	crc = spdk_crc32c_combine(combiner, NULL, 0);
+	CU_ASSERT(crc == 0);
+	/* n_crcs == 1 returns crcs[0] verbatim. */
+	{
+		uint32_t one = 0xDEADBEEFu;
+		crc = spdk_crc32c_combine(combiner, &one, 1);
+		CU_ASSERT(crc == 0xDEADBEEFu);
+	}
+	spdk_crc32c_combiner_free(combiner);
+
+	/* Invalid arguments return NULL rather than crashing. */
+	CU_ASSERT(spdk_crc32c_combiner_create(0, 8) == NULL);
+	CU_ASSERT(spdk_crc32c_combiner_create(4096, 0) == NULL);
+
+	/* Free of NULL is a no-op. */
+	spdk_crc32c_combiner_free(NULL);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -176,6 +260,7 @@ main(int argc, char **argv)
 
 	CU_ADD_TEST(suite, test_crc32c);
 	CU_ADD_TEST(suite, test_crc32c_nvme);
+	CU_ADD_TEST(suite, test_crc32c_combine);
 
 
 	num_failures = spdk_ut_run_tests(argc, argv, NULL);

@@ -64,6 +64,9 @@
 	spdk_crc32c_update;
 	spdk_crc32c_iov_update;
 	spdk_crc32c_nvme;
+	spdk_crc32c_combiner_create;
+	spdk_crc32c_combiner_free;
+	spdk_crc32c_combine;
 
 	# public functions in crc64.h
 	spdk_crc64_nvme;

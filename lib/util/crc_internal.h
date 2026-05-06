@@ -19,4 +19,13 @@
 #include <x86intrin.h>
 #endif
 
+#if defined(__aarch64__) && defined(__ARM_FEATURE_CRYPTO)
+#define SPDK_HAVE_ARM_PMULL
+#include <arm_acle.h>
+#include <arm_neon.h>
+#elif defined(__x86_64__) && defined(__PCLMUL__)
+#define SPDK_HAVE_X86_PCLMUL
+#include <wmmintrin.h>
+#endif
+
 #endif /* SPDK_CRC_INTERNAL_H */
