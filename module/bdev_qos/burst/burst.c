@@ -778,6 +778,9 @@ global_token_bucket_set(struct global_token_bucket *global_bucket, uint64_t avg_
 
 	if (qos_mode == BDEV_QOS_MODE_STRICT) {
 		steady_bucket->capacity = global_bucket->income_per_refill;
+
+		__atomic_store_n(&steady_bucket->tokens, 0, __ATOMIC_SEQ_CST);
+		burst_bucket->tokens = 0;
 		return 0;
 
 	} else if (qos_mode == BDEV_QOS_MODE_BURST_READY) {
@@ -785,6 +788,9 @@ global_token_bucket_set(struct global_token_bucket *global_bucket, uint64_t avg_
 			burst_size = avg_rate;
 		}
 		steady_bucket->capacity = burst_size;
+
+		__atomic_store_n(&steady_bucket->tokens, steady_bucket->capacity, __ATOMIC_SEQ_CST);
+		burst_bucket->tokens = burst_bucket->capacity;
 	} else {
 		assert(qos_mode == BDEV_QOS_MODE_EARNED_BURST);
 		if (max_burst_rate == 0) {
@@ -808,10 +814,10 @@ global_token_bucket_set(struct global_token_bucket *global_bucket, uint64_t avg_
 		 * the first second.
 		 */
 		burst_bucket->capacity = (max_burst_rate - avg_rate) * max_burst_time_in_sec;
-	}
 
-	__atomic_store_n(&steady_bucket->tokens, steady_bucket->capacity, __ATOMIC_SEQ_CST);
-	burst_bucket->tokens = burst_bucket->capacity;
+		__atomic_store_n(&steady_bucket->tokens, 0, __ATOMIC_SEQ_CST);
+		burst_bucket->tokens = 0;
+	}
 
 	return 0;
 }
