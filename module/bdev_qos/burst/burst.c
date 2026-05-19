@@ -1470,14 +1470,22 @@ bdev_burst_qos_poll_group_create(void *io_device, void *ctx_buf)
 }
 
 static void
-bdev_burst_qos_poll_group_retry_queued_io(struct spdk_io_channel *ch, void *ctx)
+bdev_burst_qos_poll_group_drain_queued_io(void *arg)
 {
-	struct bdev_burst_qos_poll_group *bgroup = spdk_io_channel_get_ctx(ch);
+	struct bdev_burst_qos_poll_group *bgroup = arg;
 	struct bdev_burst_qos_channel *bqos_ch;
 
 	TAILQ_FOREACH(bqos_ch, &bgroup->bqos_ch_list, link) {
 		bdev_burst_qos_channel_retry_queued_io(bqos_ch);
 	}
+}
+
+static void
+bdev_burst_qos_poll_group_retry_queued_io(struct spdk_io_channel *ch, void *ctx)
+{
+	struct bdev_burst_qos_poll_group *bgroup = spdk_io_channel_get_ctx(ch);
+
+	bdev_burst_qos_poll_group_drain_queued_io(bgroup);
 }
 
 static void
