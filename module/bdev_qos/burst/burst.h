@@ -26,12 +26,21 @@ struct bdev_burst_qos_opts {
 
 	/* Step size to increase the bandwidth withdraw batch on success. */
 	uint64_t byte_additive_increase_step;
+
+	/*
+	 * Maximum number of queued I/Os dispatched per thread per retry poller
+	 * invocation. Bounds CPU time spent in the retry drain loop.
+	 * 0 = use default (BDEV_QOS_DEFAULT_RETRY_BUDGET).
+	 * The field is uint64_t for ABI alignment but the implementation
+	 * narrows it to uint32_t; values above UINT32_MAX are rejected.
+	 */
+	uint64_t retry_budget;
 } __attribute__((packed));
-SPDK_STATIC_ASSERT(sizeof(struct bdev_burst_qos_opts) == 48, "Incorrect size");
+SPDK_STATIC_ASSERT(sizeof(struct bdev_burst_qos_opts) == 56, "Incorrect size");
 
 void bdev_burst_qos_get_opts(struct bdev_burst_qos_opts *opts, size_t opts_size);
 
-int bdev_burst_qos_set_opts(struct bdev_burst_qos_opts *opts);
+int bdev_burst_qos_set_opts(const struct bdev_burst_qos_opts *opts);
 
 void bdev_burst_qos_set_limit_json(struct spdk_bdev_qos *qos,
 				   const struct spdk_json_val *params,

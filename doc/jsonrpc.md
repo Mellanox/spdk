@@ -3319,6 +3319,7 @@ Set options of the burst QoS module. This RPC may only be called before SPDK sub
  io_additive_increase_step    | Optional   | number | Step size to increase withdraw for IOPS limit.
  max_byte_withdraw_batch_size | Optional   | number | Max batch size to withdraw for BW limit.
  byte_additive_increase_step  | Optional   | number | Step size to increase withdraw for BW limit.
+ retry_budget                 | Optional   | number | Max queued I/Os dispatched per thread per retry poller invocation.
 
 #### Example
 

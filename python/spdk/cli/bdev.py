@@ -1293,7 +1293,8 @@ def add_parser(subparsers):
                                             max_io_withdraw_batch_size=args.max_io_withdraw_batch_size,
                                             io_additive_increase_step=args.io_additive_increase_step,
                                             max_byte_withdraw_batch_size=args.max_byte_withdraw_batch_size,
-                                            byte_additive_increase_step=args.byte_additive_increase_step)
+                                            byte_additive_increase_step=args.byte_additive_increase_step,
+                                            retry_budget=args.retry_budget)
 
     p = subparsers.add_parser('bdev_burst_qos_set_options', help='Set options of burst QoS module')
     p.add_argument('--tick-period-us', help='The period of a single tickn microseconds', type=int)
@@ -1301,6 +1302,8 @@ def add_parser(subparsers):
     p.add_argument('--io-additive-increase-step', help='Step size to increase withdraw for IOPS limit', type=int)
     p.add_argument('--max-byte-withdraw-batch-size', help='Max batch size to withdraw for BW limit', type=int)
     p.add_argument('--byte-additive-increase-step', help='Step size to increase withdraw for BW limit', type=int)
+    p.add_argument('--retry-budget',
+                   help='Max queued I/Os dispatched per thread per retry poller invocation', type=int)
     p.set_defaults(func=bdev_burst_qos_set_options)
 
     def bdev_burst_qos_set_limit(args):

@@ -24,6 +24,7 @@
 #define BDEV_QOS_MIN_BYTE_PER_SEC		(1024 * 1024)
 #define BDEV_QOS_DEFAULT_IO_BURST_SIZE		64
 #define BDEV_QOS_DEFAULT_IO_BURST_BYTES		(64 * 65536)
+#define BDEV_QOS_DEFAULT_RETRY_BUDGET		256
 
 /** Metric controlled by QoS rate limit */
 enum bdev_qos_metric {
@@ -212,6 +213,9 @@ struct bdev_burst_qos_mgr {
 
 struct bdev_burst_qos_poll_group {
 	TAILQ_HEAD(, bdev_burst_qos_channel) bqos_ch_list;
+	struct spdk_poller *retry_poller;
+	/* Continuation cursor */
+	struct bdev_burst_qos_channel *next_ch;
 };
 
 static struct spdk_bdev_qos_module bdev_burst_qos_if;
@@ -230,6 +234,7 @@ static struct bdev_burst_qos_opts g_qos_opts = {
 	.io_additive_increase_step = BDEV_QOS_IO_ADDITIVE_INCREASE_STEP,
 	.max_byte_withdraw_batch_size = BDEV_QOS_MAX_BYTE_WITHDRAW_BATCH_SIZE,
 	.byte_additive_increase_step = BDEV_QOS_BYTE_ADDITIVE_INCREASE_STEP,
+	.retry_budget = BDEV_QOS_DEFAULT_RETRY_BUDGET,
 };
 
 static inline struct bdev_burst_qos *
@@ -396,16 +401,17 @@ bdev_burst_qos_get_opts(struct bdev_burst_qos_opts *opts, size_t opts_size)
 	SET_FIELD(io_additive_increase_step);
 	SET_FIELD(max_byte_withdraw_batch_size);
 	SET_FIELD(byte_additive_increase_step);
+	SET_FIELD(retry_budget);
 
 	/* Do not remove this statement, you should always update this statement when you adding
 	 * a new field, and do not forget to add the SET_FIELD statement for your added field. */
-	SPDK_STATIC_ASSERT(sizeof(struct bdev_burst_qos_opts) == 48, "Incorrect size");
+	SPDK_STATIC_ASSERT(sizeof(struct bdev_burst_qos_opts) == 56, "Incorrect size");
 
 #undef SET_FIELD
 }
 
 int
-bdev_burst_qos_set_opts(struct bdev_burst_qos_opts *opts)
+bdev_burst_qos_set_opts(const struct bdev_burst_qos_opts *opts)
 {
 	if (opts == NULL) {
 		SPDK_ERRLOG("opts cannot be NULL.\n");
@@ -452,6 +458,12 @@ bdev_burst_qos_set_opts(struct bdev_burst_qos_opts *opts)
 		return -EINVAL;
 	}
 
+	if (opts->retry_budget > UINT32_MAX) {
+		SPDK_ERRLOG("retry_budget %" PRIu64 " exceeds maximum supported value %u.\n",
+			    opts->retry_budget, UINT32_MAX);
+		return -EINVAL;
+	}
+
 #define SET_FIELD(field) \
         if (offsetof(struct bdev_burst_qos_opts, field) + sizeof(opts->field) <= opts->opts_size) { \
                 g_qos_opts.field = opts->field; \
@@ -462,10 +474,18 @@ bdev_burst_qos_set_opts(struct bdev_burst_qos_opts *opts)
 	SET_FIELD(io_additive_increase_step);
 	SET_FIELD(max_byte_withdraw_batch_size);
 	SET_FIELD(byte_additive_increase_step);
+	SET_FIELD(retry_budget);
 
 	g_qos_opts.opts_size = opts->opts_size;
 
 #undef SET_FIELD
+
+	/* A retry_budget of 0 selects the default. Resolve it here because opts may
+	 * be smaller than this field.
+	 */
+	if (g_qos_opts.retry_budget == 0) {
+		g_qos_opts.retry_budget = BDEV_QOS_DEFAULT_RETRY_BUDGET;
+	}
 
 	return 0;
 }
@@ -1148,21 +1168,26 @@ local_token_bucket_queue_io(struct local_token_bucket *local_bucket,
  * the new tokens by attempting as many queued I/Os as the rate limiter allows.
  * The original ordering is preserved.
  */
-static void
-local_token_bucket_retry_queued_io(struct local_token_bucket *local_bucket)
+static uint32_t
+local_token_bucket_retry_queued_io(struct local_token_bucket *local_bucket, uint32_t budget)
 {
 	struct spdk_bdev_io *bdev_io, *tmp_bdev_io;
 
 	TAILQ_FOREACH_SAFE(bdev_io, &local_bucket->queued_io, internal.link, tmp_bdev_io) {
-		if (local_bucket->consume(local_bucket, bdev_io)) {
-			TAILQ_REMOVE(&local_bucket->queued_io, bdev_io, internal.link);
-			local_token_bucket_queue_io_done(local_bucket, bdev_io);
-		} else {
+		if (!local_bucket->consume(local_bucket, bdev_io)) {
 			/* Simply wait for the next refill. */
 			break;
 		}
 
+		TAILQ_REMOVE(&local_bucket->queued_io, bdev_io, internal.link);
+		local_token_bucket_queue_io_done(local_bucket, bdev_io);
+
+		if (--budget == 0) {
+			break;
+		}
 	}
+
+	return budget;
 }
 
 static bool
@@ -1353,6 +1378,9 @@ bdev_burst_qos_channel_put(struct spdk_bdev_qos_channel_impl *qos_ch_impl)
 	struct bdev_burst_qos_poll_group *bgroup = bqos_ch->bgroup;
 	int i;
 
+	if (bgroup->next_ch == bqos_ch) {
+		bgroup->next_ch = NULL;
+	}
 	TAILQ_REMOVE(&bgroup->bqos_ch_list, bqos_ch, link);
 
 	spdk_put_io_channel(spdk_io_channel_from_ctx(bgroup));
@@ -1433,14 +1461,19 @@ bdev_burst_qos_channel_is_throttled(struct spdk_bdev_qos_channel_impl *qos_ch_im
 	return false;
 }
 
-static void
-bdev_burst_qos_channel_retry_queued_io(struct bdev_burst_qos_channel *bqos_ch)
+static uint32_t
+bdev_burst_qos_channel_retry_queued_io(struct bdev_burst_qos_channel *bqos_ch, uint32_t budget)
 {
 	int i;
 
 	for (i = 0; i < BDEV_QOS_NUM_METRICS; i++) {
-		local_token_bucket_retry_queued_io(&bqos_ch->local_buckets[i]);
+		budget = local_token_bucket_retry_queued_io(&bqos_ch->local_buckets[i], budget);
+		if (budget == 0) {
+			break;
+		}
 	}
+
+	return budget;
 }
 
 static struct local_token_bucket *
@@ -1454,9 +1487,38 @@ bdev_burst_qos_channel_find_local_bucket(struct spdk_bdev_qos_channel_impl *qos_
 	return &bqos_ch->local_buckets[metric];
 }
 
+static int
+bdev_burst_qos_poll_group_drain_queued_io(void *arg)
+{
+	struct bdev_burst_qos_poll_group *bgroup = arg;
+	struct bdev_burst_qos_channel *bqos_ch;
+	/* retry_budget is validated to fit in uint32_t by bdev_burst_qos_set_opts. */
+	uint32_t budget = (uint32_t)g_qos_opts.retry_budget;
+	uint32_t initial_budget = budget;
+
+	bqos_ch = bgroup->next_ch;
+
+	TAILQ_FOREACH_FROM(bqos_ch, &bgroup->bqos_ch_list, link) {
+		budget = bdev_burst_qos_channel_retry_queued_io(bqos_ch, budget);
+		if (budget == 0) {
+			/* Resume from this channel on next invocation. */
+			bgroup->next_ch = bqos_ch;
+			return SPDK_POLLER_BUSY;
+		}
+	}
+
+	/* Reached end of list - reset cursor and sleep until next refill. */
+	bgroup->next_ch = NULL;
+	spdk_poller_pause(bgroup->retry_poller);
+	return (budget == initial_budget) ? SPDK_POLLER_IDLE : SPDK_POLLER_BUSY;
+}
+
 static void
 bdev_burst_qos_poll_group_destroy(void *io_device, void *ctx_buf)
 {
+	struct bdev_burst_qos_poll_group *bgroup = ctx_buf;
+
+	spdk_poller_unregister(&bgroup->retry_poller);
 }
 
 static int
@@ -1466,18 +1528,12 @@ bdev_burst_qos_poll_group_create(void *io_device, void *ctx_buf)
 
 	TAILQ_INIT(&bgroup->bqos_ch_list);
 
+	bgroup->retry_poller = SPDK_POLLER_REGISTER(bdev_burst_qos_poll_group_drain_queued_io,
+			       bgroup, 0);
+	spdk_poller_pause(bgroup->retry_poller);
+	bgroup->next_ch = NULL;
+
 	return 0;
-}
-
-static void
-bdev_burst_qos_poll_group_drain_queued_io(void *arg)
-{
-	struct bdev_burst_qos_poll_group *bgroup = arg;
-	struct bdev_burst_qos_channel *bqos_ch;
-
-	TAILQ_FOREACH(bqos_ch, &bgroup->bqos_ch_list, link) {
-		bdev_burst_qos_channel_retry_queued_io(bqos_ch);
-	}
 }
 
 static void
@@ -1485,7 +1541,7 @@ bdev_burst_qos_poll_group_retry_queued_io(struct spdk_io_channel *ch, void *ctx)
 {
 	struct bdev_burst_qos_poll_group *bgroup = spdk_io_channel_get_ctx(ch);
 
-	bdev_burst_qos_poll_group_drain_queued_io(bgroup);
+	spdk_poller_resume(bgroup->retry_poller);
 }
 
 static void
@@ -1505,6 +1561,8 @@ bdev_burst_qos_library_config_json(struct spdk_json_write_ctx *w)
 				     g_qos_opts.max_byte_withdraw_batch_size);
 	spdk_json_write_named_uint64(w, "byte_additive_increase_step",
 				     g_qos_opts.byte_additive_increase_step);
+	spdk_json_write_named_uint64(w, "retry_budget",
+				     g_qos_opts.retry_budget);
 
 	spdk_json_write_object_end(w);
 

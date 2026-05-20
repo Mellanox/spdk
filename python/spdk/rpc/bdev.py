@@ -1771,7 +1771,8 @@ def bdev_burst_qos_set_options(
         max_io_withdraw_batch_size=None,
         io_additive_increase_step=None,
         max_byte_withdraw_batch_size=None,
-        byte_additive_increase_step=None):
+        byte_additive_increase_step=None,
+        retry_budget=None):
     """Set parameters for the burst QoS module.
     Args:
         tick_period_us: The period of a single tick in microseconds. (optional)
@@ -1779,6 +1780,7 @@ def bdev_burst_qos_set_options(
         io_additive_increase_step: Step size to increase withdraw for IOPS limit. (optional)
         max_byte_withdraw_batch_size: Max batch size to withdraw for BW limit. (optional)
         byte_additive_increase_step: Step size to increase withdraw for BW limit. (optional)
+        retry_budget: Max queued I/Os dispatched per thread per retry poller invocation. (optional)
     """
     params = dict()
     if tick_period_us is not None:
@@ -1791,6 +1793,8 @@ def bdev_burst_qos_set_options(
         params['max_byte_withdraw_batch_size'] = max_byte_withdraw_batch_size
     if byte_additive_increase_step is not None:
         params['byte_additive_increase_step'] = byte_additive_increase_step
+    if retry_budget is not None:
+        params['retry_budget'] = retry_budget
     return client.call('bdev_burst_qos_set_options', params)
 
 

@@ -22,7 +22,7 @@ static const struct spdk_json_object_decoder rpc_burst_qos_set_opts_decoders[] =
 	{"io_additive_increase_step", offsetof(struct bdev_burst_qos_opts, io_additive_increase_step), spdk_json_decode_uint64, true},
 	{"max_byte_withdraw_batch_size", offsetof(struct bdev_burst_qos_opts, max_byte_withdraw_batch_size), spdk_json_decode_uint64, true},
 	{"byte_additive_increase_step", offsetof(struct bdev_burst_qos_opts, byte_additive_increase_step), spdk_json_decode_uint64, true},
-
+	{"retry_budget", offsetof(struct bdev_burst_qos_opts, retry_budget), spdk_json_decode_uint64, true},
 };
 
 static void
@@ -104,7 +104,7 @@ rpc_bdev_burst_qos_set_limit(struct spdk_jsonrpc_request *request,
 					    SPDK_COUNTOF(rpc_burst_qos_decoders),
 					    &req)) {
 		SPDK_ERRLOG("spdk_json_decode_object failed\n");
-		spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INTERNAL_ERROR,
+		spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INVALID_PARAMS,
 						 "spdk_json_decode_object failed");
 		goto cleanup;
 	}
