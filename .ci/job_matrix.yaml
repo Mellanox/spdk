@@ -27,7 +27,7 @@ kubernetes:
       dockerImage: "urm.nvidia.com/quay-remote/podman/stable:v5.5.1"
 
 env:
-  MOFED_VER: 26.01-0.8.9.0
+  MOFED_VER: 26.04-0.8.4.0
   REGISTRY_AUTH_FILE: '/mnt/secret_podman/config_podman.json'
   GIT_SSH_COMMAND: 'ssh -o StrictHostKeyChecking=no'
 
