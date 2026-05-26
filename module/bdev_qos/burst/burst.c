@@ -957,7 +957,7 @@ local_token_bucket_refill(struct local_token_bucket *local_bucket, uint64_t toke
 	uint64_t effective_cap;
 
 	/* Limit to prevent hoarding during idle periods. */
-	effective_cap = local_bucket->capacity;
+	effective_cap = __atomic_load_n(&local_bucket->capacity, __ATOMIC_RELAXED);
 
 	if (!TAILQ_EMPTY(&local_bucket->queued_io)) {
 		/* Remove the capacity effectively to allow a starved local bucket to
@@ -1222,7 +1222,8 @@ local_token_bucket_reset(struct local_token_bucket *local_bucket)
 	} else {
 		local_bucket->withdraw_batch_size = BDEV_QOS_MIN_BYTE_WITHDRAW_BATCH_SIZE;
 	}
-	local_bucket->capacity = global_bucket->io_burst;
+	__atomic_store_n(&local_bucket->capacity, global_bucket->io_burst,
+			 __ATOMIC_RELAXED);
 }
 
 static void
