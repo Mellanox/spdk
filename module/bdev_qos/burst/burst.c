@@ -1724,7 +1724,7 @@ bdev_burst_qos_channel_reset_done(struct spdk_io_channel_iter *i, int status)
 {
 	struct burst_qos_set_limit_ctx *ctx = spdk_io_channel_iter_get_ctx(i);
 
-	bdev_burst_qos_set_limit_done(ctx, 0);
+	bdev_burst_qos_set_limit_done(ctx, status);
 }
 
 static void
