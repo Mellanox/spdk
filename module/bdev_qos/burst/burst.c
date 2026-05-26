@@ -1360,6 +1360,9 @@ bdev_burst_qos_channel_get(struct spdk_bdev_qos_impl *qos_impl)
 
 	pg_io_ch = spdk_get_io_channel(&g_qos_mgr);
 	if (pg_io_ch == NULL) {
+		for (i = 0; i < BDEV_QOS_NUM_METRICS; i++) {
+			local_token_bucket_fini(&bqos_ch->local_buckets[i]);
+		}
 		free(bqos_ch);
 		return NULL;
 	}
