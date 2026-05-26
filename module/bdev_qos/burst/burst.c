@@ -1578,10 +1578,15 @@ bdev_burst_qos_config_json(struct spdk_bdev_qos_impl *qos_impl, struct spdk_json
 {
 	struct bdev_burst_qos *bqos = bdev_burst_qos(qos_impl);
 	const char *name = qos_impl->qos->name;
+	struct global_token_bucket *global_bucket;
 	int i;
 
 	for (i = 0; i < BDEV_QOS_NUM_METRICS; i++) {
-		global_token_bucket_config_json(&bqos->global_buckets[i], name, w);
+		global_bucket = &bqos->global_buckets[i];
+
+		if (global_bucket->avg_rate != UINT64_MAX) {
+			global_token_bucket_config_json(global_bucket, name, w);
+		}
 	}
 }
 
