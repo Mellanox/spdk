@@ -839,6 +839,9 @@ global_token_bucket_set(struct global_token_bucket *global_bucket, uint64_t avg_
 		assert(qos_mode == BDEV_QOS_MODE_EARNED_BURST);
 		if (max_burst_rate == 0) {
 			max_burst_rate = avg_rate;
+			SPDK_WARNLOG("EARNED_BURST: max_burst_rate unset, defaulting to avg_rate — "
+				     "no burst credits will accumulate. Set max_burst_rate > avg_rate "
+				     "to enable bursting.\n");
 		} else if (max_burst_rate < avg_rate) {
 			return -EINVAL;
 		}
