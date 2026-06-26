@@ -22,7 +22,7 @@ WORKDIR /build
 # Install dependecies
 RUN apt update && \
     apt install -y dpkg-dev debhelper patchelf python3-pyelftools \
-                   libfuse3-dev libaio-dev libncurses-dev podman && \
+                   libfuse3-dev libaio-dev libncurses-dev skopeo && \
     dpkg --force-all -r spdk spdk-rpc spdk-dev
 
 # Build and install DOCA STA
@@ -46,9 +46,12 @@ RUN set -eux; \
     --disable-tests --disable-unit-tests --disable-examples \
     --prefix=${NVMF_TARGET_OFFLOAD_PATH} ${NVMF_TARGET_OFFLOAD_BUILD_ARGS} && \
     make -j4 && make -j4 install ; \
-    [ "$SIGN_DPA" = "true" ] && echo "\n===== SIGN DPA =====\n"&& \
-    cp sign-tool/build/bf3_dpa/* /usr/bin/ && hash -r && \
-    .ci/sign_dpa.sh ${NVMF_TARGET_OFFLOAD_PATH}/bin/spdk_tgt || true
+    if [ "$SIGN_DPA" = "true" ]; then \
+        echo "===== SIGN DPA =====" && \
+        cp sign-tool/build/bf3_dpa/* /usr/bin/ && hash -r && \
+        .ci/sign_dpa.sh \
+            ${NVMF_TARGET_OFFLOAD_PATH}/bin/spdk_tgt ; \
+    fi || true
 
 FROM ${DOCA_IMAGE}:${DOCA_RUNTIME_TAG}
 ARG NVMF_TARGET_OFFLOAD_PATH

@@ -24,9 +24,9 @@ credentials:
 timeout_minutes: 120
 
 env:
-  DOCKER_REGISTRY_HOST: '${CI_ENV_HARBOR_REGISTRY_HOST}' 
+  DOCKER_REGISTRY_HOST: '${CI_ENV_HARBOR_REGISTRY_HOST}'
   DOCKER_REGISTRY_PATH: '${CI_ENV_HARBOR_REGISTRY_PATH}'
-  DOCA_IMAGE: '${CI_ENV_DOCA_BUILDER_IMAGE}' 
+  DOCA_IMAGE: '${CI_ENV_DOCA_BUILDER_IMAGE}'
   DOCA_BUILDER_TAG: '${CI_ENV_DOCA_BUILDER_TAG}'
   DOCA_RUNTIME_TAG: '${CI_ENV_DOCA_RUNTIME_TAG}'
   artifact_properties: '${CI_ENV_ARTIFACT_PROPERTIES}'
@@ -66,7 +66,7 @@ runs_on_dockers:
      build_args: '--build-arg DOCA_IMAGE_TAG=$DOCA_BUILDER_TAG --pull --no-cache'
     }
   - {
-     file: '.ci/Dockerfile.doca', name: 'toolbox', arch: 'aarch64', tag: "${CI_ENV_CI_REV}", 
+     file: '.ci/Dockerfile.doca', name: 'toolbox', arch: 'aarch64', tag: "${CI_ENV_CI_REV}",
      category: 'tool', build_args: '--build-arg DOCA_IMAGE_TAG=$DOCA_BUILDER_TAG --pull --no-cache'
     }
 

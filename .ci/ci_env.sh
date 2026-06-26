@@ -8,7 +8,7 @@ export CI_ENV_STORAGE_DRIVER="overlay"
 
 export CI_ENV_NVCR_REGISTRY_HOST="nvcr.io"
 export CI_ENV_NVCR_REGISTRY_PATH="nvstaging/doca"
-  
+
 export CI_ENV_HARBOR_REGISTRY_HOST="nbu-harbor.gtm.nvidia.com"
 export CI_ENV_HARBOR_REGISTRY_PATH="swx-storage/doca_nvmf_target_offload"
 
@@ -33,4 +33,4 @@ export CI_ENV_DOCKER_AARCH64="urm.nvidia.com/quay-remote/podman/stable:v5.3.2"
 # changes that affect components in CI builder images.
 # CI builder images use it as docker tag.
 # Format=<YYMMDD>-<ID>
-export CI_ENV_CI_REV="260609-1"
+export CI_ENV_CI_REV="260626-1"
