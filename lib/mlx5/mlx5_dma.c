@@ -738,6 +738,7 @@ handle_good_cqe_resp(struct mlx5_cqe64 *cqe, struct ibv_wc *wc)
 static inline void
 handle_err_cqe(struct mlx5_err_cqe *cqe, struct ibv_wc *wc)
 {
+	struct _mlx5_err_cqe *ecqe = (struct _mlx5_err_cqe *)cqe;
 	enum ibv_wc_status status;
 
 	switch (cqe->syndrome) {
@@ -785,7 +786,7 @@ handle_err_cqe(struct mlx5_err_cqe *cqe, struct ibv_wc *wc)
 	}
 
 	wc->status	= status;
-	wc->vendor_err	= cqe->vendor_err_synd;
+	wc->vendor_err	= ((uint32_t)ecqe->vendor_err_synd << 8) | (ecqe->hw_err_synd);
 }
 
 /* Minimal information for the caller to handle signature error is
