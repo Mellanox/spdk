@@ -3054,12 +3054,12 @@ nvme_rdma_log_wc_status(struct nvme_rdma_qpair *rqpair, struct ibv_wc *wc)
 		/* If qpair is in ERR state, we will receive completions for all posted and not completed
 		 * Work Requests with IBV_WC_WR_FLUSH_ERR status. Don't log an error in that case */
 		NVME_RQPAIR_DEBUGLOG(rqpair,
-				     "WC error, qp state %d, request 0x%lu type %d, status: (%d): %s, vendor_err: 0x%04x\n",
+				     "WC error, qp state %d, request 0x%lx type %d, status: (%d): %s, vendor_err: 0x%04x\n",
 				     rqpair->qpair.state, wc->wr_id, rdma_wr->type, wc->status, ibv_wc_status_str(wc->status),
 				     wc->vendor_err);
 	} else {
 		NVME_RQPAIR_ERRLOG(rqpair,
-				   "WC error, qp state %d, request 0x%lu type %d, status: (%d): %s, vendor_err: 0x%04x\n",
+				   "WC error, qp state %d, request 0x%lx type %d, status: (%d): %s, vendor_err: 0x%04x\n",
 				   rqpair->qpair.state, wc->wr_id, rdma_wr->type, wc->status, ibv_wc_status_str(wc->status),
 				   wc->vendor_err);
 	}
