@@ -5664,13 +5664,15 @@ nvmf_rdma_log_wc_status(struct spdk_nvmf_rdma_qpair *rqpair, struct ibv_wc *wc)
 		/* If qpair is in ERR state, we will receive completions for all posted and not completed
 		 * Work Requests with IBV_WC_WR_FLUSH_ERR status. Don't log an error in that case */
 		SPDK_DEBUGLOG(rdma,
-			      "Error on CQ %p, (qp state %d, in_error %d) request 0x%lu, type %s, status: (%d): %s\n",
+			      "Error on CQ %p, (qp state %d, in_error %d) request 0x%lu, type %s, status: (%d): %s; vendor_err: 0x%04x\n",
 			      rqpair->poller->cq, rqpair->qpair.state, rqpair->ibv_in_error_state, wc->wr_id,
-			      nvmf_rdma_wr_type_str(wr_type), wc->status, ibv_wc_status_str(wc->status));
+			      nvmf_rdma_wr_type_str(wr_type), wc->status, ibv_wc_status_str(wc->status),
+			      wc->vendor_err);
 	} else {
-		SPDK_ERRLOG("Error on CQ %p, (qp state %d, in_error %d) request 0x%lu, type %s, status: (%d): %s\n",
+		SPDK_ERRLOG("Error on CQ %p, (qp state %d, in_error %d) request 0x%lu, type %s, status: (%d): %s, vendor_err: 0x%04x\n",
 			    rqpair->poller->cq, rqpair->qpair.state, rqpair->ibv_in_error_state, wc->wr_id,
-			    nvmf_rdma_wr_type_str(wr_type), wc->status, ibv_wc_status_str(wc->status));
+			    nvmf_rdma_wr_type_str(wr_type), wc->status, ibv_wc_status_str(wc->status),
+			    wc->vendor_err);
 	}
 }
 
