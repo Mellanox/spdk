@@ -386,7 +386,8 @@ def add_parser(subparsers):
                                         enable_module=args.enable_module,
                                         disable_signature=args.disable_signature,
                                         disable_crypto=args.disable_crypto,
-                                        umr_memory_buffer=args.umr_memory_buffer)
+                                        umr_memory_buffer=args.umr_memory_buffer,
+                                        dev_rr_threshold=args.dev_rr_threshold)
 
     p = subparsers.add_parser('mlx5_scan_accel_module', help='Enable mlx5 accel module.')
     p.add_argument('-q', '--qp-size', type=int, help='QP size')
@@ -413,6 +414,8 @@ def add_parser(subparsers):
                    help="Disable crypto operations support")
     p.add_argument('--umr-memory-buffer', dest='umr_memory_buffer', action='store_true', default=None,
                    help="Enable UMR Memory Buffer")
+    p.add_argument('--dev-rr-threshold', type=int, help="""Number of tasks to be submitted to a single device before
+                   switching to the next device""")
     p.set_defaults(func=mlx5_scan_accel_module)
 
     def accel_mlx5_dump_stats(args):

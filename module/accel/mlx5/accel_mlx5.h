@@ -17,6 +17,8 @@ struct accel_mlx5_attr {
 	/* Apply crypto operation for each X data blocks. Works only if multiblock crypto operation is supported by HW.
 	 * 0 means no limit */
 	uint16_t crypto_split_blocks;
+	/* The number of tasks to be submitted to a single device before switching to the next device */
+	uint16_t dev_rr_threshold;
 	/* Enables accel_mlx5 platform driver. The driver can execute a limited scope of operations */
 	bool enable_driver;
 	bool qp_per_domain;

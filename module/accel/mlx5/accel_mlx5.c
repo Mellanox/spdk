@@ -26,6 +26,7 @@
 #define ACCEL_MLX5_QP_SIZE (64u)
 #define ACCEL_MLX5_CQ_SIZE (1024u)
 #define ACCEL_MLX5_NUM_MKEYS (1024u)
+#define ACCEL_MLX5_DEV_RR_THRESHOLD (4u)
 #define ACCEL_MLX5_RECOVER_POLLER_PERIOD_US (10000)
 #define ACCEL_MLX5_MAX_INLINE_SGE (16u)
 #define ACCEL_MLX5_MAX_MB_SGE (256u)
@@ -249,6 +250,8 @@ struct accel_mlx5_io_channel {
 	uint16_t num_devs;
 	/* Index in \b devs to be used for operations in round-robin way */
 	uint16_t dev_idx;
+	uint16_t dev_rr_count;
+	uint16_t dev_rr_threshold;
 	bool poller_handler_registered;
 };
 
@@ -3613,11 +3616,14 @@ accel_mlx5_ch_get_dev(struct accel_mlx5_io_channel *ch)
 	struct accel_mlx5_dev *dev;
 
 	dev = &ch->devs[ch->dev_idx];
-	ch->dev_idx++;
-	if (ch->dev_idx == ch->num_devs) {
-		ch->dev_idx = 0;
+	ch->dev_rr_count++;
+	if (ch->dev_rr_count >= ch->dev_rr_threshold) {
+		ch->dev_idx++;
+		if (ch->dev_idx == ch->num_devs) {
+			ch->dev_idx = 0;
+		}
+		ch->dev_rr_count = 0;
 	}
-
 	return dev;
 }
 
@@ -4233,6 +4239,7 @@ accel_mlx5_create_cb(void *io_device, void *ctx_buf)
 		STAILQ_INIT(&dev->complete_wr_qps);
 	}
 
+	ch->dev_rr_threshold = g_accel_mlx5.attr.dev_rr_threshold;
 	ch->poller = SPDK_POLLER_REGISTER(accel_mlx5_poller, ch, 0);
 
 	return 0;
@@ -4252,6 +4259,7 @@ accel_mlx5_get_default_attr(struct accel_mlx5_attr *attr)
 	attr->qp_size = ACCEL_MLX5_QP_SIZE;
 	attr->cq_size = ACCEL_MLX5_CQ_SIZE;
 	attr->num_requests = ACCEL_MLX5_NUM_MKEYS;
+	attr->dev_rr_threshold = ACCEL_MLX5_DEV_RR_THRESHOLD;
 	attr->crypto_split_blocks = 0;
 	attr->enable_driver = false;
 	attr->qp_per_domain = true;
@@ -4914,6 +4922,7 @@ accel_mlx5_write_config_json(struct spdk_json_write_ctx *w)
 		spdk_json_write_named_uint32(w, "num_requests", g_accel_mlx5.attr.num_requests);
 		spdk_json_write_named_bool(w, "enable_driver", g_accel_mlx5.attr.enable_driver);
 		spdk_json_write_named_uint32(w, "crypto_split_blocks", g_accel_mlx5.attr.crypto_split_blocks);
+		spdk_json_write_named_uint16(w, "dev_rr_threshold", g_accel_mlx5.attr.dev_rr_threshold);
 		if (g_accel_mlx5.attr.allowed_devs) {
 			spdk_json_write_named_string(w, "allowed_devs", g_accel_mlx5.attr.allowed_devs);
 		}
@@ -5792,6 +5801,7 @@ static struct accel_mlx5_module g_accel_mlx5 = {
 		.qp_size = ACCEL_MLX5_QP_SIZE,
 		.cq_size = ACCEL_MLX5_CQ_SIZE,
 		.num_requests = ACCEL_MLX5_NUM_MKEYS,
+		.dev_rr_threshold = ACCEL_MLX5_DEV_RR_THRESHOLD,
 		.crypto_split_blocks = 0,
 		.disable_signature = false,
 		.disable_crypto = false,

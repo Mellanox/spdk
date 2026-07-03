@@ -7,7 +7,7 @@ from spdk.rpc.helpers import deprecated_alias
 
 def mlx5_scan_accel_module(client, qp_size=None, cq_size=None, num_requests=None, crypto_split_blocks=None, allowed_devs=None,
                            merge=None, qp_per_domain=None, enable_driver=None, enable_module=None,
-                           disable_signature=None, disable_crypto=None, umr_memory_buffer=None):
+                           disable_signature=None, disable_crypto=None, umr_memory_buffer=None, dev_rr_threshold=None):
     """Configure mlx5 accel module. Scans all mlx5 devices which can perform needed operations
 
     Args:
@@ -23,6 +23,7 @@ def mlx5_scan_accel_module(client, qp_size=None, cq_size=None, num_requests=None
         disable_signature: disable signature operations support (optional)
         disable_crypto: disable crypto operations support (optional)
         umr_memory_buffer: Enable UMR Memory Buffer (optional)
+        dev_rr_threshold: Number of tasks to be submitted to a single device before switching to the next device (optional)
     """
     params = {}
 
@@ -51,6 +52,8 @@ def mlx5_scan_accel_module(client, qp_size=None, cq_size=None, num_requests=None
         params['disable_crypto'] = disable_crypto
     if umr_memory_buffer is not None:
         params['umr_memory_buffer'] = umr_memory_buffer
+    if dev_rr_threshold is not None:
+        params['dev_rr_threshold'] = dev_rr_threshold
     return client.call('mlx5_scan_accel_module', params)
 
 
