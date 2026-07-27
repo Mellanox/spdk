@@ -70,7 +70,7 @@
     jjb_email: 'mchomnicki@nvidia.com'
     jjb_proj: 'spdk'
     git_branch:
-      - v25.05.6.nvda:
+      - v25.05.510.nvda:
           conf_file: '.ci/job_matrix.yaml'
     jjb_git: 'https://gitlab-master.nvidia.com/spdk_team/spdk.git'
     jjb_owner: 'mchomnicki@nvidia.com'
