@@ -12,18 +12,11 @@
 
 #include "spdk/stdinc.h"
 #include "spdk/log.h"
-#include "spdk/config.h"
 #include "dte_doca_shim.h"
 
 #include <doca_error.h>
 #include <doca_version.h>
 #include <doca_telemetry_exporter.h>
-
-#define STR_HELPER(x) #x
-#define STR(x) STR_HELPER(x)
-
-#define DOCA_COMMON_LIB STR(SPDK_CONFIG_DOCA_COMMON_LIB)
-#define DOCA_TELEMETRY_EXPORTER_LIB STR(SPDK_CONFIG_DOCA_TELEMETRY_EXPORTER_LIB)
 
 /* We define our macro as DOCA_VERSION_LTE_CURRENT() uses casting to size_t, which is not supported by the preprocessor. */
 #define DOCA_VERSION_AT_LEAST(maj, min, pat) \

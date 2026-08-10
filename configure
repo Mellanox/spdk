@@ -311,50 +311,6 @@ function check_IPSec_mb() {
 	fi
 }
 
-# Find a library's SONAME (e.g. "libfoo.so.2") via the ldconfig cache.
-# The lib name is expected to be the unversioned linker name (e.g. "libfoo.so").
-# Prefers that entry (resolving its symlink to the SONAME), then falls back to a
-# versioned cache entry.
-function find_lib_soname() {
-	local lib_name=$1
-	local lib_path
-
-	lib_path=$(ldconfig -p | grep "$lib_name$" | sed 's/.*=> //' 2> /dev/null | head -n 1)
-	if [[ -n "$lib_path" ]]; then
-		# Unversioned linker name: resolve the symlink to the SONAME when present.
-		if [[ -L "$lib_path" ]]; then
-			basename "$(readlink "$lib_path")"
-		else
-			basename "$lib_path"
-		fi
-		return
-	fi
-
-	lib_path=$(ldconfig -p | grep -E "$lib_name\.[0-9]+" | sed 's/.*=> //' 2> /dev/null | head -n 1)
-	if [[ -n "$lib_path" ]]; then
-		basename "$lib_path"
-	fi
-}
-
-# Find a DOCA library and set the CONFIG variable for it.
-# The lib name is expected to be stripped of libdoca_ prefix and in the format of "common" or "telemetry_exporter".
-function find_doca_lib() {
-	local lib_name=$1
-	local lib_found
-	local lib_var_name=DOCA_"${lib_name^^}"_LIB
-	local full_lib_name="libdoca_${lib_name}.so"
-
-	echo -n "Looking for ${full_lib_name}..."
-	lib_found=$(find_lib_soname "${full_lib_name}")
-	if [[ -n "${lib_found}" ]]; then
-		CONFIG[${lib_var_name}]="${lib_found}"
-		echo "done."
-	else
-		echo "not found. Disabling DOCA support."
-		CONFIG[DOCA_ENABLED]=n
-	fi
-}
-
 for i in "$@"; do
 	case "$i" in
 		-h | --help)
@@ -1562,9 +1518,6 @@ if [[ "${CONFIG[DOCA_ENABLED]}" = "y" ]]; then
 	if echo -e "#include <doca_telemetry_exporter.h>\nint main(void) { return doca_telemetry_exporter_schema_init(\"test\", NULL); }\n" \
 		| "${BUILD_CMD[@]}" -DDOCA_ALLOW_EXPERIMENTAL_API "-I${CONFIG[DOCA_INCLUDE_DIR]}" -c - 2> /dev/null; then
 		echo "done."
-
-		find_doca_lib "common"
-		find_doca_lib "telemetry_exporter"
 	else
 		echo "not found. Disabling DOCA support."
 		CONFIG[DOCA_ENABLED]=n

@@ -286,10 +286,6 @@ CONFIG_DOCA_ENABLED=y
 
 # Path to DOCA include directory
 CONFIG_DOCA_INCLUDE_DIR=/opt/mellanox/doca/include
-# Versioned name of DOCA common library
-CONFIG_DOCA_COMMON_LIB=
-# Versioned name of DOCA Telemetry Exporter library
-CONFIG_DOCA_TELEMETRY_EXPORTER_LIB=
 
 # Enable VMD support
 CONFIG_VMD=
