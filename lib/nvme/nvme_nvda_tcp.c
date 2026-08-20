@@ -1635,6 +1635,16 @@ nvme_tcp_qpair_set_recv_state(struct nvme_tcp_qpair *tqpair,
 	}
 }
 
+static inline void
+nvme_tcp_qpair_set_recv_quiescing(struct nvme_tcp_qpair *tqpair)
+{
+	if (tqpair->recv_state != NVME_TCP_PDU_RECV_STATE_QUIESCING) {
+		nvme_tcp_qpair_set_recv_state(tqpair, NVME_TCP_PDU_RECV_STATE_QUIESCING);
+	} else {
+		SPDK_DEBUGLOG(nvme, "tqpair %p recv state is already QUIESCING\n", tqpair);
+	}
+}
+
 static void
 nvme_tcp_free_reqs(struct nvme_tcp_qpair *tqpair)
 {
@@ -4275,7 +4285,7 @@ nvme_tcp_read_pdu(struct nvme_tcp_qpair *tqpair, uint32_t *reaped, uint32_t max_
 
 				rc = nvme_nvda_tcp_readv_data(tqpair, &iov, 1);
 				if (spdk_unlikely(rc < 0)) {
-					nvme_tcp_qpair_set_recv_state(tqpair, NVME_TCP_PDU_RECV_STATE_QUIESCING);
+					nvme_tcp_qpair_set_recv_quiescing(tqpair);
 					break;
 				} else if (rc == 0) {
 					return NVME_TCP_PDU_IN_PROGRESS;
@@ -4303,7 +4313,7 @@ nvme_tcp_read_pdu(struct nvme_tcp_qpair *tqpair, uint32_t *reaped, uint32_t max_
 				assert(pdu->ch_valid_bytes < sizeof(struct spdk_nvme_tcp_common_pdu_hdr));
 				rc = nvme_nvda_tcp_readv_data(tqpair, &iov, 1);
 				if (spdk_unlikely(rc < 0)) {
-					nvme_tcp_qpair_set_recv_state(tqpair, NVME_TCP_PDU_RECV_STATE_QUIESCING);
+					nvme_tcp_qpair_set_recv_quiescing(tqpair);
 					break;
 				}
 				pdu->ch_valid_bytes += rc;
@@ -4324,7 +4334,7 @@ nvme_tcp_read_pdu(struct nvme_tcp_qpair *tqpair, uint32_t *reaped, uint32_t max_
 			iov.iov_len = pdu->psh_len - pdu->psh_valid_bytes;
 			rc = nvme_nvda_tcp_readv_data(tqpair, &iov, 1);
 			if (spdk_unlikely(rc < 0)) {
-				nvme_tcp_qpair_set_recv_state(tqpair, NVME_TCP_PDU_RECV_STATE_QUIESCING);
+				nvme_tcp_qpair_set_recv_quiescing(tqpair);
 				break;
 			}
 
@@ -4351,7 +4361,7 @@ nvme_tcp_read_pdu(struct nvme_tcp_qpair *tqpair, uint32_t *reaped, uint32_t max_
 				rc = nvme_nvda_tcp_read_payload_data(tqpair, pdu);
 			}
 			if (spdk_unlikely(rc < 0)) {
-				nvme_tcp_qpair_set_recv_state(tqpair, NVME_TCP_PDU_RECV_STATE_QUIESCING);
+				nvme_tcp_qpair_set_recv_quiescing(tqpair);
 				break;
 			}
 
