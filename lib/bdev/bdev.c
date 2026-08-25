@@ -6272,29 +6272,19 @@ int
 spdk_bdev_notify_blockcnt_change(struct spdk_bdev *bdev, uint64_t size)
 {
 	struct spdk_bdev_desc *desc;
-	int ret;
 
 	if (size == bdev->blockcnt) {
 		return 0;
 	}
 
 	spdk_spin_lock(&bdev->internal.spinlock);
-
-	/* bdev has open descriptors */
-	if (!TAILQ_EMPTY(&bdev->internal.open_descs) &&
-	    bdev->blockcnt > size) {
-		ret = -EBUSY;
-	} else {
-		bdev->blockcnt = size;
-		TAILQ_FOREACH(desc, &bdev->internal.open_descs, link) {
-			event_notify(desc, _resize_notify);
-		}
-		ret = 0;
+	bdev->blockcnt = size;
+	TAILQ_FOREACH(desc, &bdev->internal.open_descs, link) {
+		event_notify(desc, _resize_notify);
 	}
-
 	spdk_spin_unlock(&bdev->internal.spinlock);
 
-	return ret;
+	return 0;
 }
 
 static void

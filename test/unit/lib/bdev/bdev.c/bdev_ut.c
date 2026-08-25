@@ -1168,12 +1168,10 @@ num_blocks_test(void)
 
 	/* Growing block number */
 	CU_ASSERT(spdk_bdev_notify_blockcnt_change(bdev, 80) == 0);
-	/* Shrinking block number */
-	CU_ASSERT(spdk_bdev_notify_blockcnt_change(bdev, 20) != 0);
 
 	g_event_type1 = 0xFF;
-	/* Growing block number */
-	CU_ASSERT(spdk_bdev_notify_blockcnt_change(bdev, 90) == 0);
+	/* Shrinking block number */
+	CU_ASSERT(spdk_bdev_notify_blockcnt_change(bdev, 60) == 0);
 
 	poll_threads();
 	CU_ASSERT_EQUAL(g_event_type1, SPDK_BDEV_EVENT_RESIZE);
