@@ -836,7 +836,9 @@ test_nvmf_rdma_get_optimal_poll_group(void)
 	struct spdk_nvmf_transport_poll_group *groups[TEST_GROUPS_COUNT];
 	struct spdk_nvmf_rdma_poll_group *rgroups[TEST_GROUPS_COUNT];
 	struct spdk_nvmf_transport_poll_group *result;
-	struct spdk_nvmf_rdma_conn_sched *sched = &rtransport.conn_sched;
+	struct spdk_nvmf_rdma_conn_sched sched_storage = {};
+	struct spdk_nvmf_rdma_conn_sched *sched = &sched_storage;
+	struct spdk_nvmf_rdma_device device = {};
 	struct spdk_nvmf_poll_group group = {};
 	struct spdk_thread *thread;
 	uint32_t i;
@@ -847,7 +849,11 @@ test_nvmf_rdma_get_optimal_poll_group(void)
 	init_accel();
 
 	rqpair.qpair.transport = transport;
+	rqpair.device = &device;
+	rtransport.num_conn_sched = 1;
+	rtransport.conn_sched = sched;
 	TAILQ_INIT(&rtransport.poll_groups);
+	TAILQ_INIT(&sched->poll_groups);
 
 	for (i = 0; i < TEST_GROUPS_COUNT; i++) {
 		groups[i] = nvmf_rdma_poll_group_create(transport, NULL);
@@ -919,6 +925,131 @@ test_nvmf_rdma_get_optimal_poll_group(void)
 	spdk_thread_destroy(thread);
 }
 #undef TEST_GROUPS_COUNT
+
+#define TEST_GROUPS_COUNT 5
+#define TEST_IFACES_COUNT 2
+static void
+test_nvmf_rdma_get_optimal_poll_group_multi_iface(void)
+{
+	struct spdk_nvmf_rdma_transport rtransport = {};
+	struct spdk_nvmf_transport *transport = &rtransport.transport;
+	struct spdk_nvmf_rdma_qpair rqpair = {};
+	struct spdk_nvmf_rdma_device dev_a = {}, dev_b = {}, dev_c = {};
+	struct spdk_nvmf_rdma_conn_sched sched[TEST_IFACES_COUNT] = {};
+	struct spdk_nvmf_transport_poll_group *groups[TEST_GROUPS_COUNT];
+	struct spdk_nvmf_rdma_poll_group *rgroups[TEST_GROUPS_COUNT];
+	struct spdk_nvmf_transport_poll_group *result;
+	struct spdk_nvmf_poll_group group[TEST_GROUPS_COUNT] = {};
+	struct spdk_thread *thread;
+	uint32_t i;
+
+	thread = spdk_thread_create(NULL, NULL);
+	SPDK_CU_ASSERT_FATAL(thread != NULL);
+	spdk_set_thread(thread);
+	init_accel();
+
+	rqpair.qpair.transport = transport;
+	rqpair.qpair.qid = 0;
+	rtransport.num_conn_sched = TEST_IFACES_COUNT;
+	rtransport.conn_sched = sched;
+	TAILQ_INIT(&rtransport.poll_groups);
+	for (i = 0; i < TEST_IFACES_COUNT; i++) {
+		TAILQ_INIT(&sched[i].poll_groups);
+	}
+
+	for (i = 0; i < TEST_GROUPS_COUNT; i++) {
+		groups[i] = nvmf_rdma_poll_group_create(transport, NULL);
+		SPDK_CU_ASSERT_FATAL(groups[i] != NULL);
+		groups[i]->group = &group[i];
+		rgroups[i] = SPDK_CONTAINEROF(groups[i], struct spdk_nvmf_rdma_poll_group, group);
+		groups[i]->transport = transport;
+	}
+
+	/* Poll groups are spread over the schedulers as they are created, an
+	 * uneven split leaves the first scheduler with the extra poll group */
+	for (i = 0; i < TEST_GROUPS_COUNT; i++) {
+		CU_ASSERT(rgroups[i]->sched == &sched[i % TEST_IFACES_COUNT]);
+	}
+
+	/* An I/O qpair picks the least loaded poll group of its own scheduler,
+	 * even when another scheduler holds emptier ones */
+	group[0].stat.current_io_qpairs = 5;
+	group[2].stat.current_io_qpairs = 1;
+	group[4].stat.current_io_qpairs = 3;
+	group[1].stat.current_io_qpairs = 0;
+	group[3].stat.current_io_qpairs = 0;
+
+	rqpair.device = &dev_a;
+	rqpair.qpair.qid = 1;
+	result = nvmf_rdma_get_optimal_poll_group(&rqpair.qpair);
+	CU_ASSERT(dev_a.conn_sched == &sched[0]);
+	CU_ASSERT(result == groups[2]);
+
+	for (i = 0; i < TEST_GROUPS_COUNT; i++) {
+		group[i].stat.current_io_qpairs = 0;
+	}
+	rqpair.qpair.qid = 0;
+
+	/* The first device keeps the scheduler it was assigned */
+	result = nvmf_rdma_get_optimal_poll_group(&rqpair.qpair);
+	CU_ASSERT(dev_a.conn_sched == &sched[0]);
+	CU_ASSERT(result == groups[0]);
+
+	/* A second device is assigned the other scheduler */
+	rqpair.device = &dev_b;
+	result = nvmf_rdma_get_optimal_poll_group(&rqpair.qpair);
+	CU_ASSERT(dev_b.conn_sched == &sched[1]);
+	CU_ASSERT(result == groups[1]);
+
+	/* A device that already has a scheduler keeps using it */
+	rqpair.device = &dev_a;
+	result = nvmf_rdma_get_optimal_poll_group(&rqpair.qpair);
+	CU_ASSERT(result == groups[2]);
+
+	/* A third device shares the least loaded scheduler, and keeps using
+	 * that same scheduler afterwards */
+	rqpair.device = &dev_c;
+	result = nvmf_rdma_get_optimal_poll_group(&rqpair.qpair);
+	CU_ASSERT(dev_c.conn_sched == &sched[0]);
+	CU_ASSERT(result == groups[4]);
+
+	result = nvmf_rdma_get_optimal_poll_group(&rqpair.qpair);
+	CU_ASSERT(dev_c.conn_sched == &sched[0]);
+	CU_ASSERT(result == groups[0]);
+
+	/* Destroying a device releases its claim, so the scheduler it leaves
+	 * behind is the least loaded one again */
+	CU_ASSERT(sched[0].num_devices == 2);
+	CU_ASSERT(sched[1].num_devices == 1);
+
+	/* Destroy every poll group of the second scheduler, its device then
+	 * falls back to a scheduler that still holds one */
+	nvmf_rdma_poll_group_destroy(groups[1]);
+	nvmf_rdma_poll_group_destroy(groups[3]);
+	CU_ASSERT(TAILQ_EMPTY(&sched[1].poll_groups));
+	CU_ASSERT(sched[1].next_admin_pg == NULL);
+
+	rqpair.device = &dev_b;
+	result = nvmf_rdma_get_optimal_poll_group(&rqpair.qpair);
+	CU_ASSERT(result == groups[2]);
+
+	/* Once no poll group is left, no scheduler can serve a connection */
+	nvmf_rdma_poll_group_destroy(groups[0]);
+	nvmf_rdma_poll_group_destroy(groups[2]);
+	nvmf_rdma_poll_group_destroy(groups[4]);
+	result = nvmf_rdma_get_optimal_poll_group(&rqpair.qpair);
+	CU_ASSERT(result == NULL);
+
+	fini_accel();
+	spdk_thread_exit(thread);
+	while (!spdk_thread_is_exited(thread)) {
+		spdk_thread_poll(thread, 0, 0);
+	}
+	spdk_thread_destroy(thread);
+}
+#undef TEST_IFACES_COUNT
+#undef TEST_GROUPS_COUNT
+
 
 static void
 test_spdk_nvmf_rdma_request_parse_sgl_with_md(void)
@@ -1768,6 +1899,7 @@ main(int argc, char **argv)
 	CU_ADD_TEST(suite, test_spdk_nvmf_rdma_request_parse_sgl);
 	CU_ADD_TEST(suite, test_spdk_nvmf_rdma_request_process);
 	CU_ADD_TEST(suite, test_nvmf_rdma_get_optimal_poll_group);
+	CU_ADD_TEST(suite, test_nvmf_rdma_get_optimal_poll_group_multi_iface);
 	CU_ADD_TEST(suite, test_spdk_nvmf_rdma_request_parse_sgl_with_md);
 	CU_ADD_TEST(suite, test_nvmf_rdma_opts_init);
 	CU_ADD_TEST(suite, test_nvmf_rdma_request_free_data);

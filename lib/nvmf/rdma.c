@@ -467,11 +467,19 @@ struct spdk_nvmf_rdma_poll_group {
 	STAILQ_HEAD(, spdk_nvmf_rdma_request)		pending_accel_queue;
 	TAILQ_HEAD(, spdk_nvmf_rdma_poller)		pollers;
 	TAILQ_ENTRY(spdk_nvmf_rdma_poll_group)		link;
+	struct spdk_nvmf_rdma_conn_sched		*sched;
+	TAILQ_ENTRY(spdk_nvmf_rdma_poll_group)		sched_link;
 };
 
+/* Connection scheduler owning the poll groups used by the devices assigned to
+ * it. More devices than schedulers means devices share one.
+ */
 struct spdk_nvmf_rdma_conn_sched {
-	struct spdk_nvmf_rdma_poll_group *next_admin_pg;
-	struct spdk_nvmf_rdma_poll_group *next_io_pg;
+	/* Number of devices this scheduler serves */
+	uint32_t					num_devices;
+	TAILQ_HEAD(, spdk_nvmf_rdma_poll_group)		poll_groups;
+	struct spdk_nvmf_rdma_poll_group		*next_admin_pg;
+	struct spdk_nvmf_rdma_poll_group		*next_io_pg;
 };
 
 /* Assuming rdma_cm uses just one protection domain per ibv_context. */
@@ -483,6 +491,7 @@ struct spdk_nvmf_rdma_device {
 	struct ibv_pd				*pd;
 
 	struct ibv_mr				*null_mr;
+	struct spdk_nvmf_rdma_conn_sched	*conn_sched;
 	int					num_srq;
 	bool					need_destroy;
 	bool					ready_to_destroy;
@@ -512,7 +521,9 @@ struct spdk_nvmf_rdma_transport {
 	struct spdk_nvmf_transport	transport;
 	struct rdma_transport_opts	rdma_opts;
 
-	struct spdk_nvmf_rdma_conn_sched conn_sched;
+	struct spdk_nvmf_rdma_conn_sched *conn_sched;
+	uint32_t			num_conn_sched;
+	uint32_t			conn_sched_pg_count;
 
 	struct rdma_event_channel	*event_channel;
 
@@ -3341,6 +3352,7 @@ nvmf_rdma_request_process(struct spdk_nvmf_rdma_transport *rtransport,
 #define SPDK_NVMF_RDMA_DEFAULT_NO_WR_BATCHING false
 #define SPDK_NVMF_RDMA_DEFAULT_DATA_WR_POOL_SIZE 4095
 #define SPDK_NVMF_RDMA_DEFAULT_DATA_TRANSFER_REQS 4095
+#define SPDK_NVMF_RDMA_DEFAULT_NUM_CONN_SCHED 1
 
 static void
 nvmf_rdma_opts_init(struct spdk_nvmf_transport_opts *opts)
@@ -3641,6 +3653,17 @@ nvmf_rdma_create(struct spdk_nvmf_transport_opts *opts)
 			    SPDK_NVMF_RDMA_ACCEPTOR_BACKLOG);
 		rtransport->rdma_opts.acceptor_backlog = SPDK_NVMF_RDMA_ACCEPTOR_BACKLOG;
 	}
+
+	rtransport->num_conn_sched = SPDK_NVMF_RDMA_DEFAULT_NUM_CONN_SCHED;
+
+	rtransport->conn_sched = calloc(rtransport->num_conn_sched, sizeof(*rtransport->conn_sched));
+	if (rtransport->conn_sched == NULL) {
+		nvmf_rdma_destroy(&rtransport->transport, NULL, NULL);
+		return NULL;
+	}
+	for (i = 0; i < rtransport->num_conn_sched; i++) {
+		TAILQ_INIT(&rtransport->conn_sched[i].poll_groups);
+	}
 	if (rtransport->transport.opts.msdbd > NVMF_DEFAULT_MSDBD) {
 		SPDK_WARNLOG("Configured MSDBD %u exceeds max supported value, result is limited by %u\n",
 			     rtransport->transport.opts.msdbd, NVMF_DEFAULT_MSDBD);
@@ -3829,6 +3852,10 @@ destroy_ib_device(struct spdk_nvmf_rdma_transport *rtransport,
 			spdk_rdma_utils_put_pd(device->pd);
 		}
 	}
+	if (device->conn_sched != NULL) {
+		device->conn_sched->num_devices--;
+	}
+
 	SPDK_DEBUGLOG(rdma, "IB device [%p] is destroyed.\n", device);
 	free(device);
 }
@@ -3906,6 +3933,7 @@ nvmf_rdma_destroy(struct spdk_nvmf_transport *transport,
 	spdk_mempool_free(rtransport->data_wr_pool);
 
 	spdk_poller_unregister(&rtransport->accept_poller);
+	free(rtransport->conn_sched);
 	free(rtransport);
 
 	if (cb_fn) {
@@ -5163,7 +5191,9 @@ nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport,
 
 	TAILQ_INSERT_TAIL(&rtransport->poll_groups, rgroup, link);
 
-	sched = &rtransport->conn_sched;
+	sched = &rtransport->conn_sched[rtransport->conn_sched_pg_count++ % rtransport->num_conn_sched];
+	rgroup->sched = sched;
+	TAILQ_INSERT_TAIL(&sched->poll_groups, rgroup, sched_link);
 	if (sched->next_admin_pg == NULL) {
 		sched->next_admin_pg = rgroup;
 		sched->next_io_pg = rgroup;
@@ -5188,22 +5218,60 @@ nvmf_poll_group_get_io_qpair_count(struct spdk_nvmf_poll_group *pg)
 	return count;
 }
 
+/* Find the scheduler serving a device, assigning the least loaded one the first
+ * time the device is seen. Once there are more devices than schedulers they
+ * start sharing.
+ */
+static struct spdk_nvmf_rdma_conn_sched *
+nvmf_rdma_get_conn_sched(struct spdk_nvmf_rdma_transport *rtransport,
+			 struct spdk_nvmf_rdma_device *device)
+{
+	struct spdk_nvmf_rdma_conn_sched *sched, *least;
+	uint32_t i;
+
+	if (device->conn_sched != NULL) {
+		return device->conn_sched;
+	}
+
+	least = &rtransport->conn_sched[0];
+	for (i = 1; i < rtransport->num_conn_sched; i++) {
+		sched = &rtransport->conn_sched[i];
+		if (sched->num_devices < least->num_devices) {
+			least = sched;
+		}
+	}
+
+	least->num_devices++;
+	device->conn_sched = least;
+
+	return least;
+}
+
 static struct spdk_nvmf_transport_poll_group *
 nvmf_rdma_get_optimal_poll_group(struct spdk_nvmf_qpair *qpair)
 {
 	struct spdk_nvmf_rdma_transport *rtransport;
+	struct spdk_nvmf_rdma_qpair *rqpair;
 	struct spdk_nvmf_rdma_conn_sched *sched;
 	struct spdk_nvmf_rdma_poll_group **pg;
 	struct spdk_nvmf_transport_poll_group *result;
 	uint32_t count;
 
 	rtransport = SPDK_CONTAINEROF(qpair->transport, struct spdk_nvmf_rdma_transport, transport);
+	rqpair = SPDK_CONTAINEROF(qpair, struct spdk_nvmf_rdma_qpair, qpair);
 
 	if (TAILQ_EMPTY(&rtransport->poll_groups)) {
 		return NULL;
 	}
 
-	sched = &rtransport->conn_sched;
+	sched = nvmf_rdma_get_conn_sched(rtransport, rqpair->device);
+	if (TAILQ_EMPTY(&sched->poll_groups)) {
+		/* The scheduler holds no poll group, fall back to one that does.
+		 * The transport-wide list is not empty, so its first entry names
+		 * a scheduler that owns at least that poll group.
+		 */
+		sched = TAILQ_FIRST(&rtransport->poll_groups)->sched;
+	}
 
 	if (qpair->qid == 0) {
 		pg = &sched->next_admin_pg;
@@ -5225,9 +5293,9 @@ nvmf_rdma_get_optimal_poll_group(struct spdk_nvmf_qpair *qpair)
 				pg_min = pg_current;
 			}
 
-			pg_current = TAILQ_NEXT(pg_current, link);
+			pg_current = TAILQ_NEXT(pg_current, sched_link);
 			if (pg_current == NULL) {
-				pg_current = TAILQ_FIRST(&rtransport->poll_groups);
+				pg_current = TAILQ_FIRST(&sched->poll_groups);
 			}
 
 			if (pg_current == pg_start || min_value == 0) {
@@ -5241,9 +5309,9 @@ nvmf_rdma_get_optimal_poll_group(struct spdk_nvmf_qpair *qpair)
 
 	result = &(*pg)->group;
 
-	*pg = TAILQ_NEXT(*pg, link);
+	*pg = TAILQ_NEXT(*pg, sched_link);
 	if (*pg == NULL) {
-		*pg = TAILQ_FIRST(&rtransport->poll_groups);
+		*pg = TAILQ_FIRST(&sched->poll_groups);
 	}
 
 	return result;
@@ -5305,11 +5373,13 @@ nvmf_rdma_poll_group_destroy(struct spdk_nvmf_transport_poll_group *group)
 
 	rtransport = SPDK_CONTAINEROF(rgroup->group.transport, struct spdk_nvmf_rdma_transport, transport);
 
-	sched = &rtransport->conn_sched;
-	next_rgroup = TAILQ_NEXT(rgroup, link);
 	TAILQ_REMOVE(&rtransport->poll_groups, rgroup, link);
+
+	sched = rgroup->sched;
+	next_rgroup = TAILQ_NEXT(rgroup, sched_link);
+	TAILQ_REMOVE(&sched->poll_groups, rgroup, sched_link);
 	if (next_rgroup == NULL) {
-		next_rgroup = TAILQ_FIRST(&rtransport->poll_groups);
+		next_rgroup = TAILQ_FIRST(&sched->poll_groups);
 	}
 	if (sched->next_admin_pg == rgroup) {
 		sched->next_admin_pg = next_rgroup;
