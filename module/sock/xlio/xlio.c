@@ -1328,6 +1328,7 @@ spdk_xlio_socket_accept_cb(xlio_socket_t xlio_sock, xlio_socket_t parent,
 	rc = xlio_socket_update(xlio_sock, 0, (uintptr_t)sock);
 	if (rc != 0) {
 		xlio_socket_destroy(xlio_sock);
+		free(sock);
 		return;
 	}
 
