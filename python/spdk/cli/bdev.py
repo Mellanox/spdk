@@ -269,7 +269,6 @@ def add_parser(subparsers):
                                                dif_type=args.dif_type,
                                                dif_is_head_of_md=args.dif_is_head_of_md,
                                                dif_pi_format=args.dif_pi_format,
-                                               enable_io_channel_weight=args.enable_io_channel_weight,
                                                disable_accel_support=args.disable_accel_support,
                                                disable_verify_pi=args.disable_verify_pi))
     p = subparsers.add_parser('bdev_malloc_create', help='Create a bdev with malloc backend')
@@ -293,7 +292,6 @@ def add_parser(subparsers):
     p.add_argument('-f', '--dif-pi-format', type=int, choices=[0, 1, 2],
                    help='Protection infromation format. Parameter --dif-type needs to be set together.'
                         '0=16b Guard PI, 1=32b Guard PI, 2=64b Guard PI. Default=0.')
-    p.add_argument('--enable-io-channel-weight', action='store_true', help='Enable IO channel weight')
     p.add_argument('--disable-accel-support', action='store_true', help='Don\'t report support of accel sequence')
     p.add_argument('--disable-verify-pi', action='store_true', help='Disable T10 PI verification')
     p.set_defaults(func=bdev_malloc_create)

@@ -1031,10 +1031,6 @@ _bdev_nvme_add_io_path(struct nvme_bdev_channel *nbdev_ch, struct nvme_ns *nvme_
 
 	bdev_nvme_clear_current_io_path(nbdev_ch);
 
-	if (io_path->ctrlr_ch->qpair != NULL) {
-		spdk_bdev_notify_io_channel_weight_change(&nvme_ns->bdev->disk);
-	}
-
 	return 0;
 }
 
@@ -1107,10 +1103,6 @@ _bdev_nvme_delete_io_path(struct nvme_bdev_channel *nbdev_ch, struct nvme_io_pat
 
 	STAILQ_REMOVE(&nbdev_ch->io_path_list, io_path, nvme_io_path, stailq);
 	io_path->nbdev_ch = NULL;
-
-	if (nbdev->ref != 0 && io_path->ctrlr_ch->qpair != NULL) {
-		spdk_bdev_notify_io_channel_weight_change(&nbdev->disk);
-	}
 
 	if (io_path->updating) {
 		io_path->pending_delete = true;
@@ -4900,27 +4892,9 @@ bdev_nvme_event_type_supported(void *ctx, enum spdk_bdev_event_type event_type)
 		return true;
 	case SPDK_BDEV_EVENT_MEDIA_MANAGEMENT:
 		return false;
-	case SPDK_BDEV_EVENT_IO_CHANNEL_WEIGHT_CHANGE:
-		return true;
 	default:
 		return false;
 	}
-}
-
-static uint32_t
-bdev_nvme_io_channel_get_weight(struct spdk_io_channel *ch)
-{
-	struct nvme_bdev_channel *nbdev_ch = spdk_io_channel_get_ctx(ch);
-	struct nvme_io_path *io_path;
-	uint32_t weight = 0;
-
-	STAILQ_FOREACH(io_path, &nbdev_ch->io_path_list, stailq) {
-		if (io_path->ctrlr_ch->qpair != NULL) {
-			weight++;
-		}
-	}
-
-	return weight;
 }
 
 static void
@@ -5026,7 +5000,6 @@ static const struct spdk_bdev_fn_table nvmelib_fn_table = {
 	.reset_device_stat		= bdev_nvme_reset_device_stat,
 	.dump_device_stat_json		= bdev_nvme_dump_device_stat_json,
 	.event_type_supported		= bdev_nvme_event_type_supported,
-	.io_channel_get_weight		= bdev_nvme_io_channel_get_weight,
 	.submit_bypass_request		= bdev_nvme_submit_bypass_request,
 };
 

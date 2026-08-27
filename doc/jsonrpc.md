@@ -4295,7 +4295,6 @@ it to the upper layer yet.
  dif_type                 | Optional   | number  | Protection information type. Parameter --md-size needs to be set along --dif-type. Default=0 - no protection.
  dif_is_head_of_md        | Optional   | boolean | Protection information is in the first 8 bytes of metadata. Default=false.
  physical_block_size      | Optional   | number  | Physical block size of device; must be a power of 2 and at least 512
- enable_io_channel_weight | Optional   | boolean | Enable IO channel weight. Default=false.
  disable_accel_support    | Optional   | boolean | Don't report support of accel sequence.
  disable_verify_pi        | Optional   | boolean | Disable T10 PI verification.
 
