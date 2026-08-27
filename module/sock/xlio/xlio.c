@@ -442,7 +442,7 @@ xlio_sock_destroy(struct spdk_xlio_sock_group *group, struct spdk_xlio_sock *soc
 }
 
 static struct spdk_xlio_sock *
-alloc_xlio_sock(struct spdk_xlio_sock_group *group)
+alloc_xlio_sock(struct spdk_xlio_sock_group *group, struct spdk_sock_impl_opts *impl_opts)
 {
 	struct spdk_xlio_sock *sock;
 	struct xlio_socket_attr attr = {};
@@ -455,6 +455,7 @@ alloc_xlio_sock(struct spdk_xlio_sock_group *group)
 
 	sock->refcnt = 1;
 	sock->group = group;
+	memcpy(&sock->base.impl_opts, impl_opts, sizeof(*impl_opts));
 	STAILQ_INIT(&sock->pending_stream);
 
 	attr.flags = 0;
@@ -516,7 +517,7 @@ xlio_sock_listen(const char *ip, int port, struct spdk_sock_group_impl *_group,
 	assert(opts != NULL);
 	_opts_get_impl_opts(opts, &impl_opts, &g_xlio_impl_opts);
 
-	sock = alloc_xlio_sock(group);
+	sock = alloc_xlio_sock(group, &impl_opts);
 	if (sock == NULL) {
 		return NULL;
 	}
@@ -678,7 +679,7 @@ xlio_sock_connect(const char *ip, int port, struct spdk_sock_group_impl *_group,
 	assert(opts != NULL);
 	_opts_get_impl_opts(opts, &impl_opts, &g_xlio_impl_opts);
 
-	sock = alloc_xlio_sock(group);
+	sock = alloc_xlio_sock(group, &impl_opts);
 	if (sock == NULL) {
 		return NULL;
 	}
@@ -1320,6 +1321,8 @@ spdk_xlio_socket_accept_cb(xlio_socket_t xlio_sock, xlio_socket_t parent,
 	sock->xlio_sock = xlio_sock;
 	sock->group = group;
 	sock->listen_sock = listen_sock;
+	memcpy(&sock->base.impl_opts, &listen_sock->base.impl_opts,
+	       sizeof(sock->base.impl_opts));
 	STAILQ_INIT(&sock->pending_stream);
 
 	rc = xlio_socket_update(xlio_sock, 0, (uintptr_t)sock);
