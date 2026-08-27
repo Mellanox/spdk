@@ -89,6 +89,7 @@ nvmf_transport_dump_opts(struct spdk_nvmf_transport *transport, struct spdk_json
 	spdk_json_write_named_bool(w, "zcopy", opts->zcopy);
 	spdk_json_write_named_bool(w, "enforce_memory_domain_transfer",
 				   opts->enforce_memory_domain_transfer);
+	spdk_json_write_named_uint16(w, "max_interfaces", opts->max_interfaces);
 
 	if (transport->ops->dump_opts) {
 		transport->ops->dump_opts(transport, w);
@@ -188,10 +189,11 @@ nvmf_transport_opts_copy(struct spdk_nvmf_transport_opts *opts,
 	SET_FIELD(min_kato);
 	SET_FIELD(kas);
 	SET_FIELD(enforce_memory_domain_transfer);
+	SET_FIELD(max_interfaces);
 
 	/* Do not remove this statement, you should always update this statement when you adding a new field,
 	 * and do not forget to add the SET_FIELD statement for your added field. */
-	SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_transport_opts) == 82, "Incorrect size");
+	SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_transport_opts) == 84, "Incorrect size");
 
 #undef SET_FIELD
 #undef FILED_CHECK

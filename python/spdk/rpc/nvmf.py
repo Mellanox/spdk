@@ -139,6 +139,7 @@ def nvmf_create_transport(client, **params):
         msdbd: Set MSDBD value to be used by transport. Some transports may ignore this config (optional)
         kas: The granularity of the KATO (Keep Alive Timeout) in 100 millisecond units (optional)
         min_kato: The minimum keep alive timeout value in milliseconds (optional)
+        max_interfaces: Maximum number of network interfaces used by network based transports (optional)
     Returns:
         True or False
     """

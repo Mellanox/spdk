@@ -8972,6 +8972,7 @@ Initialize an NVMe-oF transport with the given options.
  data_wr_pool_size              | Optional   | number  | RDMA data WR pool size (RDMA only)
  kas                            | Optional   | number  | The granularity of the KATO (Keep Alive Timeout) in 100 millisecond units
  min_kato                       | Optional   | number  | The minimum Keep Alive Timeout value in milliseconds
+ max_interfaces                 | Optional   | number  | Maximum number of network interfaces used by network based transports; optional, enables some optimizations when set
 
 #### Example
 

@@ -121,8 +121,11 @@ struct spdk_nvmf_transport_opts {
 	uint32_t min_kato;
 	/* kas indicates the granularity of the Keep Alive Timer in 100ms units. */
 	uint16_t kas;
+	/* Maximum number of network interfaces used by network based transports.
+	 * Optional, but enables some optimizations when set. 0 means unspecified */
+	uint16_t max_interfaces;
 } __attribute__((packed));
-SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_transport_opts) == 82, "Incorrect size");
+SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_transport_opts) == 84, "Incorrect size");
 
 struct spdk_nvmf_listen_opts {
 	/**

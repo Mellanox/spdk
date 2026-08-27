@@ -2547,6 +2547,10 @@ static const struct spdk_json_object_decoder nvmf_rpc_create_transport_decoder[]
 	{
 		"min_kato", offsetof(struct nvmf_rpc_create_transport_ctx, opts.min_kato),
 		spdk_json_decode_uint32, true
+	},
+	{
+		"max_interfaces", offsetof(struct nvmf_rpc_create_transport_ctx, opts.max_interfaces),
+		spdk_json_decode_uint16, true
 	}
 };
 

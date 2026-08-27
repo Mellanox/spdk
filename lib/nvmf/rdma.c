@@ -3654,7 +3654,10 @@ nvmf_rdma_create(struct spdk_nvmf_transport_opts *opts)
 		rtransport->rdma_opts.acceptor_backlog = SPDK_NVMF_RDMA_ACCEPTOR_BACKLOG;
 	}
 
-	rtransport->num_conn_sched = SPDK_NVMF_RDMA_DEFAULT_NUM_CONN_SCHED;
+	if (opts->max_interfaces == 0) {
+		opts->max_interfaces = SPDK_NVMF_RDMA_DEFAULT_NUM_CONN_SCHED;
+	}
+	rtransport->num_conn_sched = opts->max_interfaces;
 
 	rtransport->conn_sched = calloc(rtransport->num_conn_sched, sizeof(*rtransport->conn_sched));
 	if (rtransport->conn_sched == NULL) {
