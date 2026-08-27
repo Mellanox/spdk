@@ -836,6 +836,7 @@ test_nvmf_rdma_get_optimal_poll_group(void)
 	struct spdk_nvmf_transport_poll_group *groups[TEST_GROUPS_COUNT];
 	struct spdk_nvmf_rdma_poll_group *rgroups[TEST_GROUPS_COUNT];
 	struct spdk_nvmf_transport_poll_group *result;
+	struct spdk_nvmf_rdma_conn_sched *sched = &rtransport.conn_sched;
 	struct spdk_nvmf_poll_group group = {};
 	struct spdk_thread *thread;
 	uint32_t i;
@@ -855,51 +856,51 @@ test_nvmf_rdma_get_optimal_poll_group(void)
 		rgroups[i] = SPDK_CONTAINEROF(groups[i], struct spdk_nvmf_rdma_poll_group, group);
 		groups[i]->transport = transport;
 	}
-	CU_ASSERT(rtransport.conn_sched.next_admin_pg == rgroups[0]);
-	CU_ASSERT(rtransport.conn_sched.next_io_pg == rgroups[0]);
+	CU_ASSERT(sched->next_admin_pg == rgroups[0]);
+	CU_ASSERT(sched->next_io_pg == rgroups[0]);
 
 	/* Emulate connection of %TEST_GROUPS_COUNT% initiators - each creates 1 admin and 1 io qp */
 	for (i = 0; i < TEST_GROUPS_COUNT; i++) {
 		rqpair.qpair.qid = 0;
 		result = nvmf_rdma_get_optimal_poll_group(&rqpair.qpair);
 		CU_ASSERT(result == groups[i]);
-		CU_ASSERT(rtransport.conn_sched.next_admin_pg == rgroups[(i + 1) % TEST_GROUPS_COUNT]);
-		CU_ASSERT(rtransport.conn_sched.next_io_pg == rgroups[i]);
+		CU_ASSERT(sched->next_admin_pg == rgroups[(i + 1) % TEST_GROUPS_COUNT]);
+		CU_ASSERT(sched->next_io_pg == rgroups[i]);
 
 		rqpair.qpair.qid = 1;
 		result = nvmf_rdma_get_optimal_poll_group(&rqpair.qpair);
 		CU_ASSERT(result == groups[i]);
-		CU_ASSERT(rtransport.conn_sched.next_admin_pg == rgroups[(i + 1) % TEST_GROUPS_COUNT]);
-		CU_ASSERT(rtransport.conn_sched.next_io_pg == rgroups[(i + 1) % TEST_GROUPS_COUNT]);
+		CU_ASSERT(sched->next_admin_pg == rgroups[(i + 1) % TEST_GROUPS_COUNT]);
+		CU_ASSERT(sched->next_io_pg == rgroups[(i + 1) % TEST_GROUPS_COUNT]);
 	}
 	/* wrap around, admin/io pg point to the first pg
 	   Destroy all poll groups except of the last one */
 	for (i = 0; i < TEST_GROUPS_COUNT - 1; i++) {
 		nvmf_rdma_poll_group_destroy(groups[i]);
-		CU_ASSERT(rtransport.conn_sched.next_admin_pg == rgroups[i + 1]);
-		CU_ASSERT(rtransport.conn_sched.next_io_pg == rgroups[i + 1]);
+		CU_ASSERT(sched->next_admin_pg == rgroups[i + 1]);
+		CU_ASSERT(sched->next_io_pg == rgroups[i + 1]);
 	}
 
-	CU_ASSERT(rtransport.conn_sched.next_admin_pg == rgroups[TEST_GROUPS_COUNT - 1]);
-	CU_ASSERT(rtransport.conn_sched.next_io_pg == rgroups[TEST_GROUPS_COUNT - 1]);
+	CU_ASSERT(sched->next_admin_pg == rgroups[TEST_GROUPS_COUNT - 1]);
+	CU_ASSERT(sched->next_io_pg == rgroups[TEST_GROUPS_COUNT - 1]);
 
 	/* Check that pointers to the next admin/io poll groups are not changed */
 	rqpair.qpair.qid = 0;
 	result = nvmf_rdma_get_optimal_poll_group(&rqpair.qpair);
 	CU_ASSERT(result == groups[TEST_GROUPS_COUNT - 1]);
-	CU_ASSERT(rtransport.conn_sched.next_admin_pg == rgroups[TEST_GROUPS_COUNT - 1]);
-	CU_ASSERT(rtransport.conn_sched.next_io_pg == rgroups[TEST_GROUPS_COUNT - 1]);
+	CU_ASSERT(sched->next_admin_pg == rgroups[TEST_GROUPS_COUNT - 1]);
+	CU_ASSERT(sched->next_io_pg == rgroups[TEST_GROUPS_COUNT - 1]);
 
 	rqpair.qpair.qid = 1;
 	result = nvmf_rdma_get_optimal_poll_group(&rqpair.qpair);
 	CU_ASSERT(result == groups[TEST_GROUPS_COUNT - 1]);
-	CU_ASSERT(rtransport.conn_sched.next_admin_pg == rgroups[TEST_GROUPS_COUNT - 1]);
-	CU_ASSERT(rtransport.conn_sched.next_io_pg == rgroups[TEST_GROUPS_COUNT - 1]);
+	CU_ASSERT(sched->next_admin_pg == rgroups[TEST_GROUPS_COUNT - 1]);
+	CU_ASSERT(sched->next_io_pg == rgroups[TEST_GROUPS_COUNT - 1]);
 
 	/* Remove the last poll group, check that pointers are NULL */
 	nvmf_rdma_poll_group_destroy(groups[TEST_GROUPS_COUNT - 1]);
-	CU_ASSERT(rtransport.conn_sched.next_admin_pg == NULL);
-	CU_ASSERT(rtransport.conn_sched.next_io_pg == NULL);
+	CU_ASSERT(sched->next_admin_pg == NULL);
+	CU_ASSERT(sched->next_io_pg == NULL);
 
 	/* Request optimal poll group, result must be NULL */
 	rqpair.qpair.qid = 0;

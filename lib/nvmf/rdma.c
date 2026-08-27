@@ -5126,6 +5126,7 @@ nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport,
 {
 	struct spdk_nvmf_rdma_transport		*rtransport;
 	struct spdk_nvmf_rdma_poll_group	*rgroup;
+	struct spdk_nvmf_rdma_conn_sched	*sched;
 	struct spdk_nvmf_rdma_poller		*poller;
 	struct spdk_nvmf_rdma_device		*device;
 	int					rc;
@@ -5161,9 +5162,11 @@ nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport,
 	}
 
 	TAILQ_INSERT_TAIL(&rtransport->poll_groups, rgroup, link);
-	if (rtransport->conn_sched.next_admin_pg == NULL) {
-		rtransport->conn_sched.next_admin_pg = rgroup;
-		rtransport->conn_sched.next_io_pg = rgroup;
+
+	sched = &rtransport->conn_sched;
+	if (sched->next_admin_pg == NULL) {
+		sched->next_admin_pg = rgroup;
+		sched->next_io_pg = rgroup;
 	}
 
 	return &rgroup->group;
@@ -5189,6 +5192,7 @@ static struct spdk_nvmf_transport_poll_group *
 nvmf_rdma_get_optimal_poll_group(struct spdk_nvmf_qpair *qpair)
 {
 	struct spdk_nvmf_rdma_transport *rtransport;
+	struct spdk_nvmf_rdma_conn_sched *sched;
 	struct spdk_nvmf_rdma_poll_group **pg;
 	struct spdk_nvmf_transport_poll_group *result;
 	uint32_t count;
@@ -5199,13 +5203,15 @@ nvmf_rdma_get_optimal_poll_group(struct spdk_nvmf_qpair *qpair)
 		return NULL;
 	}
 
+	sched = &rtransport->conn_sched;
+
 	if (qpair->qid == 0) {
-		pg = &rtransport->conn_sched.next_admin_pg;
+		pg = &sched->next_admin_pg;
 	} else {
 		struct spdk_nvmf_rdma_poll_group *pg_min, *pg_start, *pg_current;
 		uint32_t min_value;
 
-		pg = &rtransport->conn_sched.next_io_pg;
+		pg = &sched->next_io_pg;
 		pg_min = *pg;
 		pg_start = *pg;
 		pg_current = *pg;
@@ -5277,6 +5283,7 @@ static void
 nvmf_rdma_poll_group_destroy(struct spdk_nvmf_transport_poll_group *group)
 {
 	struct spdk_nvmf_rdma_poll_group	*rgroup, *next_rgroup;
+	struct spdk_nvmf_rdma_conn_sched	*sched;
 	struct spdk_nvmf_rdma_poller		*poller, *tmp;
 	struct spdk_nvmf_rdma_transport		*rtransport;
 
@@ -5298,16 +5305,17 @@ nvmf_rdma_poll_group_destroy(struct spdk_nvmf_transport_poll_group *group)
 
 	rtransport = SPDK_CONTAINEROF(rgroup->group.transport, struct spdk_nvmf_rdma_transport, transport);
 
+	sched = &rtransport->conn_sched;
 	next_rgroup = TAILQ_NEXT(rgroup, link);
 	TAILQ_REMOVE(&rtransport->poll_groups, rgroup, link);
 	if (next_rgroup == NULL) {
 		next_rgroup = TAILQ_FIRST(&rtransport->poll_groups);
 	}
-	if (rtransport->conn_sched.next_admin_pg == rgroup) {
-		rtransport->conn_sched.next_admin_pg = next_rgroup;
+	if (sched->next_admin_pg == rgroup) {
+		sched->next_admin_pg = next_rgroup;
 	}
-	if (rtransport->conn_sched.next_io_pg == rgroup) {
-		rtransport->conn_sched.next_io_pg = next_rgroup;
+	if (sched->next_io_pg == rgroup) {
+		sched->next_io_pg = next_rgroup;
 	}
 	if (rgroup->accel_ch) {
 		spdk_put_io_channel(rgroup->accel_ch);
