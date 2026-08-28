@@ -436,6 +436,10 @@ struct spdk_nvmf_tcp_qpair {
 	SLIST_HEAD(, nvme_tcp_pdu)		tcp_pdu_free_queue;
 	/* Number of working pdus */
 	uint32_t				tcp_pdu_working_count;
+	/* Number of outgoing data digest operations pending in the accel framework */
+	uint32_t				outstanding_data_digest_ops;
+	/* Destruction was deferred until the last digest operation completes */
+	bool					destroy_pending;
 
 	/* Number of requests in each state */
 	uint32_t				state_cntr[TCP_REQUEST_NUM_STATES];
@@ -871,6 +875,13 @@ _nvmf_tcp_qpair_destroy(void *_tqpair)
 			/* Set it to NULL manually */
 			tqpair->sock = NULL;
 		}
+	}
+
+	if (tqpair->outstanding_data_digest_ops != 0) {
+		SPDK_DEBUGLOG(nvmf_tcp, "Delaying destruction of tqpair=%p for %u data digest operations\n",
+			      tqpair, tqpair->outstanding_data_digest_ops);
+		tqpair->destroy_pending = true;
+		return;
 	}
 
 	assert(err == 0);
@@ -1587,6 +1598,18 @@ static void
 data_crc32_accel_done(void *cb_arg, int status)
 {
 	struct nvme_tcp_pdu *pdu = cb_arg;
+	struct spdk_nvmf_tcp_qpair *tqpair = pdu->qpair;
+
+	assert(tqpair->outstanding_data_digest_ops > 0);
+	tqpair->outstanding_data_digest_ops--;
+
+	if (spdk_unlikely(tqpair->sock == NULL)) {
+		_pdu_write_done(pdu, -ECANCELED);
+		if (tqpair->destroy_pending && tqpair->outstanding_data_digest_ops == 0) {
+			nvmf_tcp_qpair_destroy(tqpair);
+		}
+		return;
+	}
 
 	if (spdk_unlikely(status)) {
 		SPDK_ERRLOG("Failed to compute the data digest for pdu =%p\n", pdu);
@@ -1608,6 +1631,7 @@ pdu_data_crc32_compute(struct nvme_tcp_pdu *pdu)
 
 	/* Data Digest */
 	if (pdu->data_len > 0 && g_nvme_tcp_ddgst[pdu->hdr.common.pdu_type] && tqpair->host_ddgst_enable) {
+		tqpair->outstanding_data_digest_ops++;
 		/* Only support this limitated case for the first step */
 		if (spdk_likely((pdu->data_len % SPDK_NVME_TCP_DIGEST_ALIGNMENT == 0) && tqpair->group)) {
 			rc = spdk_accel_submit_crc32cv(tqpair->group->accel_channel, &pdu->data_digest_crc32, pdu->data_iov,
