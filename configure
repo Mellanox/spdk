@@ -763,6 +763,7 @@ for i in "$@"; do
 		--with-doca)
 			# Use default DOCA include directory
 			CONFIG[DOCA_ENABLED]=y
+			DOCA_REQUIRED=y
 			;;
 		--without-doca)
 			CONFIG[DOCA_ENABLED]=n
@@ -771,6 +772,7 @@ for i in "$@"; do
 			check_dir "$i"
 			CONFIG[DOCA_ENABLED]=y
 			CONFIG[DOCA_INCLUDE_DIR]=$(readlink -f ${i#*=})
+			DOCA_REQUIRED=y
 			;;
 		--with-vmd)
 			CONFIG[VMD]=y
@@ -1519,6 +1521,10 @@ if [[ "${CONFIG[DOCA_ENABLED]}" = "y" ]]; then
 		| "${BUILD_CMD[@]}" -DDOCA_ALLOW_EXPERIMENTAL_API "-I${CONFIG[DOCA_INCLUDE_DIR]}" -c - 2> /dev/null; then
 		echo "done."
 	else
+		if [[ "$DOCA_REQUIRED" = "y" ]]; then
+			echo "not found. Please install then re-run this script."
+			exit 1
+		fi
 		echo "not found. Disabling DOCA support."
 		CONFIG[DOCA_ENABLED]=n
 	fi
