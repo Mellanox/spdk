@@ -30,6 +30,8 @@
 #define UT_NUM_SHARED_BUFFERS 128
 
 static void *g_accel_p = (void *)0xdeadbeaf;
+static spdk_accel_completion_cb g_accel_completion_cb;
+static void *g_accel_completion_arg;
 
 SPDK_LOG_REGISTER_COMPONENT(nvmf)
 
@@ -282,11 +284,17 @@ spdk_accel_get_io_channel(void)
 	return spdk_get_io_channel(g_accel_p);
 }
 
-DEFINE_STUB(spdk_accel_submit_crc32cv,
-	    int,
-	    (struct spdk_io_channel *ch, uint32_t *dst, struct iovec *iovs,
-	     uint32_t iovcnt, uint32_t seed, spdk_accel_completion_cb cb_fn, void *cb_arg),
-	    0);
+int
+spdk_accel_submit_crc32cv(struct spdk_io_channel *ch, uint32_t *dst, struct iovec *iovs,
+			  uint32_t iovcnt, uint32_t seed, spdk_accel_completion_cb cb_fn,
+			  void *cb_arg)
+{
+	*dst = spdk_crc32c_iov_update(iovs, iovcnt, ~seed);
+	g_accel_completion_cb = cb_fn;
+	g_accel_completion_arg = cb_arg;
+
+	return 0;
+}
 
 DEFINE_STUB(spdk_nvmf_bdev_ctrlr_nvme_passthru_admin,
 	    int,
@@ -906,6 +914,151 @@ test_nvmf_tcp_qpair_init_mem_resource(void)
 	spdk_thread_destroy(thread);
 
 	spdk_sock_group_close(&sock_group);
+}
+
+struct digest_pdu_done_ctx {
+	bool called;
+	int status;
+};
+
+static void
+test_digest_pdu_done(void *arg, int status)
+{
+	struct digest_pdu_done_ctx *ctx = arg;
+
+	ctx->called = true;
+	ctx->status = status;
+}
+
+static void
+test_digest_qpair_destroy_done(void *arg)
+{
+	bool *called = arg;
+
+	*called = true;
+}
+
+static void
+test_digest_pdu_init(struct nvme_tcp_pdu *pdu, struct spdk_nvmf_tcp_qpair *tqpair,
+		     uint32_t *data, struct digest_pdu_done_ctx *pdu_done)
+{
+	pdu->qpair = tqpair;
+	pdu->hdr.common.pdu_type = SPDK_NVME_TCP_PDU_TYPE_C2H_DATA;
+	pdu->hdr.common.hlen = sizeof(struct spdk_nvme_tcp_c2h_data_hdr);
+	pdu->hdr.common.plen = pdu->hdr.common.hlen + sizeof(*data) + SPDK_NVME_TCP_DIGEST_LEN;
+	pdu->data_len = sizeof(*data);
+	pdu->data_iov[0].iov_base = data;
+	pdu->data_iov[0].iov_len = sizeof(*data);
+	pdu->data_iovcnt = 1;
+	pdu->sock_req.cb_fn = test_digest_pdu_done;
+	pdu->sock_req.cb_arg = pdu_done;
+}
+
+static void
+test_nvmf_tcp_data_digest_completion_writes_pdu(void)
+{
+	struct spdk_nvmf_tcp_poll_group group = {};
+	struct spdk_nvmf_tcp_qpair tqpair = {};
+	struct nvme_tcp_pdu pdu = {};
+	struct digest_pdu_done_ctx pdu_done = {};
+	uint32_t data = 0x12345678;
+	uint32_t expected_crc32;
+
+	tqpair.group = &group;
+	tqpair.sock = (struct spdk_sock *)0x1;
+	tqpair.host_ddgst_enable = true;
+	test_digest_pdu_init(&pdu, &tqpair, &data, &pdu_done);
+	expected_crc32 = nvme_tcp_pdu_calc_data_digest(&pdu) ^ SPDK_CRC32C_XOR;
+
+	g_accel_completion_cb = NULL;
+	g_accel_completion_arg = NULL;
+
+	pdu_data_crc32_compute(&pdu);
+	SPDK_CU_ASSERT_FATAL(g_accel_completion_cb != NULL);
+	CU_ASSERT(g_accel_completion_arg == &pdu);
+	CU_ASSERT(tqpair.outstanding_data_digest_ops == 1);
+
+	g_accel_completion_cb(g_accel_completion_arg, 0);
+	CU_ASSERT(tqpair.outstanding_data_digest_ops == 0);
+	CU_ASSERT(pdu.sock_req.iovcnt > 0);
+	CU_ASSERT(pdu_done.called == false);
+	CU_ASSERT(MATCH_DIGEST_WORD(pdu.data_digest, expected_crc32));
+
+	g_accel_completion_cb = NULL;
+	g_accel_completion_arg = NULL;
+}
+
+static void
+test_nvmf_tcp_qpair_destroy_waits_for_data_digest(void)
+{
+	struct spdk_nvmf_tcp_poll_group group = {};
+	struct spdk_nvmf_tcp_qpair *tqpair;
+	struct nvme_tcp_pdu *pdus;
+	struct digest_pdu_done_ctx pdu_done[2] = {};
+	spdk_accel_completion_cb completion_cb[2];
+	void *completion_arg[2];
+	struct spdk_thread *thread;
+	uint32_t data[2] = {};
+	bool destroy_done = false;
+	int i;
+
+	thread = spdk_thread_create(NULL, NULL);
+	SPDK_CU_ASSERT_FATAL(thread != NULL);
+	spdk_set_thread(thread);
+
+	tqpair = calloc(1, sizeof(*tqpair));
+	SPDK_CU_ASSERT_FATAL(tqpair != NULL);
+	TAILQ_INIT(&tqpair->tcp_req_free_queue);
+	TAILQ_INIT(&tqpair->tcp_req_working_queue);
+	STAILQ_INIT(&tqpair->pending_stream);
+	tqpair->group = &group;
+	tqpair->host_ddgst_enable = true;
+	tqpair->state = NVMF_TCP_QPAIR_STATE_EXITED;
+	tqpair->fini_cb_fn = test_digest_qpair_destroy_done;
+	tqpair->fini_cb_arg = &destroy_done;
+	tqpair->pdus = spdk_dma_zmalloc(2 * sizeof(*tqpair->pdus), 0x1000, NULL);
+	SPDK_CU_ASSERT_FATAL(tqpair->pdus != NULL);
+
+	pdus = tqpair->pdus;
+	for (i = 0; i < 2; i++) {
+		test_digest_pdu_init(&pdus[i], tqpair, &data[i], &pdu_done[i]);
+		g_accel_completion_cb = NULL;
+		g_accel_completion_arg = NULL;
+		pdu_data_crc32_compute(&pdus[i]);
+		SPDK_CU_ASSERT_FATAL(g_accel_completion_cb != NULL);
+		CU_ASSERT(g_accel_completion_arg == &pdus[i]);
+		completion_cb[i] = g_accel_completion_cb;
+		completion_arg[i] = g_accel_completion_arg;
+	}
+	CU_ASSERT(tqpair->outstanding_data_digest_ops == 2);
+
+	nvmf_tcp_qpair_destroy(tqpair);
+	spdk_thread_poll(thread, 0, 0);
+	CU_ASSERT(destroy_done == false);
+	CU_ASSERT(tqpair->outstanding_data_digest_ops == 2);
+
+	completion_cb[0](completion_arg[0], 0);
+	CU_ASSERT(tqpair->outstanding_data_digest_ops == 1);
+	CU_ASSERT(pdu_done[0].called == true);
+	CU_ASSERT(pdu_done[0].status == -ECANCELED);
+	CU_ASSERT(pdu_done[1].called == false);
+	CU_ASSERT(destroy_done == false);
+
+	completion_cb[1](completion_arg[1], 0);
+	CU_ASSERT(tqpair->outstanding_data_digest_ops == 0);
+	CU_ASSERT(pdu_done[1].called == true);
+	CU_ASSERT(pdu_done[1].status == -ECANCELED);
+
+	spdk_thread_poll(thread, 1, 0);
+	CU_ASSERT(destroy_done == true);
+
+	g_accel_completion_cb = NULL;
+	g_accel_completion_arg = NULL;
+	spdk_thread_exit(thread);
+	while (!spdk_thread_is_exited(thread)) {
+		spdk_thread_poll(thread, 0, 0);
+	}
+	spdk_thread_destroy(thread);
 }
 
 static void
@@ -1623,6 +1776,8 @@ main(int argc, char **argv)
 	CU_ADD_TEST(suite, test_nvmf_tcp_h2c_data_hdr_handle);
 	CU_ADD_TEST(suite, test_nvmf_tcp_in_capsule_data_handle);
 	CU_ADD_TEST(suite, test_nvmf_tcp_qpair_init_mem_resource);
+	CU_ADD_TEST(suite, test_nvmf_tcp_data_digest_completion_writes_pdu);
+	CU_ADD_TEST(suite, test_nvmf_tcp_qpair_destroy_waits_for_data_digest);
 	CU_ADD_TEST(suite, test_nvmf_tcp_send_c2h_term_req);
 	CU_ADD_TEST(suite, test_nvmf_tcp_send_capsule_resp_pdu);
 	CU_ADD_TEST(suite, test_nvmf_tcp_icreq_handle);
