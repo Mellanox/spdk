@@ -266,6 +266,15 @@ function get_used_bdf_block_devs() {
 				used+=("holder@$blockp:${holder##*/}")
 			fi
 		done
+		if [[ ! -e /dev/$block ]]; then
+			if [[ $PCI_ALLOWED != *"$bdf"* ]]; then
+				used+=("unverified@$block")
+				pci_dev_echo "$bdf" "No /dev/$block; refusing to bind without this BDF in PCI_ALLOWED"
+			else
+				pci_dev_echo "$bdf" "WARNING: no /dev/$block, skipping mount/fs checks"
+			fi
+			continue
+		fi
 		while read -r dev mount; do
 			if [[ -e $mount ]]; then
 				used+=("mount@$block:$dev")
@@ -411,7 +420,7 @@ function configure_linux_pci() {
 		# should be done automatically by modprobe since this particular module should
 		# be a part of vfio-pci dependencies, however, on some distros, it seems that
 		# it's not the case. See #1689.
-		if modinfo vfio_iommu_type1 > /dev/null; then
+		if modinfo vfio_iommu_type1 > /dev/null 2>&1; then
 			load_driver vfio_iommu_type1
 		fi
 	elif ! check_for_driver uio_pci_generic || modinfo uio_pci_generic > /dev/null 2>&1; then
