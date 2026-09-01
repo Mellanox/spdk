@@ -69,6 +69,9 @@ function usage() {
 	echo "CLEAR_HUGE        If set to 'yes', the attempt to remove hugepages from all nodes will"
 	echo "                  be made prior to allocation".
 	echo "SKIP_HUGE         If set to 'yes', the attempt to allocate hugepages will be skipped."
+	echo "SKIP_MODPROBE     If set to 'yes', kernel modules won't be loaded. Useful in"
+	echo "                  environments without a matching module tree, e.g. containers,"
+	echo "                  where required drivers are already loaded by the host."
 	echo "PCI_ALLOWED"
 	echo "PCI_BLOCKED       Whitespace separated list of PCI devices (NVMe, I/OAT, VMD, Virtio)."
 	echo "                  Each device must be specified as a full PCI address."
@@ -121,6 +124,16 @@ function check_for_driver() {
 		return 2
 	fi
 	return 0
+}
+
+function load_driver() {
+	local driver_name=$1
+
+	if [[ $SKIP_MODPROBE == yes ]]; then
+		return 0
+	fi
+	check_for_driver "$driver_name" || return 0
+	modprobe "$driver_name"
 }
 
 function check_for_driver_freebsd() {
@@ -375,7 +388,7 @@ function configure_linux_pci() {
 
 	if [[ -r "$rootdir/dpdk/build-tmp/kernel/linux/igb_uio/igb_uio.ko" ]]; then
 		# igb_uio is a common driver to override with and it depends on uio.
-		modprobe uio || true
+		load_driver uio || true
 		if ! check_for_driver igb_uio || insmod "$rootdir/dpdk/build-tmp/kernel/linux/igb_uio/igb_uio.ko"; then
 			igb_uio_fallback="$rootdir/dpdk/build-tmp/kernel/linux/igb_uio/igb_uio.ko"
 		fi
@@ -399,7 +412,7 @@ function configure_linux_pci() {
 		# be a part of vfio-pci dependencies, however, on some distros, it seems that
 		# it's not the case. See #1689.
 		if modinfo vfio_iommu_type1 > /dev/null; then
-			modprobe vfio_iommu_type1
+			load_driver vfio_iommu_type1
 		fi
 	elif ! check_for_driver uio_pci_generic || modinfo uio_pci_generic > /dev/null 2>&1; then
 		driver_name=uio_pci_generic
@@ -417,7 +430,7 @@ function configure_linux_pci() {
 		if [[ -n "$driver_path" ]]; then
 			insmod $driver_path || true
 		else
-			modprobe $driver_name
+			load_driver "$driver_name"
 		fi
 	fi
 
@@ -612,7 +625,7 @@ function configure_linux() {
 		# Some distros build msr as a module.  Make sure it's loaded to ensure
 		#  DPDK can easily figure out the TSC rate rather than relying on 100ms
 		#  sleeps.
-		modprobe msr &> /dev/null || true
+		load_driver msr &> /dev/null || true
 	fi
 }
 
@@ -622,7 +635,7 @@ function reset_linux_pci() {
 	# Requires some more investigation - for example, some kernels do not seem to have
 	#  virtio-pci but just virtio_scsi instead.  Also need to make sure we get the
 	#  underscore vs. dash right in the virtio_scsi name.
-	modprobe virtio-pci || true
+	load_driver virtio-pci || true
 	for bdf in "${!all_devices_d[@]}"; do
 		((all_devices_d["$bdf"] == 0)) || continue
 
