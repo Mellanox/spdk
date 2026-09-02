@@ -2496,7 +2496,7 @@ add_remove_bdev_done(void *cb_arg, int rc)
 static void
 basic_qos(void)
 {
-	struct spdk_bdev_qos *qos = NULL;
+	struct spdk_bdev_qos *qos = NULL, *qos2 = NULL;
 	struct spdk_bdev_qos_desc *desc = NULL, *desc2 = NULL, *desc3 = NULL;
 	struct spdk_bdev *bdev1, *bdev2;
 	struct spdk_io_channel *bdev1_io_ch, *bdev2_io_ch;
@@ -2536,7 +2536,6 @@ basic_qos(void)
 	bdev1 = spdk_bdev_desc_get_bdev(g_desc);
 	bdev2 = spdk_bdev_desc_get_bdev(g_desc2);
 
-	/* 2nd qos_add_bdev call to the same bdev should fail. */
 	status = -1;
 	spdk_bdev_qos_add_bdev(qos, bdev1, add_remove_bdev_done, &status);
 
@@ -2550,6 +2549,7 @@ basic_qos(void)
 	CU_ASSERT(TAILQ_NEXT(qos_ch_impl, link) == NULL);
 	ut_qos_ch = SPDK_CONTAINEROF(qos_ch_impl, struct ut_qos_channel, base);
 
+	/* 2nd qos_add_bdev call to the same bdev should fail. */
 	status = -1;
 	spdk_bdev_qos_add_bdev(qos, bdev2, add_remove_bdev_done, &status);
 
@@ -2559,6 +2559,23 @@ basic_qos(void)
 	poll_threads();
 	CU_ASSERT(status == 0);
 	CU_ASSERT(status2 == -EEXIST);
+
+	/* qos_add_bdev to a bdev which belongs to another QoS device should fail too. */
+	rc = spdk_bdev_qos_create("ut_qos_service2", NULL, enabled_module, 1, &qos2, NULL);
+	CU_ASSERT(rc == 0);
+	SPDK_CU_ASSERT_FATAL(qos2 != NULL);
+
+	status = -1;
+	spdk_bdev_qos_add_bdev(qos2, bdev2, add_remove_bdev_done, &status);
+
+	poll_threads();
+	CU_ASSERT(status == -EEXIST);
+	CU_ASSERT(bdev2->internal.qos == qos);
+	CU_ASSERT(TAILQ_EMPTY(&qos2->bdevs));
+
+	rc = spdk_bdev_qos_destroy(qos2);
+	CU_ASSERT(rc == 0);
+	qos2 = NULL;
 
 	bdev2_io_ch = spdk_bdev_get_io_channel(g_desc2);
 	SPDK_CU_ASSERT_FATAL(bdev2_io_ch != NULL);

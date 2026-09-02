@@ -10990,7 +10990,7 @@ bdev_qos_remove_bdev(struct spdk_bdev_qos *qos, struct spdk_bdev *bdev)
 static int
 bdev_qos_add_bdev(struct spdk_bdev_qos *qos, struct spdk_bdev *bdev)
 {
-	if (bdev_qos_has_bdev(qos, bdev)) {
+	if (bdev->internal.qos != NULL) {
 		return -EEXIST;
 	}
 
