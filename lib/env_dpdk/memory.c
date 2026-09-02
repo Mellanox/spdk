@@ -1018,9 +1018,13 @@ vtophys_iommu_unmap_dma_bar(uint64_t vaddr)
 	}
 
 	if (dma_map == NULL) {
-		DEBUG_PRINT("Cannot clear DMA mapping for address %"PRIx64" - it's not mapped\n", vaddr);
+		/* vtophys_iommu_map_dma_bar() skips creating a dma_map for BARs
+		 * smaller than the page size, so it's OK to not have a dma_map
+		 * here. This case was already logged in the mapping path, so
+		 * don't emit anything here.
+		 */
 		pthread_mutex_unlock(&g_vfio.mutex);
-		return -ENXIO;
+		return 0;
 	}
 
 	ret = _vfio_iommu_unmap_dma(dma_map);
