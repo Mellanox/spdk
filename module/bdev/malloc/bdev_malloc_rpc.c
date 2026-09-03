@@ -27,6 +27,7 @@ static const struct spdk_json_object_decoder rpc_construct_malloc_decoders[] = {
 	{"dif_type", offsetof(struct malloc_bdev_opts, dif_type), spdk_json_decode_int32, true},
 	{"dif_is_head_of_md", offsetof(struct malloc_bdev_opts, dif_is_head_of_md), spdk_json_decode_bool, true},
 	{"dif_pi_format", offsetof(struct malloc_bdev_opts, dif_pi_format), spdk_json_decode_uint32, true},
+	{"enable_io_channel_weight", offsetof(struct malloc_bdev_opts, enable_io_channel_weight), spdk_json_decode_bool, true},
 	{"disable_accel_support", offsetof(struct malloc_bdev_opts, disable_accel_support), spdk_json_decode_bool, true},
 	{"disable_verify_pi", offsetof(struct malloc_bdev_opts, disable_verify_pi), spdk_json_decode_bool, true},
 };
