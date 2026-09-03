@@ -186,6 +186,11 @@ struct spdk_nvmf_ns {
 		};
 		/* Indexed by enum spdk_dma_device_type, up to and including SPDK_DMA_DEVICE_TYPE_ACCEL */
 	} memory_domain_support[NVMF_NS_MEMORY_DOMAINS_COUNT];
+	/* High water mark of the number of data transfers the bdev module keeps in
+	 * flight for one request against this namespace.
+	 */
+	uint32_t max_outstanding_data_transfers;
+
 	/* Accel sequence is supported by block device */
 	bool accel_sequence;
 	/* Persist Through Power Loss feature is enabled */

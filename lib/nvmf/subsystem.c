@@ -2408,6 +2408,7 @@ spdk_nvmf_subsystem_add_ns_ext(struct spdk_nvmf_subsystem *subsystem, const char
 	subsystem->ns[opts.nsid - 1] = ns;
 	ns->nsid = opts.nsid;
 	ns->anagrpid = opts.anagrpid;
+	ns->max_outstanding_data_transfers = 1;
 	subsystem->ana_group[ns->anagrpid - 1]++;
 	TAILQ_INIT(&ns->registrants);
 	if (ptpl_file) {

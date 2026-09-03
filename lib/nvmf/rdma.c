@@ -525,6 +525,11 @@ struct spdk_nvmf_rdma_transport {
 	uint32_t			num_conn_sched;
 	uint32_t			conn_sched_pg_count;
 
+	/* Geometry of the shared iobuf pools, read once at transport create. */
+	uint64_t			large_pool_count;
+	uint32_t			large_bufsize;
+	uint32_t			small_bufsize;
+
 	struct rdma_event_channel	*event_channel;
 
 	struct spdk_mempool		*data_wr_pool;
@@ -2471,6 +2476,50 @@ nvmf_rdma_update_sges_with_key_and_buffer(struct spdk_nvmf_rdma_request *rdma_re
 	return 0;
 }
 
+/* How deeply a request pipelines depends on the bdev behind its namespace, so
+ * both the observation and the charge have to find the namespace from the
+ * capsule. Returns NULL for a command that isn't going to one, including any
+ * capsule that arrives before CONNECT has attached a controller.
+ */
+static inline struct spdk_nvmf_ns *
+nvmf_rdma_request_get_ns(struct spdk_nvmf_rdma_request *rdma_req)
+{
+	struct spdk_nvmf_qpair *qpair = rdma_req->req.qpair;
+
+	if (spdk_unlikely(qpair->ctrlr == NULL)) {
+		return NULL;
+	}
+
+	return nvmf_ctrlr_get_ns(qpair->ctrlr, rdma_req->req.cmd->nvme_cmd.nsid);
+}
+
+/* There's no interface to ask the bdev module how many transfers it keeps in
+ * flight for one request, so watch instead. Every poll group serving this
+ * namespace observes it, so raise the mark with a compare and exchange: a plain
+ * read, compare and write loses the larger of two concurrent observations, and
+ * the budget then undercharges every request that follows.
+ */
+static inline void
+nvmf_rdma_request_observe_data_transfers(struct spdk_nvmf_rdma_request *rdma_req)
+{
+	struct spdk_nvmf_ns *ns;
+	uint32_t observed, mark;
+
+	ns = nvmf_rdma_request_get_ns(rdma_req);
+	if (spdk_unlikely(ns == NULL)) {
+		return;
+	}
+
+	observed = rdma_req->num_outstanding_data_transfer_requests;
+	mark = __atomic_load_n(&ns->max_outstanding_data_transfers, __ATOMIC_RELAXED);
+	while (spdk_unlikely(observed > mark)) {
+		if (__atomic_compare_exchange_n(&ns->max_outstanding_data_transfers, &mark,
+						observed, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
+			break;
+		}
+	}
+}
+
 static inline int
 nvmf_rdma_request_init_data_transfer_request(struct spdk_nvmf_rdma_request *rdma_req,
 		struct spdk_nvmf_rdma_request *data_transfer_req, uint32_t transfer_len, uint64_t offset)
@@ -2552,6 +2601,7 @@ nvmf_rdma_request_init_data_transfer_request(struct spdk_nvmf_rdma_request *rdma
 		}
 	}
 	rdma_req->num_outstanding_data_transfer_requests++;
+	nvmf_rdma_request_observe_data_transfers(rdma_req);
 	TAILQ_INSERT_TAIL(&rdma_req->outstanding_data_transfer_requests, data_transfer_req,
 			  data_transfer_request_link);
 
@@ -3589,6 +3639,7 @@ nvmf_rdma_create(struct spdk_nvmf_transport_opts *opts)
 	int rc;
 	struct spdk_nvmf_rdma_transport *rtransport;
 	struct spdk_nvmf_rdma_device	*device;
+	struct spdk_iobuf_opts		iobuf_opts;
 	struct ibv_context		**contexts;
 	size_t				data_wr_pool_size;
 	uint32_t			i;
@@ -3615,6 +3666,11 @@ nvmf_rdma_create(struct spdk_nvmf_transport_opts *opts)
 	rtransport->rdma_opts.no_wr_batching = SPDK_NVMF_RDMA_DEFAULT_NO_WR_BATCHING;
 	rtransport->rdma_opts.in_capsule_data_disabled = false;
 	rtransport->rdma_opts.data_transfer_reqs = SPDK_NVMF_RDMA_DEFAULT_DATA_TRANSFER_REQS;
+
+	spdk_iobuf_get_opts(&iobuf_opts, sizeof(iobuf_opts));
+	rtransport->large_pool_count = iobuf_opts.large_pool_count;
+	rtransport->large_bufsize = iobuf_opts.large_bufsize;
+	rtransport->small_bufsize = iobuf_opts.small_bufsize;
 	if (opts->transport_specific != NULL &&
 	    spdk_json_decode_object_relaxed(opts->transport_specific, rdma_transport_opts_decoder,
 					    SPDK_COUNTOF(rdma_transport_opts_decoder),
