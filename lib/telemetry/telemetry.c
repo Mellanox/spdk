@@ -12,10 +12,6 @@
 #include "spdk/telemetry_source.h"
 #include "telemetry_internal.h"
 
-static const struct spdk_telemetry_opts g_default_telemetry_opts = {
-	.interval_ms = SPDK_TELEMETRY_DEFAULT_INTERVAL_MS,
-};
-
 enum telemetry_source_state {
 	TELEMETRY_SOURCE_IDLE,
 	TELEMETRY_SOURCE_PULLING,
@@ -66,7 +62,7 @@ struct telemetry_mgr {
 
 static struct telemetry_mgr g_telemetry_mgr = {
 	.initialized = false,
-	.opts = g_default_telemetry_opts,
+	.opts = { .interval_ms = SPDK_TELEMETRY_DEFAULT_INTERVAL_MS },
 	.poller = NULL,
 	.types = TAILQ_HEAD_INITIALIZER(g_telemetry_mgr.types),
 	.modules = TAILQ_HEAD_INITIALIZER(g_telemetry_mgr.modules),
