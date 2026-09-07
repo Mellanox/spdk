@@ -39,9 +39,9 @@ Source0:        spdk-%{pkg_ver}.tar.gz
 %define use_python python3.9
 %define python_ver 3.9
 %else
-# on Fedora 28+ we have python3 == 3.7
+# take whatever python3 the distro ships
 %define use_python python3
-%define python_ver 3.7
+%define python_ver %(python3 -V | cut -d' ' -f2 | cut -d. -f1,2)
 %endif
 %ifarch x86_64
 BuildRequires:  clang-analyzer
@@ -64,12 +64,16 @@ BuildRequires: kernel-headers
 BuildRequires: doxygen
 BuildRequires: graphviz
 BuildRequires: numactl-devel
+# Alibaba Cloud Linux 4 doesn't package libiscsi-devel, and the iSCSI
+# initiator bdev is not enabled here (no --with-iscsi-initiator)
+%if "%{?dist}" != ".alnx4"
 BuildRequires: libiscsi-devel
+%endif
 
 # SPDK build dependencies
 BuildRequires:	make gcc gcc-c++ automake autoconf, libtool
 BuildRequires:	CUnit-devel, libaio-devel, openssl-devel, libuuid-devel
-BuildRequires:	libiscsi-devel, fuse3-devel
+BuildRequires:	fuse3-devel
 
 %if %{defined ctyunos}
 Requires: libxlio
@@ -153,6 +157,10 @@ export LDFLAGS
 make %{?_smp_mflags}
 
 %install
+# rpm's check-rpaths (run by Anolis/alinux4 rpm) classifies every RPATH outside
+# /usr/lib* as "invalid", which includes %{pkg_prefix}/lib that the shared build
+# legitimately needs, so the check cannot be satisfied, only waived.
+export QA_RPATHS=$(( 0x0002 ))
 mkdir -p %{install_bindir}
 mkdir -p %{install_sbindir}
 install -p -m 755 build/bin/spdk_tgt %{install_sbindir}

@@ -153,7 +153,8 @@ if [[ -f /etc/debian_version ]]; then
 
 elif [[ -f /etc/redhat-release || \
         -f /etc/openEuler-release || \
-        -f /etc/ctyunos-release ]]; then
+        -f /etc/ctyunos-release || \
+        -f /etc/system-release ]]; then
 
     arch=$(uname -m)
 

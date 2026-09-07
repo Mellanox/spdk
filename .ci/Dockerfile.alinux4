@@ -1,0 +1,62 @@
+FROM artifactory.nvidia.com/sw-nbu-build-docker/base/alinux:4.0-no-kernel
+ARG _UID=6213
+ARG _GID=11429
+ARG _LOGIN=swx-jenkins
+ARG _HOME=/var/home/$_LOGIN
+ARG DOCA_VER=doca-3.3.0-vr-0.8
+ENV LANG=en_US.utf-8
+USER root
+
+RUN set -eux; \
+    printf 'minrate=0\ntimeout=300\nretries=10\n' >> /etc/dnf/dnf.conf
+
+RUN set -eux; \
+    echo -e "[doca]\n\
+name=NVIDIA DOCA \$basearch\n\
+baseurl=https://doca-repo-prod.nvidia.com/public-nsb/repo/doca/${DOCA_VER}/alinux4.0/arm64-dpu/\n\
+enabled=1\n\
+gpgcheck=0" > /etc/yum.repos.d/nvidia_doca.repo
+
+RUN yum install -y ca-certificates
+
+RUN yum install -y \
+    sudo \
+    git \
+    wget \
+    vim \
+    fakeroot \
+    ncurses-devel \
+    rpm-build doxygen \
+    graphviz \
+    numactl-devel \
+    kernel-headers \
+    make \
+    gcc \
+    CUnit-devel \
+    libaio-devel \
+    openssl-devel \
+    libuuid-devel \
+    gcc-c++ \
+    python3 \
+    meson \
+    python3-pip \
+    python3-configshell \
+    pkgconfig autoconf automake libtool \
+    fuse3-devel patchelf \
+    rdma-core \
+    rdma-core-devel
+
+RUN pip3 install --prefix=/usr/ \
+    --index-url https://urm.nvidia.com/artifactory/api/pypi/pypi-remote/simple \
+    pyelftools
+
+RUN echo "${_LOGIN} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+RUN mkdir -p $_HOME
+RUN groupadd -f -g "$_GID" "$_LOGIN"
+RUN useradd -u "$_UID" -g "$_GID" -s /bin/bash -m -d ${_HOME} "$_LOGIN"
+RUN chown $_LOGIN $_HOME
+RUN yum clean all
+
+SHELL ["/bin/bash"]
+USER "${_LOGIN}"
+ENTRYPOINT [ "/bin/bash", "--login", "--rcfile", "/etc/bashrc", "-c" ]
