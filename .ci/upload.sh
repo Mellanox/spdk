@@ -133,6 +133,9 @@ doca_ver=""
 if [[ -f /etc/debian_version ]]; then
     # 3.5.0-082000 => 3.5.0
     doca_ver=$(dpkg-query -W -f '${Version}' doca-ofed-userspace 2>/dev/null | cut -d- -f1)
+elif [[ -f /etc/alinux-release ]]; then
+    # .../doca/3.3.0_vr_1.0/... -> 3.3.0
+    doca_ver=$(grep -oE '/doca/[0-9]+(\.[0-9]+)*' /etc/yum.repos.d/nvidia_doca.repo | head -1 | grep -oE '[0-9]+(\.[0-9]+)*')
 else
     doca_ver=$(rpm -q --qf '%{VERSION}' doca-ofed-userspace 2>/dev/null) || doca_ver=""
 fi
@@ -175,7 +178,8 @@ if [[ -f /etc/debian_version ]]; then
 
 elif [[ -f /etc/redhat-release || \
         -f /etc/openEuler-release || \
-        -f /etc/ctyunos-release ]]; then
+        -f /etc/ctyunos-release || \
+        -f /etc/system-release ]]; then
 
     arch=$(uname -m)
 

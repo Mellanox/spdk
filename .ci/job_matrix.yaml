@@ -42,6 +42,7 @@ runs_on_dockers:
   - {file: '.ci/Dockerfile.centos8', name: 'centos8_stream', arch: 'aarch64', build_args: '--build-arg DOCA_VER=$DOCA_VER', tag: '$DOCA_VER'}
   - {file: '.ci/Dockerfile.debian12', name: 'debian12', arch: 'aarch64', build_args: '--build-arg DOCA_VER=$DOCA_VER', tag: '$DOCA_VER'}
   - {file: '.ci/Dockerfile.rockylinux9.2', name: 'rockylinux9_2', arch: 'aarch64', build_args: '--build-arg DOCA_VER=$DOCA_VER', tag: '$DOCA_VER'}
+  - {file: '.ci/Dockerfile.alinux4', name: 'alinux4', arch: 'aarch64', build_args: '--build-arg DOCA_VER=3.3.0_vr_1.0', tag: '3.3.0_vr_1.0'}
   - {file: '.ci/Dockerfile.anolis8.6', name: 'anolis8_6', arch: 'aarch64', build_args: '--build-arg DOCA_VER=$DOCA_VER', tag: '$DOCA_VER'}
   - {file: '.ci/Dockerfile.ctyunos23.01', name: 'ctyunos23_01', arch: 'aarch64', build_args: '--build-arg DOCA_VER=$DOCA_VER', tag: '$DOCA_VER'}
   - {file: '.ci/Dockerfile.rockylinux8.6', name: 'rockylinux8_6', arch: 'aarch64', build_args: '--build-arg DOCA_VER=$DOCA_VER', tag: '$DOCA_VER'}
@@ -59,7 +60,8 @@ steps:
     run: |
       if [[ -e /etc/redhat-release || \
             -e /etc/openEuler-release || \
-            -e /etc/ctyunos-release ]]; then
+            -e /etc/ctyunos-release || \
+            -e /etc/system-release ]]; then
         .ci/build_rpm.sh
       elif [ -e /etc/debian_version ]; then
         .ci/build_deb.sh
@@ -82,6 +84,7 @@ steps:
       - "{name: 'ctyunos23_01', variant:1}"
       - "{name: 'rockylinux8_6', variant:1}"
       - "{name: 'openeuler22_03', variant:1}"
+      - "{name: 'alinux4', variant:1}"
     run: |
       .ci/upload.sh urm
 
