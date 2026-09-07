@@ -52,6 +52,7 @@ runs_on_dockers:
   - {file: '.ci/Dockerfile.rockylinux9.2', name: 'rockylinux9_2', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
 #  - {file: '.ci/Dockerfile.centos7.9.2009', name: 'centos7_9', arch: 'x86_64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
 #  - {file: '.ci/Dockerfile.centos8', name: 'centos8_stream', arch: 'x86_64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
+  - {file: '.ci/Dockerfile.alinux4', name: 'alinux4', arch: 'aarch64', tag: '$MOFED_VER'}
   - {file: '.ci/Dockerfile.anolis8.6', name: 'anolis8_6', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
   - {file: '.ci/Dockerfile.ctyunos23.01', name: 'ctyunos23_01', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
   - {file: '.ci/Dockerfile.rockylinux8.6', name: 'rockylinux8_6', arch: 'aarch64', build_args: '--build-arg MOFED_VER=$MOFED_VER', tag: '$MOFED_VER'}
@@ -70,7 +71,8 @@ steps:
     run: |
       if [[ -e /etc/redhat-release || \
             -e /etc/openEuler-release || \
-            -e /etc/ctyunos-release ]]; then
+            -e /etc/ctyunos-release || \
+            -e /etc/system-release ]]; then
         .ci/build_rpm.sh
       elif [ -e /etc/debian_version ]; then
         .ci/build_deb.sh
@@ -96,6 +98,7 @@ steps:
       - "{name: 'ctyunos23_01', variant:1}"
       - "{name: 'rockylinux8_6', variant:1}"
       - "{name: 'openeuler22_03', variant:1}"
+      - "{name: 'alinux4', variant:1}"
     run: |
       .ci/upload.sh urm
 
