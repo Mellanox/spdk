@@ -690,10 +690,17 @@ nvme_ctrlr_poll_internal(struct spdk_nvme_ctrlr *ctrlr,
 	 * Increase the ref count before calling attach_cb() as the user may
 	 * call nvme_detach() immediately.
 	 *
-	 * In case of lazy connect the ref is already taken before calling
-	 * construct_cb().
+	 * Lazy connect already took that ref in the nvda_tcp transport,
+	 * immediately before invoking construct_cb(). Use the probe context
+	 * flag, not ctrlr->lazy_fabric_connect: resume_connect() clears the
+	 * controller flag so FABRIC CONNECT can proceed, and checking the
+	 * cleared flag here would take a second ref. Detach would then leave
+	 * the controller on g_nvme_attached_ctrlrs. The next connect of the
+	 * same TRID would find that leftover and call attach_cb() directly,
+	 * never construct_cb(), so lazy parking is skipped and IDENTIFY data
+	 * from the previous connection is reused.
 	 */
-	if (!ctrlr->lazy_fabric_connect) {
+	if (!probe_ctx->lazy_fabric_connect) {
 		nvme_ctrlr_proc_get_ref(ctrlr);
 	}
 	nvme_robust_mutex_unlock(&g_spdk_nvme_driver->lock);
