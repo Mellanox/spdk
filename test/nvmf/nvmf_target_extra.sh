@@ -41,10 +41,7 @@ fi
 run_test "nvmf_auth_target" "$rootdir/test/nvmf/target/auth.sh" "${TEST_ARGS[@]}"
 
 if [ "$SPDK_TEST_NVMF_TRANSPORT" = "tcp" ]; then
-	# FIXME: Disabling. #4600932
-	if [[ "$SPDK_TEST_NVMF_TRANSPORT" != "tcp" ]]; then
-		run_test "nvmf_bdevio_no_huge" $rootdir/test/nvmf/target/bdevio.sh "${TEST_ARGS[@]}" --no-hugepages
-	fi
+	run_test "nvmf_bdevio_no_huge" $rootdir/test/nvmf/target/bdevio.sh "${TEST_ARGS[@]}" --no-hugepages
 	# FIXME:  Disabling. #4613264
 	if [[ "$SPDK_TEST_NVMF_TRANSPORT" != "tcp" ]]; then
 		run_test "nvmf_tls" $rootdir/test/nvmf/target/tls.sh "${TEST_ARGS[@]}"
