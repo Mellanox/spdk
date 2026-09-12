@@ -2834,6 +2834,7 @@ nvme_tcp_req_complete_memory_domain(struct nvme_tcp_req *tcp_req,
 				    struct nvme_tcp_qpair *tqpair,
 				    struct spdk_nvme_cpl *rsp)
 {
+	struct spdk_nvme_cpl error_cpl;
 	struct nvme_request	*req;
 	enum spdk_nvme_data_transfer xfer;
 	bool			error;
@@ -2864,6 +2865,11 @@ nvme_tcp_req_complete_memory_domain(struct nvme_tcp_req *tcp_req,
 
 		rc = nvme_tcp_calc_and_set_recv_iovs(tcp_req, tqpair, rsp);
 		if (spdk_unlikely(rc)) {
+			error_cpl = *rsp;
+			error_cpl.status.sc = SPDK_NVME_SC_INTERNAL_DEVICE_ERROR;
+			error_cpl.status.sct = SPDK_NVME_SCT_GENERIC;
+			error_cpl.status.dnr = 0;
+			rsp = &error_cpl;
 			goto out;
 		}
 
@@ -2887,6 +2893,11 @@ nvme_tcp_req_complete_memory_domain(struct nvme_tcp_req *tcp_req,
 							       NULL, NULL, NULL, NULL);
 			if (spdk_unlikely(rc)) {
 				SPDK_ERRLOG("Failed to append copy accel task, rc %d\n", rc);
+				error_cpl = *rsp;
+				error_cpl.status.sc = SPDK_NVME_SC_INTERNAL_DEVICE_ERROR;
+				error_cpl.status.sct = SPDK_NVME_SCT_GENERIC;
+				error_cpl.status.dnr = 0;
+				rsp = &error_cpl;
 				goto out;
 			}
 
