@@ -2499,6 +2499,8 @@ nvme_tcp_iobuf_get_cb(struct spdk_iobuf_entry *entry, void *buf)
 	assert(tcp_req->ordering.bits.iobuf_pending);
 	tcp_req->ordering.bits.iobuf_pending = 0;
 	tcp_req->iobuf_iov.iov_base = buf;
+	tcp_req->accel_iov = tcp_req->iobuf_iov;
+	tcp_req->accel_iov.iov_len -= SPDK_NVME_TCP_DIGEST_LEN * tqpair->flags.host_ddgst_enable;
 	rc = nvme_tcp_handle_accel_sequence_in_capsule(tcp_req);
 
 	if (spdk_unlikely(rc)) {
@@ -4014,6 +4016,8 @@ nvme_tcp_h2c_iobuf_get_cb(struct spdk_iobuf_entry *entry, void *buf)
 	assert(tcp_req->ordering.bits.iobuf_pending);
 	tcp_req->ordering.bits.iobuf_pending = 0;
 	tcp_req->iobuf_iov.iov_base = buf;
+	tcp_req->accel_iov.iov_base = tcp_req->iobuf_iov.iov_base;
+	tcp_req->accel_iov.iov_len = tcp_req->iobuf_iov.iov_len - SPDK_NVME_TCP_DIGEST_LEN;
 
 	rc = nvme_tcp_apply_accel_sequence_h2c(tcp_req);
 	if (spdk_unlikely(rc)) {
