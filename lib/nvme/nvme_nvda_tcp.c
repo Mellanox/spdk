@@ -1559,6 +1559,8 @@ nvme_tcp_req_get(struct nvme_tcp_qpair *tqpair, struct nvme_tcp_req *tcp_req)
 	tcp_req->recv_iovs = tcp_req->_recv_iovs;
 	tcp_req->recv_iovcnt = 0;
 
+	nvme_tcp_qpair_outstanding_req_enqueue(tqpair, tcp_req);
+
 	return 0;
 }
 
@@ -1595,6 +1597,7 @@ nvme_tcp_req_put(struct nvme_tcp_qpair *tqpair, struct nvme_tcp_req *tcp_req)
 		spdk_bit_pool_free_bit(tqpair->cid_pool, tcp_req->cid);
 		tcp_req->cid = UINT16_MAX;
 	}
+	nvme_tcp_qpair_outstanding_req_dequeue(tqpair, tcp_req);
 }
 
 static struct nvme_tcp_pdu *
@@ -2321,7 +2324,6 @@ nvme_tcp_iobuf_get_cb(struct spdk_iobuf_entry *entry, void *buf)
 	int rc;
 
 	tcp_req->iobuf_iov.iov_base = buf;
-	nvme_tcp_qpair_outstanding_req_enqueue(tqpair, tcp_req);
 	rc = nvme_tcp_handle_accel_sequence_in_capsule(tcp_req);
 
 	if (spdk_unlikely(rc)) {
@@ -2670,11 +2672,9 @@ nvme_tcp_qpair_submit_request(struct spdk_nvme_qpair *qpair,
 		}
 	}
 
-	nvme_tcp_qpair_outstanding_req_enqueue(tqpair, tcp_req);
 	rc = nvme_tcp_qpair_capsule_cmd_send(tqpair, tcp_req);
 	if (spdk_unlikely(rc)) {
 		SPDK_ERRLOG("Failed to send capsule cmd, rc %d\n", rc);
-		nvme_tcp_qpair_outstanding_req_dequeue(tqpair, tcp_req);
 		nvme_tcp_req_put(tqpair, tcp_req);
 		return -1;
 	}
@@ -2708,7 +2708,6 @@ _nvme_tcp_req_complete(struct nvme_tcp_req *tcp_req,
 	xlio_sock_free_bufs(tqpair, tcp_req->sock_buf);
 	tcp_req->sock_buf = NULL;
 
-	nvme_tcp_qpair_outstanding_req_dequeue(tqpair, tcp_req);
 	SPDK_DEBUGLOG(nvme,
 		      "tqpair %p %u (out %"PRIu64"), xlio_sock 0x%lx, tcp_req %p pdu %p, ordering %x, cid %u\n", tqpair,
 		      tqpair->qpair.id, tqpair->stats->outstanding_reqs, tqpair->xlio_sock, tcp_req, &tcp_req->pdu,
@@ -2936,7 +2935,7 @@ nvme_tcp_req_complete(struct nvme_tcp_req *tcp_req,
 static void
 nvme_tcp_qpair_abort_reqs(struct spdk_nvme_qpair *qpair, uint32_t dnr)
 {
-	struct nvme_tcp_req *tcp_req, *tmp;
+	struct nvme_tcp_req *tcp_req;
 	struct spdk_nvme_cpl cpl = {};
 	struct nvme_tcp_qpair *tqpair = nvme_tcp_qpair(qpair);
 
@@ -2944,13 +2943,16 @@ nvme_tcp_qpair_abort_reqs(struct spdk_nvme_qpair *qpair, uint32_t dnr)
 	cpl.status.sct = SPDK_NVME_SCT_GENERIC;
 	cpl.status.dnr = dnr;
 
-	TAILQ_FOREACH_SAFE(tcp_req, &tqpair->outstanding_reqs, link, tmp) {
+	tcp_req = TAILQ_FIRST(&tqpair->outstanding_reqs);
+	while (tcp_req) {
 		SPDK_DEBUGLOG(nvme, "tqpair %p %u, sock 0x%lx, req %p, ordering 0x%x\n",
 			      tqpair, qpair->id, tqpair->xlio_sock, tcp_req, tcp_req->ordering.raw);
 		if (tcp_req->ordering.bits.in_progress_accel) {
+			tcp_req = TAILQ_NEXT(tcp_req, link);
 			continue;
 		}
 		nvme_tcp_req_complete(tcp_req, tqpair, &cpl, true);
+		tcp_req = TAILQ_FIRST(&tqpair->outstanding_reqs);
 	}
 }
 
@@ -5111,19 +5113,22 @@ nvme_tcp_qpair_iterate_requests(struct spdk_nvme_qpair *qpair,
 static void
 nvme_tcp_admin_qpair_abort_aers(struct spdk_nvme_qpair *qpair)
 {
-	struct nvme_tcp_req *tcp_req, *tmp;
+	struct nvme_tcp_req *tcp_req;
 	struct spdk_nvme_cpl cpl = {};
 	struct nvme_tcp_qpair *tqpair = nvme_tcp_qpair(qpair);
 
 	cpl.status.sc = SPDK_NVME_SC_ABORTED_SQ_DELETION;
 	cpl.status.sct = SPDK_NVME_SCT_GENERIC;
 
-	TAILQ_FOREACH_SAFE(tcp_req, &tqpair->outstanding_reqs, link, tmp) {
+	tcp_req = TAILQ_FIRST(&tqpair->outstanding_reqs);
+	while (tcp_req) {
 		if (tcp_req->req.cmd.opc != SPDK_NVME_OPC_ASYNC_EVENT_REQUEST) {
+			tcp_req = TAILQ_NEXT(tcp_req, link);
 			continue;
 		}
 
 		nvme_tcp_req_complete(tcp_req, tqpair, &cpl, false);
+		tcp_req = TAILQ_FIRST(&tqpair->outstanding_reqs);
 	}
 }
 
