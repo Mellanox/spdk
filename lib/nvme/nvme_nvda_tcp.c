@@ -1481,6 +1481,22 @@ static int nvme_tcp_qpair_capsule_cmd_send(struct nvme_tcp_qpair *tqpair,
 		struct nvme_tcp_req *tcp_req);
 static bool nvme_tcp_memory_domain_enabled(void);
 
+static inline void
+nvme_tcp_qpair_outstanding_req_enqueue(struct nvme_tcp_qpair *tqpair, struct nvme_tcp_req *tcp_req)
+{
+	TAILQ_INSERT_TAIL(&tqpair->outstanding_reqs, tcp_req, link);
+	tqpair->stats->outstanding_reqs++;
+}
+
+static inline void
+nvme_tcp_qpair_outstanding_req_dequeue(struct nvme_tcp_qpair *tqpair, struct nvme_tcp_req *tcp_req)
+{
+	assert(!TAILQ_EMPTY(&tqpair->outstanding_reqs));
+	TAILQ_REMOVE(&tqpair->outstanding_reqs, tcp_req, link);
+	assert(tqpair->stats->outstanding_reqs > 0);
+	tqpair->stats->outstanding_reqs--;
+}
+
 static inline bool
 nvme_tcp_req_with_memory_domain(struct nvme_tcp_req *tcp_req)
 {
@@ -2305,8 +2321,7 @@ nvme_tcp_iobuf_get_cb(struct spdk_iobuf_entry *entry, void *buf)
 	int rc;
 
 	tcp_req->iobuf_iov.iov_base = buf;
-	TAILQ_INSERT_TAIL(&tqpair->outstanding_reqs, tcp_req, link);
-	tqpair->stats->outstanding_reqs++;
+	nvme_tcp_qpair_outstanding_req_enqueue(tqpair, tcp_req);
 	rc = nvme_tcp_handle_accel_sequence_in_capsule(tcp_req);
 
 	if (spdk_unlikely(rc)) {
@@ -2655,13 +2670,11 @@ nvme_tcp_qpair_submit_request(struct spdk_nvme_qpair *qpair,
 		}
 	}
 
-	TAILQ_INSERT_TAIL(&tqpair->outstanding_reqs, tcp_req, link);
-	tqpair->stats->outstanding_reqs++;
+	nvme_tcp_qpair_outstanding_req_enqueue(tqpair, tcp_req);
 	rc = nvme_tcp_qpair_capsule_cmd_send(tqpair, tcp_req);
 	if (spdk_unlikely(rc)) {
 		SPDK_ERRLOG("Failed to send capsule cmd, rc %d\n", rc);
-		TAILQ_REMOVE(&tqpair->outstanding_reqs, tcp_req, link);
-		tqpair->stats->outstanding_reqs--;
+		nvme_tcp_qpair_outstanding_req_dequeue(tqpair, tcp_req);
 		nvme_tcp_req_put(tqpair, tcp_req);
 		return -1;
 	}
@@ -2695,9 +2708,7 @@ _nvme_tcp_req_complete(struct nvme_tcp_req *tcp_req,
 	xlio_sock_free_bufs(tqpair, tcp_req->sock_buf);
 	tcp_req->sock_buf = NULL;
 
-	TAILQ_REMOVE(&tqpair->outstanding_reqs, tcp_req, link);
-	assert(tqpair->stats->outstanding_reqs > 0);
-	tqpair->stats->outstanding_reqs--;
+	nvme_tcp_qpair_outstanding_req_dequeue(tqpair, tcp_req);
 	SPDK_DEBUGLOG(nvme,
 		      "tqpair %p %u (out %"PRIu64"), xlio_sock 0x%lx, tcp_req %p pdu %p, ordering %x, cid %u\n", tqpair,
 		      tqpair->qpair.id, tqpair->stats->outstanding_reqs, tqpair->xlio_sock, tcp_req, &tcp_req->pdu,
