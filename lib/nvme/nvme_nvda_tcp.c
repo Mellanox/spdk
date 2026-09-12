@@ -212,6 +212,7 @@ struct nvme_tcp_req {
 			uint16_t			needs_accel_seq : 1;
 			uint16_t			in_capsule_data : 1;
 			uint16_t			recv_iovs_malloced : 1;
+			uint16_t			iobuf_pending : 1;
 			uint16_t			state : 3;
 		} bits;
 	} ordering;
@@ -1567,19 +1568,24 @@ nvme_tcp_req_get(struct nvme_tcp_qpair *tqpair, struct nvme_tcp_req *tcp_req)
 static void
 nvme_tcp_req_put(struct nvme_tcp_qpair *tqpair, struct nvme_tcp_req *tcp_req)
 {
-	struct spdk_nvme_transport_poll_group *group = tqpair->qpair.poll_group;
-
 	assert(tcp_req->ordering.bits.state != NVME_TCP_REQ_FREE);
 	tcp_req->ordering.bits.state = NVME_TCP_REQ_FREE;
 
 	tqpair->tcp_reqs_lookup[tcp_req->cid] = NULL;
 
-	if (group && tcp_req->iobuf_iov.iov_base) {
-		spdk_iobuf_put(group->group->accel_fn_table.get_iobuf_channel(group->group->ctx),
-			       tcp_req->iobuf_iov.iov_base,
-			       tcp_req->iobuf_iov.iov_len);
+	if (tqpair->group && (tcp_req->iobuf_iov.iov_base || tcp_req->ordering.bits.iobuf_pending)) {
+		struct spdk_nvme_poll_group *group = tqpair->group->group.group;
+		struct spdk_iobuf_channel *iobuf_ch = group->accel_fn_table.get_iobuf_channel(group->ctx);
 
-		tcp_req->iobuf_iov.iov_base = NULL;
+		assert(iobuf_ch);
+
+		if (tcp_req->ordering.bits.iobuf_pending) {
+			assert(tcp_req->iobuf_iov.iov_len != 0);
+			spdk_iobuf_entry_abort(iobuf_ch, &tcp_req->iobuf_entry, tcp_req->iobuf_iov.iov_len);
+		} else if (tcp_req->iobuf_iov.iov_base) {
+			spdk_iobuf_put(iobuf_ch, tcp_req->iobuf_iov.iov_base, tcp_req->iobuf_iov.iov_len);
+			tcp_req->iobuf_iov.iov_base = NULL;
+		}
 	}
 
 	if (tcp_req->recv_iovs != tcp_req->_recv_iovs &&
@@ -2323,6 +2329,8 @@ nvme_tcp_iobuf_get_cb(struct spdk_iobuf_entry *entry, void *buf)
 	struct spdk_nvme_cpl cpl;
 	int rc;
 
+	assert(tcp_req->ordering.bits.iobuf_pending);
+	tcp_req->ordering.bits.iobuf_pending = 0;
 	tcp_req->iobuf_iov.iov_base = buf;
 	rc = nvme_tcp_handle_accel_sequence_in_capsule(tcp_req);
 
@@ -2411,6 +2419,7 @@ nvme_tcp_qpair_cmd_send_complete(struct nvme_tcp_qpair *tqpair, struct nvme_tcp_
 		nvme_tcp_send_h2c_data(tcp_req);
 	} else {
 		if (group && tcp_req->ordering.bits.in_capsule_data && tcp_req->iobuf_iov.iov_base) {
+			assert(!tcp_req->ordering.bits.iobuf_pending);
 			spdk_iobuf_put(group->group->accel_fn_table.get_iobuf_channel(group->group->ctx),
 				       tcp_req->iobuf_iov.iov_base,
 				       tcp_req->iobuf_iov.iov_len);
@@ -2661,6 +2670,7 @@ nvme_tcp_qpair_submit_request(struct spdk_nvme_qpair *qpair,
 		tcp_req->iobuf_iov.iov_base = spdk_iobuf_get(iobuf_ch, tcp_req->iobuf_iov.iov_len,
 					      &tcp_req->iobuf_entry, nvme_tcp_iobuf_get_cb);
 		if (spdk_unlikely(!tcp_req->iobuf_iov.iov_base)) {
+			tcp_req->ordering.bits.iobuf_pending = 1;
 			/* Finish accel sequence once buffer is allocated */
 			SPDK_DEBUGLOG(nvme, "no buffer, in progress\n");
 			return 0;
@@ -3662,6 +3672,7 @@ nvme_tcp_qpair_h2c_data_send_complete(struct nvme_tcp_qpair *tqpair, struct nvme
 		}
 
 		if (group && tcp_req->iobuf_iov.iov_base) {
+			assert(!tcp_req->ordering.bits.iobuf_pending);
 			spdk_iobuf_put(group->group->accel_fn_table.get_iobuf_channel(group->group->ctx),
 				       tcp_req->iobuf_iov.iov_base,
 				       tcp_req->iobuf_iov.iov_len);
@@ -3820,6 +3831,8 @@ nvme_tcp_h2c_iobuf_get_cb(struct spdk_iobuf_entry *entry, void *buf)
 	struct nvme_tcp_req *tcp_req = SPDK_CONTAINEROF(entry, struct nvme_tcp_req, iobuf_entry);
 	int rc;
 
+	assert(tcp_req->ordering.bits.iobuf_pending);
+	tcp_req->ordering.bits.iobuf_pending = 0;
 	tcp_req->iobuf_iov.iov_base = buf;
 
 	rc = nvme_tcp_apply_accel_sequence_h2c(tcp_req);
@@ -3930,6 +3943,7 @@ nvme_tcp_send_h2c_data(struct nvme_tcp_req *tcp_req)
 						      &tcp_req->iobuf_entry, nvme_tcp_h2c_iobuf_get_cb);
 			if (spdk_unlikely(!tcp_req->iobuf_iov.iov_base)) {
 				/* Finish accel sequence once buffer is allocated */
+				tcp_req->ordering.bits.iobuf_pending = 1;
 				SPDK_DEBUGLOG(nvme, "no buffer, in progress\n");
 				return;
 			}
