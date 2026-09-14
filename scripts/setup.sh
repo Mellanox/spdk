@@ -269,9 +269,9 @@ function get_used_bdf_block_devs() {
 		if [[ ! -e /dev/$block ]]; then
 			if [[ $PCI_ALLOWED != *"$bdf"* ]]; then
 				used+=("unverified@$block")
-				pci_dev_echo "$bdf" "No /dev/$block; refusing to bind without this BDF in PCI_ALLOWED"
+				pci_dev_echo "$bdf" "No /dev/$block; refusing to bind without this BDF in PCI_ALLOWED" >&2
 			else
-				pci_dev_echo "$bdf" "WARNING: no /dev/$block, skipping mount/fs checks"
+				pci_dev_echo "$bdf" "WARNING: no /dev/$block, skipping mount/fs checks" >&2
 			fi
 			continue
 		fi
