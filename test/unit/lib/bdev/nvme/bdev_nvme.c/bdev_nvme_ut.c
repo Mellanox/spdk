@@ -8669,6 +8669,25 @@ test_kv_passthru_support(void)
 	CU_ASSERT(!bdev_nvme_io_type_supported(&nbdev, SPDK_BDEV_IO_TYPE_READ));
 }
 
+static void
+test_kv_passthru_no_data(void)
+{
+	struct spdk_nvme_ns ns = {.csi = SPDK_NVME_CSI_KV, .id = 7};
+	struct nvme_ns nvme_ns = {.ns = &ns};
+	struct nvme_qpair qpair = {};
+	struct nvme_io_path path = {.nvme_ns = &nvme_ns, .qpair = &qpair};
+	struct nvme_bdev_io bio = {.io_path = &path};
+	struct spdk_nvme_cmd cmd = {.opc = SPDK_NVME_OPC_KV_EXIST};
+
+	/* Distinguish the raw and SGL stubs, so a no-data command cannot walk an empty SGL. */
+	MOCK_SET(spdk_nvme_ctrlr_cmd_io_raw_with_md, -EAGAIN);
+	MOCK_SET(spdk_nvme_ctrlr_cmd_iov_raw_with_md, -EINVAL);
+	CU_ASSERT(bdev_nvme_iov_passthru_md(&bio, &cmd, NULL, 0, 0, NULL, 0) == -EAGAIN);
+	CU_ASSERT(cmd.nsid == 7);
+	MOCK_CLEAR(spdk_nvme_ctrlr_cmd_io_raw_with_md);
+	MOCK_CLEAR(spdk_nvme_ctrlr_cmd_iov_raw_with_md);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -8679,6 +8698,7 @@ main(int argc, char **argv)
 
 	suite = CU_add_suite("nvme", test_setup, test_cleanup);
 	CU_ADD_TEST(suite, test_kv_passthru_support);
+	CU_ADD_TEST(suite, test_kv_passthru_no_data);
 	CU_ADD_TEST(suite, test_create_ctrlr);
 	CU_ADD_TEST(suite, test_reset_ctrlr);
 	CU_ADD_TEST(suite, test_race_between_reset_and_destruct_ctrlr);

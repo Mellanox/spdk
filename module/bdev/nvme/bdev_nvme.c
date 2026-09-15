@@ -9955,6 +9955,12 @@ bdev_nvme_iov_passthru_md(struct nvme_bdev_io *bio,
 	 */
 	cmd->nsid = spdk_nvme_ns_get_id(ns);
 
+	/* No-data commands have no SGL for the transport to walk. */
+	if (nbytes == 0) {
+		return spdk_nvme_ctrlr_cmd_io_raw_with_md(ctrlr, qpair, cmd, NULL, 0, md_buf,
+				bdev_nvme_queued_done, bio);
+	}
+
 	return spdk_nvme_ctrlr_cmd_iov_raw_with_md(
 		       ctrlr, qpair, cmd, (uint32_t)nbytes, md_buf, bdev_nvme_queued_done, bio,
 		       bdev_nvme_queued_reset_sgl, bdev_nvme_queued_next_sge);
