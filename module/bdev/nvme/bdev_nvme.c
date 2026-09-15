@@ -3944,6 +3944,7 @@ bdev_nvme_io_type_supported(void *ctx, enum spdk_bdev_io_type io_type)
 		switch (io_type) {
 		case SPDK_BDEV_IO_TYPE_NVME_ADMIN:
 		case SPDK_BDEV_IO_TYPE_NVME_IO:
+		case SPDK_BDEV_IO_TYPE_NVME_IOV_MD:
 			return true;
 
 		case SPDK_BDEV_IO_TYPE_NVME_IO_MD:
@@ -3963,6 +3964,7 @@ bdev_nvme_io_type_supported(void *ctx, enum spdk_bdev_io_type io_type)
 	case SPDK_BDEV_IO_TYPE_FLUSH:
 	case SPDK_BDEV_IO_TYPE_NVME_ADMIN:
 	case SPDK_BDEV_IO_TYPE_NVME_IO:
+	case SPDK_BDEV_IO_TYPE_NVME_IOV_MD:
 	case SPDK_BDEV_IO_TYPE_ABORT:
 		return true;
 

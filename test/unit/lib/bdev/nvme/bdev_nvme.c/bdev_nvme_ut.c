@@ -8655,6 +8655,20 @@ test_race_between_ctrlr_loss_timeout_and_pending_failover(void)
 	CU_ASSERT(nvme_ctrlr_get_by_name("nvme0") == NULL);
 }
 
+static void
+test_kv_passthru_support(void)
+{
+	struct spdk_nvme_ns ns = {.csi = SPDK_NVME_CSI_KV, .id = 7};
+	struct nvme_ns nvme_ns = {.ns = &ns};
+	struct nvme_bdev nbdev = {};
+
+	TAILQ_INIT(&nbdev.nvme_ns_list);
+	TAILQ_INSERT_TAIL(&nbdev.nvme_ns_list, &nvme_ns, tailq);
+	CU_ASSERT(bdev_nvme_io_type_supported(&nbdev, SPDK_BDEV_IO_TYPE_NVME_IOV_MD));
+	CU_ASSERT(bdev_nvme_io_type_supported(&nbdev, SPDK_BDEV_IO_TYPE_NVME_ADMIN));
+	CU_ASSERT(!bdev_nvme_io_type_supported(&nbdev, SPDK_BDEV_IO_TYPE_READ));
+}
+
 int
 main(int argc, char **argv)
 {
@@ -8664,6 +8678,7 @@ main(int argc, char **argv)
 	CU_initialize_registry();
 
 	suite = CU_add_suite("nvme", test_setup, test_cleanup);
+	CU_ADD_TEST(suite, test_kv_passthru_support);
 	CU_ADD_TEST(suite, test_create_ctrlr);
 	CU_ADD_TEST(suite, test_reset_ctrlr);
 	CU_ADD_TEST(suite, test_race_between_reset_and_destruct_ctrlr);
