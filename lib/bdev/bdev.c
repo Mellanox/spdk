@@ -4864,11 +4864,6 @@ bdev_channel_create(void *io_device, void *ctx_buf)
 		TAILQ_INSERT_TAIL(&ch->locked_ranges, new_range, tailq);
 	}
 
-	bdev->memory_domains_supported =
-		spdk_bdev_get_memory_domain_types(bdev, NULL, 0) > 0 ||
-		(bdev->fn_table->get_memory_domains &&
-		 bdev->fn_table->get_memory_domains(bdev->ctxt, NULL, 0) > 0);
-
 	spdk_spin_unlock(&bdev->internal.spinlock);
 
 	return 0;
