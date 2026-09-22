@@ -2836,6 +2836,7 @@ nvmf_rdma_request_append_copy_task(struct spdk_nvmf_rdma_qpair *rqpair,
 		rsp = &rdma_req->req.rsp->nvme_cpl;
 		rsp->status.sct = SPDK_NVME_SCT_GENERIC;
 		rsp->status.sc = SPDK_NVME_SC_INTERNAL_DEVICE_ERROR;
+		STAILQ_REMOVE_HEAD(&rgroup->pending_accel_queue, state_link);
 		STAILQ_INSERT_TAIL(&rqpair->pending_rdma_send_queue, rdma_req, state_link);
 		rdma_req->state = RDMA_REQUEST_STATE_READY_TO_COMPLETE_PENDING;
 		SPDK_DEBUGLOG(rdma, "req %p, accel task failed, rc %d\n", rdma_req, rc);

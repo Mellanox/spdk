@@ -826,6 +826,64 @@ test_spdk_nvmf_rdma_request_process(void)
 	spdk_mempool_free(rtransport.data_wr_pool);
 }
 
+/*
+ * pending_accel_queue and pending_rdma_send_queue share state_link, so a request
+ * whose copy task fails has to leave the first before it joins the second.
+ */
+static void
+test_nvmf_rdma_request_accel_task_failure(void)
+{
+	struct spdk_nvmf_rdma_transport rtransport = {};
+	struct spdk_nvmf_transport_ops ops = {};
+	struct spdk_nvmf_rdma_poll_group group = {};
+	struct spdk_nvmf_rdma_poller poller = {};
+	struct spdk_nvmf_rdma_device device = {};
+	struct spdk_nvmf_rdma_resources resources = {};
+	struct spdk_nvmf_rdma_qpair rqpair = {};
+	struct spdk_rdma_provider_qp rdma_qp = {};
+	struct spdk_nvmf_rdma_recv *recv[2];
+	struct spdk_nvmf_rdma_request *req[2];
+	struct spdk_iobuf_channel ch = {};
+	int i;
+
+	group.group.buf_cache = &ch;
+	STAILQ_INIT(&group.group.pending_buf_queue);
+	STAILQ_INIT(&group.pending_accel_queue);
+	poller_reset(&poller, &group);
+	qpair_reset(&rqpair, &poller, &device, &resources, &rtransport.transport);
+	rqpair.rdma_qp = &rdma_qp;
+
+	rtransport.transport.opts = g_rdma_ut_transport_opts;
+	rtransport.data_wr_pool = spdk_mempool_create("test_accel_failure_pool", 128,
+				  sizeof(struct spdk_nvmf_rdma_request_data),
+				  0, 0);
+	rtransport.transport.ops = &ops;
+
+	for (i = 0; i < 2; i++) {
+		recv[i] = create_recv(&rqpair, SPDK_NVME_OPC_READ);
+		req[i] = create_req(&rqpair, recv[i]);
+		req[i]->state = RDMA_REQUEST_STATE_NEED_ACCEL_TASK;
+		STAILQ_INSERT_TAIL(&group.pending_accel_queue, req[i], state_link);
+	}
+	rqpair.current_recv_depth = 2;
+	rqpair.qpair.queue_depth = 2;
+
+	MOCK_SET(spdk_accel_append_copy, -EIO);
+	nvmf_rdma_request_process(&rtransport, req[0]);
+	MOCK_CLEAR(spdk_accel_append_copy);
+
+	CU_ASSERT(req[0]->req.rsp->nvme_cpl.status.sc == SPDK_NVME_SC_INTERNAL_DEVICE_ERROR);
+	CU_ASSERT(req[0]->state != RDMA_REQUEST_STATE_NEED_ACCEL_TASK);
+	CU_ASSERT(STAILQ_FIRST(&group.pending_accel_queue) == req[1]);
+	CU_ASSERT(STAILQ_NEXT(req[1], state_link) == NULL);
+
+	for (i = 0; i < 2; i++) {
+		free_recv(recv[i]);
+		free_req(req[i]);
+	}
+	spdk_mempool_free(rtransport.data_wr_pool);
+}
+
 #define TEST_GROUPS_COUNT 5
 static void
 test_nvmf_rdma_get_optimal_poll_group(void)
@@ -1898,6 +1956,7 @@ main(int argc, char **argv)
 
 	CU_ADD_TEST(suite, test_spdk_nvmf_rdma_request_parse_sgl);
 	CU_ADD_TEST(suite, test_spdk_nvmf_rdma_request_process);
+	CU_ADD_TEST(suite, test_nvmf_rdma_request_accel_task_failure);
 	CU_ADD_TEST(suite, test_nvmf_rdma_get_optimal_poll_group);
 	CU_ADD_TEST(suite, test_nvmf_rdma_get_optimal_poll_group_multi_iface);
 	CU_ADD_TEST(suite, test_spdk_nvmf_rdma_request_parse_sgl_with_md);
