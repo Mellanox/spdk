@@ -90,6 +90,7 @@ nvmf_transport_dump_opts(struct spdk_nvmf_transport *transport, struct spdk_json
 	spdk_json_write_named_bool(w, "enforce_memory_domain_transfer",
 				   opts->enforce_memory_domain_transfer);
 	spdk_json_write_named_uint16(w, "max_interfaces", opts->max_interfaces);
+	spdk_json_write_named_uint32(w, "max_chunks_per_poll_group", opts->max_chunks_per_poll_group);
 
 	if (transport->ops->dump_opts) {
 		transport->ops->dump_opts(transport, w);
@@ -190,10 +191,11 @@ nvmf_transport_opts_copy(struct spdk_nvmf_transport_opts *opts,
 	SET_FIELD(kas);
 	SET_FIELD(enforce_memory_domain_transfer);
 	SET_FIELD(max_interfaces);
+	SET_FIELD(max_chunks_per_poll_group);
 
 	/* Do not remove this statement, you should always update this statement when you adding a new field,
 	 * and do not forget to add the SET_FIELD statement for your added field. */
-	SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_transport_opts) == 84, "Incorrect size");
+	SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_transport_opts) == 88, "Incorrect size");
 
 #undef SET_FIELD
 #undef FILED_CHECK
@@ -731,7 +733,9 @@ nvmf_transport_poll_group_create(struct spdk_nvmf_transport *transport,
 
 	return tgroup;
 err:
+	pthread_mutex_lock(&transport->mutex);
 	transport->ops->poll_group_destroy(tgroup);
+	pthread_mutex_unlock(&transport->mutex);
 	return NULL;
 }
 

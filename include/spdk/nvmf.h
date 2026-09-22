@@ -124,8 +124,13 @@ struct spdk_nvmf_transport_opts {
 	/* Maximum number of network interfaces used by network based transports.
 	 * Optional, but enables some optimizations when set. 0 means unspecified */
 	uint16_t max_interfaces;
+	/* Maximum large iobuf pool buffers a single poll group may have committed to
+	 * the bdev layer at once. Optional; 0 lets the transport derive a value from
+	 * the pool size and its poll group count, which assumes every poll group
+	 * serves the bdevs equally. Set it when that isn't true. */
+	uint32_t max_chunks_per_poll_group;
 } __attribute__((packed));
-SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_transport_opts) == 84, "Incorrect size");
+SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_transport_opts) == 88, "Incorrect size");
 
 struct spdk_nvmf_listen_opts {
 	/**

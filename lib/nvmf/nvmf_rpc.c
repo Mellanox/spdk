@@ -2551,6 +2551,11 @@ static const struct spdk_json_object_decoder nvmf_rpc_create_transport_decoder[]
 	{
 		"max_interfaces", offsetof(struct nvmf_rpc_create_transport_ctx, opts.max_interfaces),
 		spdk_json_decode_uint16, true
+	},
+	{
+		"max_chunks_per_poll_group",
+		offsetof(struct nvmf_rpc_create_transport_ctx, opts.max_chunks_per_poll_group),
+		spdk_json_decode_uint32, true
 	}
 };
 

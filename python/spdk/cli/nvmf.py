@@ -100,6 +100,8 @@ def add_parser(subparsers):
     p.add_argument('--min-kato', help="The minimum keep alive timeout in milliseconds", type=int)
     p.add_argument('--max-interfaces', help="""Maximum number of network interfaces used by network
     based transports. Enables some optimizations when set""", type=int)
+    p.add_argument('--max-chunks-per-poll-group', help="""Maximum large iobuf pool buffers a single
+    poll group may commit to the bdev layer at once. 0 derives one from the pool size""", type=int)
     p.add_argument('--enforce-memory-domain-transfer',
                    help='Require all READ/WRITE requests to be transferred with memory domain data transfer',
                    action='store_true')

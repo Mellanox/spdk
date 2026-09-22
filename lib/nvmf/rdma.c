@@ -488,6 +488,8 @@ struct spdk_nvmf_rdma_poll_group_stat {
 struct spdk_nvmf_rdma_poll_group {
 	struct spdk_nvmf_transport_poll_group		group;
 
+	uint32_t					chunks_in_flight;
+
 	struct spdk_nvmf_rdma_poll_group_stat		stat;
 	struct spdk_io_channel				*accel_ch;
 	/* Requests that are waiting for accel task */
@@ -551,6 +553,14 @@ struct spdk_nvmf_rdma_transport {
 	struct spdk_nvmf_rdma_conn_sched *conn_sched;
 	uint32_t			num_conn_sched;
 	uint32_t			conn_sched_pg_count;
+	uint32_t			num_poll_groups;
+
+	/* Largest number of large iobuf chunks any one poll group may have committed
+	 * to the bdev layer at once. Every poll group gets the same value, so it lives
+	 * here rather than on each group. Written under transport.mutex (held by the
+	 * caller, not taken here); read without it via relaxed atomics.
+	 */
+	uint32_t			chunk_budget;
 
 	/* Geometry of the shared iobuf pools, read once at transport create. */
 	uint64_t			large_pool_count;
@@ -2233,6 +2243,10 @@ _nvmf_rdma_request_free(struct spdk_nvmf_rdma_request *rdma_req,
 		rdma_req->dispatched = 0;
 		assert(rqpair->num_active_chunks >= rdma_req->chunk_cost);
 		rqpair->num_active_chunks -= rdma_req->chunk_cost;
+		assert(rqpair->poller != NULL);
+		rgroup = rqpair->poller->group;
+		assert(rgroup->chunks_in_flight >= rdma_req->chunk_cost);
+		rgroup->chunks_in_flight -= rdma_req->chunk_cost;
 	}
 	if (spdk_unlikely(rdma_req->is_duplicated_aer)) {
 		nvmf_rdma_aer_req_free(rdma_req);
@@ -2881,6 +2895,25 @@ nvmf_rdma_request_check_accel_sequence(struct spdk_nvmf_rdma_qpair *rqpair,
 		      ns->accel_sequence ? "YES" : "NO", rdma_req->req.use_memory_domain ? "YES" : "NO");
 }
 
+/* Whether nvmf_rdma_request_check_accel_sequence() can set use_memory_domain for
+ * a command to this namespace, ignoring the opcode. It runs too late to use for
+ * fused commands, which have to be judged in state NEW.
+ */
+static inline bool
+nvmf_rdma_request_ns_does_domain_transfer(struct spdk_nvmf_rdma_qpair *rqpair,
+		struct spdk_nvmf_rdma_request *rdma_req)
+{
+	struct spdk_nvmf_ns *ns;
+
+	if (!rqpair->start_accel_sequence || rqpair->device->null_mr == NULL ||
+	    !rqpair->qpair.ctrlr || !rqpair->qpair.ctrlr->subsys) {
+		return false;
+	}
+
+	ns = _nvmf_subsystem_get_ns(rqpair->qpair.ctrlr->subsys, rdma_req->req.cmd->nvme_cmd.nsid);
+	return ns != NULL && ns->memory_domain_support[SPDK_DMA_DEVICE_TYPE_RDMA].domain_transfer_supported;
+}
+
 /* A request holds no more chunks than its observed transfer depth. */
 static inline uint32_t
 nvmf_rdma_request_chunk_cost(struct spdk_nvmf_rdma_transport *rtransport,
@@ -3068,6 +3101,23 @@ nvmf_rdma_request_process(struct spdk_nvmf_rdma_transport *rtransport,
 
 			if (spdk_unlikely(spdk_nvmf_request_get_dif_ctx(&rdma_req->req, &rdma_req->req.dif.dif_ctx))) {
 				rdma_req->req.dif_enabled = true;
+			}
+
+			if (spdk_unlikely(rdma_req->req.cmd->nvme_cmd.fuse != SPDK_NVME_CMD_FUSE_NONE &&
+					  nvmf_rdma_request_ns_does_domain_transfer(rqpair, rdma_req))) {
+				/* One half of a pair can hold chunks while the other waits on the
+				 * budget behind it, so reject both halves. Skips the reset below -
+				 * redo it, or a reused request object can post a stale invalidate.
+				 */
+#ifdef SPDK_CONFIG_RDMA_SEND_WITH_INVAL
+				rdma_req->rsp.wr.opcode = IBV_WR_SEND;
+				rdma_req->rsp.wr.imm_data = 0;
+#endif
+				rsp->status.sct = SPDK_NVME_SCT_GENERIC;
+				rsp->status.sc = SPDK_NVME_SC_ABORTED_MISSING_FUSED;
+				STAILQ_INSERT_TAIL(&rqpair->pending_rdma_send_queue, rdma_req, state_link);
+				rdma_req->state = RDMA_REQUEST_STATE_READY_TO_COMPLETE_PENDING;
+				break;
 			}
 
 			nvmf_rdma_check_fused_ordering(rtransport, rqpair, rdma_req);
@@ -4521,6 +4571,33 @@ nvmf_rdma_retry_listen_port(struct spdk_nvmf_rdma_transport *rtransport)
 	return true;
 }
 
+/*
+ * Dividing the pool among all poll groups is only a conservative default:
+ * NUMA placement and bdev-local caches affect each group's actual share.
+ * max_chunks_per_poll_group lets the application provide a better value.
+ */
+static void
+nvmf_rdma_recompute_chunk_budget(struct spdk_nvmf_rdma_transport *rtransport)
+{
+	uint32_t budget, floor;
+
+	if (rtransport->num_poll_groups == 0) {
+		return;
+	}
+
+	budget = rtransport->transport.opts.max_chunks_per_poll_group;
+	if (budget == 0) {
+		budget = rtransport->large_pool_count / rtransport->num_poll_groups;
+
+		if (spdk_likely(rtransport->large_bufsize != 0)) {
+			floor = spdk_divide_round_up(rtransport->transport.opts.max_io_size,
+						     rtransport->large_bufsize);
+			budget = spdk_max(budget, floor);
+		}
+	}
+	__atomic_store_n(&rtransport->chunk_budget, budget, __ATOMIC_RELAXED);
+}
+
 /* Both dispatch and qpair drain come through here, so the accounting exists
  * once. This can complete the request and take the qpair off active_qpairs, so
  * callers must not hold a TAILQ iterator over active_qpairs across it.
@@ -4534,6 +4611,7 @@ nvmf_rdma_dispatch_one(struct spdk_nvmf_rdma_transport *rtransport,
 	rdma_req->dispatched = 1;
 	rdma_req->chunk_cost = cost;
 	rqpair->num_active_chunks += cost;
+	rqpair->poller->group->chunks_in_flight += cost;
 	/* active_qpairs doubles as the tie-break: selection scans from the head and
 	 * keeps the first of equal loads, so rotating this connection to the back
 	 * puts the least recently dispatched one in front. Do it before
@@ -4675,7 +4753,9 @@ nvmf_rdma_poller_bind_requests(struct spdk_nvmf_rdma_transport *rtransport,
 
 /*
  * Dispatch queued requests, the connection holding the fewest large iobuf chunks
- * first. Nothing limits how many go out yet.
+ * first, until the poll group reaches its budget. Memory domain requests never
+ * reach pending_buf_queue, so this budget is the only thing bounding what the
+ * bdev module has in hand.
  */
 static inline void
 nvmf_rdma_poll_group_dispatch_queued(struct spdk_nvmf_rdma_transport *rtransport,
@@ -4684,7 +4764,9 @@ nvmf_rdma_poll_group_dispatch_queued(struct spdk_nvmf_rdma_transport *rtransport
 	struct spdk_nvmf_rdma_qpair	*rqpair, *best;
 	struct spdk_nvmf_rdma_request	*rdma_req;
 	struct spdk_nvmf_rdma_poller	*rpoller;
-	uint32_t			cost;
+	uint32_t			cost, budget;
+
+	budget = __atomic_load_n(&rtransport->chunk_budget, __ATOMIC_RELAXED);
 
 	for (;;) {
 		best = NULL;
@@ -4713,6 +4795,14 @@ selected:
 
 		rdma_req = STAILQ_FIRST(&best->queued_reqs);
 		cost = nvmf_rdma_request_chunk_cost(rtransport, rdma_req);
+
+		/* Admit when nothing is outstanding, so a request costing more than the
+		 * whole budget still makes progress.
+		 */
+		if (rgroup->chunks_in_flight != 0 &&
+		    rgroup->chunks_in_flight + cost > budget) {
+			return;
+		}
 
 		nvmf_rdma_dispatch_one(rtransport, best, rdma_req, cost);
 	}
@@ -5463,6 +5553,8 @@ nvmf_rdma_poll_group_create(struct spdk_nvmf_transport *transport,
 	}
 
 	TAILQ_INSERT_TAIL(&rtransport->poll_groups, rgroup, link);
+	rtransport->num_poll_groups++;
+	nvmf_rdma_recompute_chunk_budget(rtransport);
 
 	sched = &rtransport->conn_sched[rtransport->conn_sched_pg_count++ % rtransport->num_conn_sched];
 	rgroup->sched = sched;
@@ -5646,7 +5738,13 @@ nvmf_rdma_poll_group_destroy(struct spdk_nvmf_transport_poll_group *group)
 
 	rtransport = SPDK_CONTAINEROF(rgroup->group.transport, struct spdk_nvmf_rdma_transport, transport);
 
+	/* nvmf_transport_poll_group_destroy() already holds transport.mutex around this
+	 * callback; don't take it again here.
+	 */
 	TAILQ_REMOVE(&rtransport->poll_groups, rgroup, link);
+	assert(rtransport->num_poll_groups > 0);
+	rtransport->num_poll_groups--;
+	nvmf_rdma_recompute_chunk_budget(rtransport);
 
 	sched = rgroup->sched;
 	next_rgroup = TAILQ_NEXT(rgroup, sched_link);

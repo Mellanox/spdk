@@ -140,6 +140,7 @@ def nvmf_create_transport(client, **params):
         kas: The granularity of the KATO (Keep Alive Timeout) in 100 millisecond units (optional)
         min_kato: The minimum keep alive timeout value in milliseconds (optional)
         max_interfaces: Maximum number of network interfaces used by network based transports (optional)
+        max_chunks_per_poll_group: Max large iobuf pool buffers one poll group may commit to the bdev layer (optional)
     Returns:
         True or False
     """

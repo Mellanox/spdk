@@ -887,6 +887,114 @@ test_nvmf_rdma_request_accel_task_failure(void)
 }
 
 /*
+ * Once a single request costs the whole budget the poll group serialises, and
+ * every connection is back at zero chunks by the next arbitration. The
+ * least-loaded pick has nothing to separate them, so without a rotation the
+ * earliest entry in active_qpairs wins every time and its peers never run.
+ */
+static void
+test_nvmf_rdma_dispatch_rotates_on_tie(void)
+{
+	struct spdk_nvmf_rdma_transport rtransport = {};
+	struct spdk_nvmf_transport_ops ops = {};
+	struct spdk_nvmf_rdma_poll_group group = {};
+	struct spdk_nvmf_rdma_poller poller = {};
+	struct spdk_nvmf_rdma_device device = {};
+	struct spdk_nvmf_rdma_resources resources = {};
+	struct spdk_nvmf_rdma_qpair rqpair[3] = {};
+	struct spdk_nvmf_rdma_recv *rdma_recv[3][2];
+	struct spdk_nvmf_rdma_request *rdma_req[3][2];
+	struct spdk_nvmf_rdma_request *iter, *dispatched;
+	struct spdk_iobuf_channel ch = {};
+	int i, j, round, queued, matched;
+
+	group.group.buf_cache = &ch;
+	STAILQ_INIT(&group.group.pending_buf_queue);
+	TAILQ_INIT(&group.pollers);
+	poller_reset(&poller, &group);
+	TAILQ_INIT(&poller.active_qpairs);
+	TAILQ_INSERT_TAIL(&group.pollers, &poller, link);
+
+	rtransport.transport.opts = g_rdma_ut_transport_opts;
+	rtransport.transport.opts.enforce_memory_domain_transfer = true;
+	rtransport.data_wr_pool = spdk_mempool_create("test_rotate_pool", 128,
+				  sizeof(struct spdk_nvmf_rdma_request_data),
+				  0, 0);
+	rtransport.transport.ops = &ops;
+	rtransport.large_bufsize = 0x1000;
+	rtransport.small_bufsize = 0x200;
+	rtransport.large_pool_count = 64;
+	MOCK_CLEAR(spdk_iobuf_get);
+
+	device.attr.device_cap_flags = 0;
+	device.map = (void *)0x0;
+
+	for (i = 0; i < 3; i++) {
+		qpair_reset(&rqpair[i], &poller, &device, &resources, &rtransport.transport);
+		STAILQ_INIT(&rqpair[i].queued_reqs);
+		TAILQ_INSERT_TAIL(&poller.active_qpairs, &rqpair[i], active_link);
+		for (j = 0; j < 2; j++) {
+			rdma_recv[i][j] = create_recv(&rqpair[i], SPDK_NVME_OPC_READ);
+			rdma_req[i][j] = create_req(&rqpair[i], rdma_recv[i][j]);
+			rdma_req[i][j]->req.use_memory_domain = true;
+			rdma_req[i][j]->req.length = 0x800;
+			rdma_req[i][j]->state = RDMA_REQUEST_STATE_READY_TO_DISPATCH;
+			STAILQ_INSERT_TAIL(&rqpair[i].queued_reqs, rdma_req[i][j], state_link);
+		}
+		rqpair[i].current_recv_depth = 2;
+		rqpair[i].qpair.queue_depth = 2;
+	}
+
+	/* One chunk of budget, and each request costs one, so a round admits exactly
+	 * one request. Completing it drives the real accounting subtract path
+	 * before the next round arbitrates.
+	 */
+	rtransport.chunk_budget = 1;
+	for (round = 0; round < 3; round++) {
+		nvmf_rdma_poll_group_dispatch_queued(&rtransport, &group);
+		CU_ASSERT(group.chunks_in_flight == 1);
+
+		dispatched = NULL;
+		matched = -1;
+		for (i = 0; i < 3; i++) {
+			for (j = 0; j < 2; j++) {
+				if (rdma_req[i][j]->dispatched) {
+					dispatched = rdma_req[i][j];
+					matched = i;
+				}
+			}
+		}
+		CU_ASSERT(dispatched != NULL);
+		CU_ASSERT(rqpair[matched].num_active_chunks == 1);
+
+		dispatched->state = RDMA_REQUEST_STATE_COMPLETED;
+		nvmf_rdma_request_process(&rtransport, dispatched);
+		CU_ASSERT(dispatched->state == RDMA_REQUEST_STATE_FREE);
+		CU_ASSERT(group.chunks_in_flight == 0);
+		CU_ASSERT(rqpair[matched].num_active_chunks == 0);
+	}
+
+	/* Three rounds, three connections, so each should have been served once.
+	 * Resolving ties by list position serves the first connection until its
+	 * queue empties and leaves the third untouched. */
+	for (i = 0; i < 3; i++) {
+		queued = 0;
+		STAILQ_FOREACH(iter, &rqpair[i].queued_reqs, state_link) {
+			queued++;
+		}
+		CU_ASSERT(queued == 1);
+	}
+
+	for (i = 0; i < 3; i++) {
+		for (j = 0; j < 2; j++) {
+			free_recv(rdma_recv[i][j]);
+			free_req(rdma_req[i][j]);
+		}
+	}
+	spdk_mempool_free(rtransport.data_wr_pool);
+}
+
+/*
  * The error path in nvmf_rdma_request_process() unlinks a READY_TO_DISPATCH
  * request from queued_reqs, so every way into that state has to have queued it.
  * The RDMA READ completion enters it from outside the state machine, and a qpair
@@ -973,6 +1081,99 @@ test_nvmf_rdma_dispatch_queued_on_inactive_qpair(void)
 		free_recv(recv[i]);
 		free_req(req[i]);
 	}
+	spdk_mempool_free(rtransport.data_wr_pool);
+}
+
+/*
+ * One half of a fused pair can hold chunks in READY_TO_EXECUTE while the other
+ * waits on the budget behind a request that can't be admitted until those chunks
+ * come back. So fused commands to a namespace that does domain transfer are
+ * rejected in NEW, before nvmf_rdma_check_fused_ordering() pairs them. The rest
+ * are left alone.
+ */
+static void
+test_nvmf_rdma_reject_fused_with_domain_transfer(void)
+{
+	struct spdk_nvmf_rdma_transport rtransport = {};
+	struct spdk_nvmf_transport_ops ops = {};
+	struct spdk_nvmf_rdma_poll_group group = {};
+	struct spdk_nvmf_rdma_poller poller = {};
+	struct spdk_nvmf_rdma_device device = {};
+	struct spdk_nvmf_rdma_resources resources = {};
+	struct spdk_nvmf_rdma_qpair rqpair = {};
+	struct spdk_nvmf_subsystem subsystem = {};
+	struct spdk_nvmf_ctrlr ctrlr = {};
+	struct spdk_nvmf_ns ns = {};
+	struct spdk_nvmf_ns *ns_array[1] = { &ns };
+	struct spdk_nvmf_rdma_recv *recv;
+	struct spdk_nvmf_rdma_request *req;
+	struct spdk_iobuf_channel ch = {};
+
+	group.group.buf_cache = &ch;
+	STAILQ_INIT(&group.group.pending_buf_queue);
+	TAILQ_INIT(&group.pollers);
+	poller_reset(&poller, &group);
+	TAILQ_INIT(&poller.active_qpairs);
+	TAILQ_INSERT_TAIL(&group.pollers, &poller, link);
+	qpair_reset(&rqpair, &poller, &device, &resources, &rtransport.transport);
+	TAILQ_INSERT_TAIL(&poller.active_qpairs, &rqpair, active_link);
+
+	rtransport.transport.opts = g_rdma_ut_transport_opts;
+	rtransport.data_wr_pool = spdk_mempool_create("test_reject_fused_pool", 128,
+				  sizeof(struct spdk_nvmf_rdma_request_data),
+				  0, 0);
+	rtransport.transport.ops = &ops;
+	MOCK_CLEAR(spdk_iobuf_get);
+
+	subsystem.max_nsid = 1;
+	subsystem.ns = ns_array;
+	ctrlr.subsys = &subsystem;
+	rqpair.qpair.ctrlr = &ctrlr;
+	rqpair.start_accel_sequence = true;
+	device.null_mr = (struct ibv_mr *)0xDEADBEEF;
+	ns.memory_domain_support[SPDK_DMA_DEVICE_TYPE_RDMA].domain_transfer_supported = true;
+
+	/* A COMPARE marked FUSE_FIRST. The COMPARE itself would never use a memory
+	 * domain, but the WRITE behind it would. */
+	recv = create_recv(&rqpair, SPDK_NVME_OPC_COMPARE);
+	req = create_req(&rqpair, recv);
+	req->req.cmd->nvme_cmd.fuse = SPDK_NVME_CMD_FUSE_FIRST;
+	req->req.cmd->nvme_cmd.nsid = 1;
+	rqpair.current_recv_depth = 1;
+	rqpair.qpair.queue_depth = 1;
+	nvmf_rdma_request_process(&rtransport, req);
+
+	CU_ASSERT(req->req.rsp->nvme_cpl.status.sc == SPDK_NVME_SC_ABORTED_MISSING_FUSED);
+	CU_ASSERT(rqpair.fused_first == NULL);
+	CU_ASSERT(STAILQ_EMPTY(&rqpair.queued_reqs));
+	CU_ASSERT(req->state == RDMA_REQUEST_STATE_COMPLETING);
+	req->state = RDMA_REQUEST_STATE_COMPLETED;
+	nvmf_rdma_request_process(&rtransport, req);
+	CU_ASSERT(req->state == RDMA_REQUEST_STATE_FREE);
+	free_recv(recv);
+	free_req(req);
+
+	/* Without domain transfer on the namespace it's paired as usual. */
+	TAILQ_INSERT_TAIL(&poller.active_qpairs, &rqpair, active_link);
+	ns.memory_domain_support[SPDK_DMA_DEVICE_TYPE_RDMA].domain_transfer_supported = false;
+	recv = create_recv(&rqpair, SPDK_NVME_OPC_COMPARE);
+	req = create_req(&rqpair, recv);
+	req->req.cmd->nvme_cmd.fuse = SPDK_NVME_CMD_FUSE_FIRST;
+	req->req.cmd->nvme_cmd.nsid = 1;
+	rqpair.current_recv_depth = 1;
+	rqpair.qpair.queue_depth = 1;
+	req->state = RDMA_REQUEST_STATE_NEW;
+	nvmf_rdma_request_process(&rtransport, req);
+
+	CU_ASSERT(req->req.rsp->nvme_cpl.status.sc != SPDK_NVME_SC_ABORTED_MISSING_FUSED);
+	CU_ASSERT(rqpair.fused_first == req);
+
+	rqpair.fused_first = NULL;
+	req->state = RDMA_REQUEST_STATE_COMPLETED;
+	nvmf_rdma_request_process(&rtransport, req);
+	CU_ASSERT(req->state == RDMA_REQUEST_STATE_FREE);
+	free_recv(recv);
+	free_req(req);
 	spdk_mempool_free(rtransport.data_wr_pool);
 }
 
@@ -2049,7 +2250,9 @@ main(int argc, char **argv)
 	CU_ADD_TEST(suite, test_spdk_nvmf_rdma_request_parse_sgl);
 	CU_ADD_TEST(suite, test_spdk_nvmf_rdma_request_process);
 	CU_ADD_TEST(suite, test_nvmf_rdma_request_accel_task_failure);
+	CU_ADD_TEST(suite, test_nvmf_rdma_dispatch_rotates_on_tie);
 	CU_ADD_TEST(suite, test_nvmf_rdma_dispatch_queued_on_inactive_qpair);
+	CU_ADD_TEST(suite, test_nvmf_rdma_reject_fused_with_domain_transfer);
 	CU_ADD_TEST(suite, test_nvmf_rdma_get_optimal_poll_group);
 	CU_ADD_TEST(suite, test_nvmf_rdma_get_optimal_poll_group_multi_iface);
 	CU_ADD_TEST(suite, test_spdk_nvmf_rdma_request_parse_sgl_with_md);

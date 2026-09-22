@@ -8973,6 +8973,7 @@ Initialize an NVMe-oF transport with the given options.
  kas                            | Optional   | number  | The granularity of the KATO (Keep Alive Timeout) in 100 millisecond units
  min_kato                       | Optional   | number  | The minimum Keep Alive Timeout value in milliseconds
  max_interfaces                 | Optional   | number  | Maximum number of network interfaces used by network based transports; optional, enables some optimizations when set
+ max_chunks_per_poll_group      | Optional   | number  | Maximum large iobuf buffers one poll group may commit to the bdev layer; 0 derives one from the pool size
 
 #### Example
 
