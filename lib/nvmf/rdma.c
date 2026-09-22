@@ -67,6 +67,9 @@ enum spdk_nvmf_rdma_request_state {
 	/* The request is currently transferring data from the host to the controller. */
 	RDMA_REQUEST_STATE_TRANSFERRING_HOST_TO_CONTROLLER,
 
+	/* The request is waiting to be dispatched to the bdev layer. */
+	RDMA_REQUEST_STATE_READY_TO_DISPATCH,
+
 	/* The request is ready to execute at the block device */
 	RDMA_REQUEST_STATE_READY_TO_EXECUTE,
 
@@ -145,6 +148,10 @@ nvmf_trace(void)
 					SPDK_TRACE_ARG_TYPE_PTR, "qpair");
 	spdk_trace_register_description("RDMA_REQ_TX_H2C",
 					TRACE_RDMA_REQUEST_STATE_TRANSFERRING_HOST_TO_CONTROLLER,
+					OWNER_TYPE_NONE, OBJECT_NVMF_RDMA_IO, 0,
+					SPDK_TRACE_ARG_TYPE_PTR, "qpair");
+	spdk_trace_register_description("RDMA_REQ_RDY_TO_DISPATCH",
+					TRACE_RDMA_REQUEST_STATE_READY_TO_DISPATCH,
 					OWNER_TYPE_NONE, OBJECT_NVMF_RDMA_IO, 0,
 					SPDK_TRACE_ARG_TYPE_PTR, "qpair");
 	spdk_trace_register_description("RDMA_REQ_RDY_TO_EXECUTE",
@@ -241,6 +248,12 @@ struct spdk_nvmf_rdma_request {
 	uint8_t					fused_failed : 1;
 	uint8_t					data_transferred : 1;
 	uint8_t					is_duplicated_aer : 1;
+	uint8_t					dispatched : 1;
+
+	/* We assume each request is processed in "chunks" of the large iobuf size. This
+	 * is how many chunks this request costs.
+	 */
+	uint32_t				chunk_cost;
 
 	struct spdk_nvmf_rdma_wr		data_wr;
 	struct spdk_nvmf_rdma_wr		rsp_wr;
@@ -380,6 +393,13 @@ struct spdk_nvmf_rdma_qpair {
 	bool					ibv_in_error_state;
 	bool					start_accel_sequence;
 	bool					in_destroy;
+
+	/* For fair dispatching across connections we track the total number of "chunks"
+	 * (large iobuf pool units) that have been dispatched to the bdev layer on this
+	 * connection.
+	 */
+	uint32_t				num_active_chunks;
+
 	RB_ENTRY(spdk_nvmf_rdma_qpair)		node;
 
 	TAILQ_ENTRY(spdk_nvmf_rdma_qpair)	active_link;
@@ -387,6 +407,12 @@ struct spdk_nvmf_rdma_qpair {
 	STAILQ_ENTRY(spdk_nvmf_rdma_qpair)	recv_link;
 
 	STAILQ_ENTRY(spdk_nvmf_rdma_qpair)	send_link;
+
+	/* A request is in this list if it is ready to send to the bdev layer, but hasn't
+	 * been sent yet. We intentionally hold requests to allow us to dispatch fairly
+	 * across all active connections.
+	 */
+	STAILQ_HEAD(, spdk_nvmf_rdma_request)	queued_reqs;
 
 	/* Points to the a request that has fuse bits set to
 	 * SPDK_NVME_CMD_FUSE_FIRST, when the qpair is waiting
@@ -461,6 +487,7 @@ struct spdk_nvmf_rdma_poll_group_stat {
 
 struct spdk_nvmf_rdma_poll_group {
 	struct spdk_nvmf_transport_poll_group		group;
+
 	struct spdk_nvmf_rdma_poll_group_stat		stat;
 	struct spdk_io_channel				*accel_ch;
 	/* Requests that are waiting for accel task */
@@ -1193,6 +1220,8 @@ nvmf_rdma_qpair_initialize(struct spdk_nvmf_qpair *qpair)
 	STAILQ_INIT(&rqpair->pending_rdma_read_queue);
 	STAILQ_INIT(&rqpair->pending_rdma_write_queue);
 	STAILQ_INIT(&rqpair->pending_rdma_send_queue);
+	STAILQ_INIT(&rqpair->queued_reqs);
+	rqpair->num_active_chunks = 0;
 	rqpair->qpair.queue_depth = 0;
 
 	return 0;
@@ -2200,6 +2229,11 @@ _nvmf_rdma_request_free(struct spdk_nvmf_rdma_request *rdma_req,
 
 	assert(rdma_req->transfer_cpl_cb == NULL);
 	rqpair = SPDK_CONTAINEROF(rdma_req->req.qpair, struct spdk_nvmf_rdma_qpair, qpair);
+	if (rdma_req->dispatched) {
+		rdma_req->dispatched = 0;
+		assert(rqpair->num_active_chunks >= rdma_req->chunk_cost);
+		rqpair->num_active_chunks -= rdma_req->chunk_cost;
+	}
 	if (spdk_unlikely(rdma_req->is_duplicated_aer)) {
 		nvmf_rdma_aer_req_free(rdma_req);
 		goto done;
@@ -2847,6 +2881,56 @@ nvmf_rdma_request_check_accel_sequence(struct spdk_nvmf_rdma_qpair *rqpair,
 		      ns->accel_sequence ? "YES" : "NO", rdma_req->req.use_memory_domain ? "YES" : "NO");
 }
 
+/* A request holds no more chunks than its observed transfer depth. */
+static inline uint32_t
+nvmf_rdma_request_chunk_cost(struct spdk_nvmf_rdma_transport *rtransport,
+			     struct spdk_nvmf_rdma_request *rdma_req)
+{
+	struct spdk_nvmf_ns *ns;
+	uint32_t chunks;
+
+	/* iobuf serves anything up to small_bufsize from the small pool, so a request
+	 * that fits there never takes a large buffer and is not charged.
+	 */
+	if (!rdma_req->req.use_memory_domain ||
+	    rdma_req->req.length <= rtransport->small_bufsize ||
+	    spdk_unlikely(rtransport->large_bufsize == 0)) {
+		return 0;
+	}
+
+	chunks = spdk_divide_round_up(rdma_req->req.length, rtransport->large_bufsize);
+
+	ns = nvmf_rdma_request_get_ns(rdma_req);
+	if (spdk_unlikely(ns == NULL)) {
+		return chunks;
+	}
+
+	return spdk_min(__atomic_load_n(&ns->max_outstanding_data_transfers, __ATOMIC_RELAXED),
+			chunks);
+}
+
+/* Queue at the transition, like the other waiting states, so that a request in
+ * READY_TO_DISPATCH is always on queued_reqs. The error path in
+ * nvmf_rdma_request_process() relies on that to unlink it.
+ *
+ * Arbitration only matters for requests that hold chunks. One that holds none
+ * goes straight to execution, even past charged requests queued on its own
+ * connection, so a transport without memory domains never touches the queue.
+ */
+static inline void
+nvmf_rdma_request_queue_dispatch(struct spdk_nvmf_rdma_transport *rtransport,
+				 struct spdk_nvmf_rdma_qpair *rqpair,
+				 struct spdk_nvmf_rdma_request *rdma_req)
+{
+	if (nvmf_rdma_request_chunk_cost(rtransport, rdma_req) == 0) {
+		rdma_req->state = RDMA_REQUEST_STATE_READY_TO_EXECUTE;
+		return;
+	}
+
+	STAILQ_INSERT_TAIL(&rqpair->queued_reqs, rdma_req, state_link);
+	rdma_req->state = RDMA_REQUEST_STATE_READY_TO_DISPATCH;
+}
+
 static inline int
 nvmf_rdma_request_append_copy_task(struct spdk_nvmf_rdma_qpair *rqpair,
 				   struct spdk_nvmf_rdma_request *rdma_req)
@@ -2892,7 +2976,6 @@ nvmf_rdma_request_append_copy_task(struct spdk_nvmf_rdma_qpair *rqpair,
 		SPDK_DEBUGLOG(rdma, "req %p, accel task failed, rc %d\n", rdma_req, rc);
 		return rc;
 	}
-	rdma_req->state = RDMA_REQUEST_STATE_READY_TO_EXECUTE;
 
 	return 0;
 }
@@ -2906,7 +2989,6 @@ nvmf_rdma_request_process(struct spdk_nvmf_rdma_transport *rtransport,
 	struct spdk_nvmf_rdma_poll_group *rgroup;
 	struct spdk_nvme_cpl		*rsp = &rdma_req->req.rsp->nvme_cpl;
 	int				rc;
-	struct spdk_nvmf_rdma_recv	*rdma_recv;
 	struct spdk_nvme_sgl_descriptor *sgl;
 	enum spdk_nvmf_rdma_request_state prev_state;
 	bool				progress = false;
@@ -2942,6 +3024,9 @@ nvmf_rdma_request_process(struct spdk_nvmf_rdma_transport *rtransport,
 				STAILQ_REMOVE(&rqpair->pending_rdma_read_queue, rdma_req, spdk_nvmf_rdma_request, state_link);
 			}
 			break;
+		case RDMA_REQUEST_STATE_READY_TO_DISPATCH:
+			STAILQ_REMOVE(&rqpair->queued_reqs, rdma_req, spdk_nvmf_rdma_request, state_link);
+			break;
 		case RDMA_REQUEST_STATE_DATA_TRANSFER_TO_HOST_PENDING:
 			STAILQ_REMOVE(&rqpair->pending_rdma_write_queue, rdma_req, spdk_nvmf_rdma_request, state_link);
 			break;
@@ -2973,10 +3058,6 @@ nvmf_rdma_request_process(struct spdk_nvmf_rdma_transport *rtransport,
 		case RDMA_REQUEST_STATE_NEW:
 			spdk_trace_record(TRACE_RDMA_REQUEST_STATE_NEW, 0, 0,
 					  (uintptr_t)rdma_req, (uintptr_t)rqpair, rqpair->qpair.queue_depth);
-			rdma_recv = rdma_req->recv;
-
-			/* The first element of the SGL is the NVMe command */
-			rdma_req->req.cmd = (union nvmf_h2c_msg *)rdma_recv->sgl[0].addr;
 			memset(rdma_req->req.rsp, 0, sizeof(*rdma_req->req.rsp));
 			rdma_req->transfer_wr = &rdma_req->data.wr;
 
@@ -3028,7 +3109,7 @@ nvmf_rdma_request_process(struct spdk_nvmf_rdma_transport *rtransport,
 						rdma_req = aer_req;
 					}
 				}
-				rdma_req->state = RDMA_REQUEST_STATE_READY_TO_EXECUTE;
+				nvmf_rdma_request_queue_dispatch(rtransport, rqpair, rdma_req);
 				break;
 			}
 
@@ -3042,7 +3123,7 @@ nvmf_rdma_request_process(struct spdk_nvmf_rdma_transport *rtransport,
 					rdma_req->state = RDMA_REQUEST_STATE_READY_TO_COMPLETE_PENDING;
 					break;
 				}
-				rdma_req->state = RDMA_REQUEST_STATE_READY_TO_EXECUTE;
+				nvmf_rdma_request_queue_dispatch(rtransport, rqpair, rdma_req);
 				break;
 			}
 			rdma_req->state = RDMA_REQUEST_STATE_NEED_BUFFER;
@@ -3093,7 +3174,7 @@ nvmf_rdma_request_process(struct spdk_nvmf_rdma_transport *rtransport,
 				break;
 			}
 
-			rdma_req->state = RDMA_REQUEST_STATE_READY_TO_EXECUTE;
+			nvmf_rdma_request_queue_dispatch(rtransport, rqpair, rdma_req);
 			break;
 		case RDMA_REQUEST_STATE_NEED_ACCEL_TASK:
 			spdk_trace_record(TRACE_RDMA_REQUEST_STATE_NEED_ACCEL_TASK, 0, 0,
@@ -3107,6 +3188,7 @@ nvmf_rdma_request_process(struct spdk_nvmf_rdma_transport *rtransport,
 				break;
 			}
 			STAILQ_REMOVE_HEAD(&rgroup->pending_accel_queue, state_link);
+			nvmf_rdma_request_queue_dispatch(rtransport, rqpair, rdma_req);
 			break;
 		case RDMA_REQUEST_STATE_DATA_TRANSFER_TO_CONTROLLER_PENDING:
 			spdk_trace_record(TRACE_RDMA_REQUEST_STATE_DATA_TRANSFER_TO_CONTROLLER_PENDING, 0, 0,
@@ -3144,8 +3226,14 @@ nvmf_rdma_request_process(struct spdk_nvmf_rdma_transport *rtransport,
 		case RDMA_REQUEST_STATE_TRANSFERRING_HOST_TO_CONTROLLER:
 			spdk_trace_record(TRACE_RDMA_REQUEST_STATE_TRANSFERRING_HOST_TO_CONTROLLER, 0, 0,
 					  (uintptr_t)rdma_req, (uintptr_t)rqpair);
-			/* Some external code must kick a request into RDMA_REQUEST_STATE_READY_TO_EXECUTE
+			/* Some external code must kick a request into RDMA_REQUEST_STATE_READY_TO_DISPATCH
 			 * to escape this state. */
+			break;
+		case RDMA_REQUEST_STATE_READY_TO_DISPATCH:
+			spdk_trace_record(TRACE_RDMA_REQUEST_STATE_READY_TO_DISPATCH, 0, 0,
+					  (uintptr_t)rdma_req, (uintptr_t)rqpair);
+			/* nvmf_rdma_poll_group_dispatch_queued() must kick a request into
+			 * RDMA_REQUEST_STATE_READY_TO_EXECUTE to escape this state. */
 			break;
 		case RDMA_REQUEST_STATE_READY_TO_EXECUTE:
 			spdk_trace_record(TRACE_RDMA_REQUEST_STATE_READY_TO_EXECUTE, 0, 0,
@@ -4433,13 +4521,41 @@ nvmf_rdma_retry_listen_port(struct spdk_nvmf_rdma_transport *rtransport)
 	return true;
 }
 
+/* Both dispatch and qpair drain come through here, so the accounting exists
+ * once. This can complete the request and take the qpair off active_qpairs, so
+ * callers must not hold a TAILQ iterator over active_qpairs across it.
+ */
+static inline void
+nvmf_rdma_dispatch_one(struct spdk_nvmf_rdma_transport *rtransport,
+		       struct spdk_nvmf_rdma_qpair *rqpair,
+		       struct spdk_nvmf_rdma_request *rdma_req, uint32_t cost)
+{
+	STAILQ_REMOVE_HEAD(&rqpair->queued_reqs, state_link);
+	rdma_req->dispatched = 1;
+	rdma_req->chunk_cost = cost;
+	rqpair->num_active_chunks += cost;
+	/* active_qpairs doubles as the tie-break: selection scans from the head and
+	 * keeps the first of equal loads, so rotating this connection to the back
+	 * puts the least recently dispatched one in front. Do it before
+	 * nvmf_rdma_request_process(), which can complete the request and take the
+	 * qpair off the list.
+	 */
+	TAILQ_REMOVE(&rqpair->poller->active_qpairs, rqpair, active_link);
+	TAILQ_INSERT_TAIL(&rqpair->poller->active_qpairs, rqpair, active_link);
+	rdma_req->state = RDMA_REQUEST_STATE_READY_TO_EXECUTE;
+	nvmf_rdma_request_process(rtransport, rdma_req);
+}
+
+static inline void nvmf_rdma_poller_bind_incoming(struct spdk_nvmf_rdma_transport *rtransport,
+		struct spdk_nvmf_rdma_poller *rpoller,
+		struct spdk_nvmf_rdma_resources *resources);
+
 static void
 nvmf_rdma_qpair_process_pending(struct spdk_nvmf_rdma_transport *rtransport,
 				struct spdk_nvmf_rdma_qpair *rqpair, bool drain)
 {
 	struct spdk_nvmf_request *req, *tmp;
 	struct spdk_nvmf_rdma_request	*rdma_req, *req_tmp;
-	struct spdk_nvmf_rdma_resources *resources;
 
 	/* First process requests which are waiting for response to be sent */
 	STAILQ_FOREACH_SAFE(rdma_req, &rqpair->pending_rdma_send_queue, state_link, req_tmp) {
@@ -4483,25 +4599,122 @@ nvmf_rdma_qpair_process_pending(struct spdk_nvmf_rdma_transport *rtransport,
 		}
 	}
 
-	resources = rqpair->resources;
+	/* The qpair is going away, so flush its queue and ignore the limit. Bind
+	 * first: a command counts against queue_depth from the moment its receive
+	 * completes, and binding is what carries it to a request object that can be
+	 * completed. One left in incoming_queue holds queue_depth above zero, and
+	 * nvmf_rdma_qpair_destroy() asserts on that.
+	 *
+	 * Re-reading rqpair after each dispatch is only safe because our one caller,
+	 * nvmf_rdma_destroy_drained_qpair(), sets in_destroy before calling here.
+	 * Completing a request re-enters that function through
+	 * spdk_nvmf_qpair_disconnect(), and the flag is what makes it return instead
+	 * of freeing rqpair underneath this loop.
+	 */
+	if (drain) {
+		if (rqpair->resources != NULL) {
+			nvmf_rdma_poller_bind_incoming(rtransport, rqpair->poller, rqpair->resources);
+		}
+		while (!STAILQ_EMPTY(&rqpair->queued_reqs)) {
+			rdma_req = STAILQ_FIRST(&rqpair->queued_reqs);
+			nvmf_rdma_dispatch_one(rtransport, rqpair, rdma_req,
+					       nvmf_rdma_request_chunk_cost(rtransport, rdma_req));
+		}
+	}
+}
+
+static inline void
+nvmf_rdma_poller_bind_incoming(struct spdk_nvmf_rdma_transport *rtransport,
+			       struct spdk_nvmf_rdma_poller *rpoller,
+			       struct spdk_nvmf_rdma_resources *resources)
+{
+	struct spdk_nvmf_rdma_request	*rdma_req;
+	struct spdk_nvmf_rdma_recv	*rdma_recv;
+	struct spdk_nvmf_rdma_qpair	*rqpair;
+
 	while (!STAILQ_EMPTY(&resources->free_queue) && !STAILQ_EMPTY(&resources->incoming_queue)) {
 		rdma_req = STAILQ_FIRST(&resources->free_queue);
 		STAILQ_REMOVE_HEAD(&resources->free_queue, state_link);
-		rdma_req->recv = STAILQ_FIRST(&resources->incoming_queue);
+		rdma_recv = STAILQ_FIRST(&resources->incoming_queue);
 		STAILQ_REMOVE_HEAD(&resources->incoming_queue, link);
 
-		if (rqpair->srq != NULL) {
-			rdma_req->req.qpair = &rdma_req->recv->qpair->qpair;
-		}
-
-		rdma_req->receive_tsc = rdma_req->recv->receive_tsc;
+		rqpair = rdma_recv->qpair;
+		rdma_req->recv = rdma_recv;
+		rdma_req->req.qpair = &rqpair->qpair;
+		rdma_req->req.cmd = (union nvmf_h2c_msg *)rdma_recv->sgl[0].addr;
+		rdma_req->receive_tsc = rdma_recv->receive_tsc;
 		rdma_req->state = RDMA_REQUEST_STATE_NEW;
-		if (nvmf_rdma_request_process(rtransport, rdma_req) == false) {
-			break;
+		nvmf_rdma_request_process(rtransport, rdma_req);
+	}
+
+	if (!STAILQ_EMPTY(&resources->incoming_queue)) {
+		rpoller->stat.pending_free_request++;
+	}
+}
+
+/*
+ * Bind received commands to request objects and start them through the state
+ * machine. The ones that hold chunks stop in READY_TO_DISPATCH on their rqpair, and
+ * nvmf_rdma_poll_group_dispatch_queued() releases them later, least loaded
+ * connection first.
+ */
+static inline void
+nvmf_rdma_poller_bind_requests(struct spdk_nvmf_rdma_transport *rtransport,
+			       struct spdk_nvmf_rdma_poller *rpoller)
+{
+	struct spdk_nvmf_rdma_qpair *rqpair, *tmp;
+
+	if (rpoller->srq != NULL) {
+		nvmf_rdma_poller_bind_incoming(rtransport, rpoller, rpoller->resources);
+	} else {
+		TAILQ_FOREACH_SAFE(rqpair, &rpoller->active_qpairs, active_link, tmp) {
+			nvmf_rdma_poller_bind_incoming(rtransport, rpoller, rqpair->resources);
 		}
 	}
-	if (!STAILQ_EMPTY(&resources->incoming_queue) && STAILQ_EMPTY(&resources->free_queue)) {
-		rqpair->poller->stat.pending_free_request++;
+}
+
+/*
+ * Dispatch queued requests, the connection holding the fewest large iobuf chunks
+ * first. Nothing limits how many go out yet.
+ */
+static inline void
+nvmf_rdma_poll_group_dispatch_queued(struct spdk_nvmf_rdma_transport *rtransport,
+				     struct spdk_nvmf_rdma_poll_group *rgroup)
+{
+	struct spdk_nvmf_rdma_qpair	*rqpair, *best;
+	struct spdk_nvmf_rdma_request	*rdma_req;
+	struct spdk_nvmf_rdma_poller	*rpoller;
+	uint32_t			cost;
+
+	for (;;) {
+		best = NULL;
+		TAILQ_FOREACH(rpoller, &rgroup->pollers, link) {
+			TAILQ_FOREACH(rqpair, &rpoller->active_qpairs, active_link) {
+				rdma_req = STAILQ_FIRST(&rqpair->queued_reqs);
+				if (rdma_req == NULL) {
+					continue;
+				}
+				if (best == NULL || rqpair->num_active_chunks < best->num_active_chunks) {
+					best = rqpair;
+					/* Nothing can beat an idle connection, so stop looking. The
+					 * rotation in nvmf_rdma_dispatch_one() keeps these near the
+					 * front, so this usually ends the walk on its first entry.
+					 */
+					if (best->num_active_chunks == 0) {
+						goto selected;
+					}
+				}
+			}
+		}
+selected:
+		if (best == NULL) {
+			return;
+		}
+
+		rdma_req = STAILQ_FIRST(&best->queued_reqs);
+		cost = nvmf_rdma_request_chunk_cost(rtransport, rdma_req);
+
+		nvmf_rdma_dispatch_one(rtransport, best, rdma_req, cost);
 	}
 }
 
@@ -6070,7 +6283,7 @@ nvmf_rdma_poller_poll(struct spdk_nvmf_rdma_transport *rtransport,
 								break;
 							}
 						} else {
-							rdma_req->state = RDMA_REQUEST_STATE_READY_TO_EXECUTE;
+							nvmf_rdma_request_queue_dispatch(rtransport, rqpair, rdma_req);
 							nvmf_rdma_request_process(rtransport, rdma_req);
 						}
 					}
@@ -6153,6 +6366,7 @@ nvmf_rdma_poller_poll(struct spdk_nvmf_rdma_transport *rtransport,
 	}
 
 	nvmf_rdma_poller_process_pending_qpairs(rtransport, rpoller);
+	nvmf_rdma_poller_bind_requests(rtransport, rpoller);
 
 	if (spdk_unlikely(error == true)) {
 		return -1;
@@ -6251,6 +6465,8 @@ nvmf_rdma_poll_group_poll(struct spdk_nvmf_transport_poll_group *group)
 		}
 		count += rc;
 	}
+
+	nvmf_rdma_poll_group_dispatch_queued(rtransport, rgroup);
 
 	return rc2 ? rc2 : count;
 }
@@ -6376,6 +6592,11 @@ _nvmf_rdma_qpair_abort_request(void *ctx)
 	spdk_poller_unregister(&req->poller);
 
 	switch (rdma_req_to_abort->state) {
+	case RDMA_REQUEST_STATE_READY_TO_DISPATCH:
+		STAILQ_REMOVE(&rqpair->queued_reqs, rdma_req_to_abort, spdk_nvmf_rdma_request, state_link);
+		nvmf_rdma_request_set_abort_status(req, rdma_req_to_abort, rqpair);
+		break;
+
 	case RDMA_REQUEST_STATE_EXECUTING:
 		rc = nvmf_ctrlr_abort_request(req);
 		if (rc == SPDK_NVMF_REQUEST_EXEC_STATUS_ASYNCHRONOUS) {

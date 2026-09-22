@@ -518,6 +518,7 @@ class QPair(SPDKObject):
             'RDMA_REQ_TX_PENDING_C2H',
             'RDMA_REQ_TX_PENDING_H2C',
             'RDMA_REQ_TX_H2C',
+            'RDMA_REQ_RDY_TO_DISPATCH',
             'RDMA_REQ_RDY_TO_EXECUTE',
             'RDMA_REQ_EXECUTING',
             'RDMA_REQ_EXECUTED',

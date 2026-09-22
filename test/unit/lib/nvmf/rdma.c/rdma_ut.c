@@ -497,6 +497,7 @@ create_req(struct spdk_nvmf_rdma_qpair *rqpair,
 	rdma_req = calloc(1, sizeof(*rdma_req));
 	rdma_req->recv = rdma_recv;
 	rdma_req->req.qpair = &rqpair->qpair;
+	rdma_req->req.cmd = (union nvmf_h2c_msg *)rdma_recv->sgl[0].addr;
 	rdma_req->state = RDMA_REQUEST_STATE_NEW;
 	rdma_req->data.wr.wr_id = (uintptr_t)&rdma_req->data_wr;
 	rdma_req->data.wr.sg_list = rdma_req->data.sgl;
@@ -525,6 +526,7 @@ qpair_reset(struct spdk_nvmf_rdma_qpair *rqpair,
 	STAILQ_INIT(&rqpair->pending_rdma_write_queue);
 	STAILQ_INIT(&rqpair->pending_rdma_read_queue);
 	STAILQ_INIT(&rqpair->pending_rdma_send_queue);
+	STAILQ_INIT(&rqpair->queued_reqs);
 	rqpair->poller = poller;
 	rqpair->device = device;
 	rqpair->resources = resources;
@@ -876,6 +878,96 @@ test_nvmf_rdma_request_accel_task_failure(void)
 	CU_ASSERT(req[0]->state != RDMA_REQUEST_STATE_NEED_ACCEL_TASK);
 	CU_ASSERT(STAILQ_FIRST(&group.pending_accel_queue) == req[1]);
 	CU_ASSERT(STAILQ_NEXT(req[1], state_link) == NULL);
+
+	for (i = 0; i < 2; i++) {
+		free_recv(recv[i]);
+		free_req(req[i]);
+	}
+	spdk_mempool_free(rtransport.data_wr_pool);
+}
+
+/*
+ * The error path in nvmf_rdma_request_process() unlinks a READY_TO_DISPATCH
+ * request from queued_reqs, so every way into that state has to have queued it.
+ * The RDMA READ completion enters it from outside the state machine, and a qpair
+ * that went inactive while the READ was in flight completes it right there.
+ *
+ * A request that costs nothing skips the queue, but only when nothing on its
+ * connection is ahead of it.
+ */
+static void
+test_nvmf_rdma_dispatch_queued_on_inactive_qpair(void)
+{
+	struct spdk_nvmf_rdma_transport rtransport = {};
+	struct spdk_nvmf_transport_ops ops = {};
+	struct spdk_nvmf_rdma_poll_group group = {};
+	struct spdk_nvmf_rdma_poller poller = {};
+	struct spdk_nvmf_rdma_device device = {};
+	struct spdk_nvmf_rdma_resources resources = {};
+	struct spdk_nvmf_rdma_qpair rqpair = {};
+	struct spdk_nvmf_rdma_recv *recv[2];
+	struct spdk_nvmf_rdma_request *req[2];
+	struct spdk_iobuf_channel ch = {};
+	int i;
+
+	group.group.buf_cache = &ch;
+	STAILQ_INIT(&group.group.pending_buf_queue);
+	STAILQ_INIT(&group.pending_accel_queue);
+	TAILQ_INIT(&group.pollers);
+	poller_reset(&poller, &group);
+	TAILQ_INIT(&poller.active_qpairs);
+	TAILQ_INSERT_TAIL(&group.pollers, &poller, link);
+	qpair_reset(&rqpair, &poller, &device, &resources, &rtransport.transport);
+	TAILQ_INSERT_TAIL(&poller.active_qpairs, &rqpair, active_link);
+
+	rtransport.transport.opts = g_rdma_ut_transport_opts;
+	rtransport.data_wr_pool = spdk_mempool_create("test_inactive_pool", 128,
+				  sizeof(struct spdk_nvmf_rdma_request_data),
+				  0, 0);
+	rtransport.transport.ops = &ops;
+	rtransport.large_bufsize = 0x1000;
+	rtransport.small_bufsize = 0x200;
+
+	for (i = 0; i < 2; i++) {
+		recv[i] = create_recv(&rqpair, SPDK_NVME_OPC_WRITE);
+		req[i] = create_req(&rqpair, recv[i]);
+	}
+	rqpair.current_recv_depth = 2;
+	rqpair.qpair.queue_depth = 2;
+
+	/* req[0] holds a chunk, so it queues. */
+	req[0]->req.use_memory_domain = true;
+	req[0]->req.length = 0x800;
+	nvmf_rdma_request_queue_dispatch(&rtransport, &rqpair, req[0]);
+	CU_ASSERT(req[0]->state == RDMA_REQUEST_STATE_READY_TO_DISPATCH);
+	CU_ASSERT(STAILQ_FIRST(&rqpair.queued_reqs) == req[0]);
+
+	/* req[1] costs nothing, so it doesn't wait behind req[0]. */
+	nvmf_rdma_request_queue_dispatch(&rtransport, &rqpair, req[1]);
+	CU_ASSERT(req[1]->state == RDMA_REQUEST_STATE_READY_TO_EXECUTE);
+	CU_ASSERT(STAILQ_NEXT(req[0], state_link) == NULL);
+
+	req[1]->state = RDMA_REQUEST_STATE_TRANSFERRING_HOST_TO_CONTROLLER;
+	rqpair.qpair.state = SPDK_NVMF_QPAIR_ERROR;
+
+	/* What nvmf_rdma_poller_poll() does when the last RDMA READ completes. req[1]
+	 * holds a chunk too, so it queues behind req[0], and unlinking it walks the
+	 * list. */
+	req[1]->req.use_memory_domain = true;
+	req[1]->req.length = 0x800;
+	nvmf_rdma_request_queue_dispatch(&rtransport, &rqpair, req[1]);
+	CU_ASSERT(req[1]->state == RDMA_REQUEST_STATE_READY_TO_DISPATCH);
+	CU_ASSERT(STAILQ_NEXT(req[0], state_link) == req[1]);
+	nvmf_rdma_request_process(&rtransport, req[1]);
+	CU_ASSERT(req[1]->state == RDMA_REQUEST_STATE_FREE);
+	CU_ASSERT(STAILQ_FIRST(&rqpair.queued_reqs) == req[0]);
+	CU_ASSERT(STAILQ_NEXT(req[0], state_link) == NULL);
+
+	/* What the scan in nvmf_rdma_qpair_destroy() does to anything not FREE. */
+	nvmf_rdma_request_process(&rtransport, req[0]);
+	CU_ASSERT(req[0]->state == RDMA_REQUEST_STATE_FREE);
+	CU_ASSERT(STAILQ_EMPTY(&rqpair.queued_reqs));
+	CU_ASSERT(rqpair.qpair.queue_depth == 0);
 
 	for (i = 0; i < 2; i++) {
 		free_recv(recv[i]);
@@ -1957,6 +2049,7 @@ main(int argc, char **argv)
 	CU_ADD_TEST(suite, test_spdk_nvmf_rdma_request_parse_sgl);
 	CU_ADD_TEST(suite, test_spdk_nvmf_rdma_request_process);
 	CU_ADD_TEST(suite, test_nvmf_rdma_request_accel_task_failure);
+	CU_ADD_TEST(suite, test_nvmf_rdma_dispatch_queued_on_inactive_qpair);
 	CU_ADD_TEST(suite, test_nvmf_rdma_get_optimal_poll_group);
 	CU_ADD_TEST(suite, test_nvmf_rdma_get_optimal_poll_group_multi_iface);
 	CU_ADD_TEST(suite, test_spdk_nvmf_rdma_request_parse_sgl_with_md);
