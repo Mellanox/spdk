@@ -2185,8 +2185,10 @@ nvmf_ns_set_memory_domain_support(struct spdk_nvmf_ns *ns, enum spdk_bdev_io_typ
 
 					rc = spdk_bdev_memory_domain_fetch_operation_info(ns->bdev, required_types[i], io_types[k], &info);
 					if (rc != 0) {
-						SPDK_ERRLOG("Failed to fetch operation information for bdev %s, memory domain type %d, io type %d\n",
-							    spdk_bdev_get_name(ns->bdev), supported_types[i], io_types[k]);
+						if (rc != -ENOTSUP) {
+							SPDK_ERRLOG("Failed to fetch operation information for bdev %s, memory domain type %d, io type %d\n",
+								    spdk_bdev_get_name(ns->bdev), supported_types[i], io_types[k]);
+						}
 						all_opcodes_supported = false;
 						break;
 					}
