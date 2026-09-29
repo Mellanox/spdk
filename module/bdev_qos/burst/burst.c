@@ -398,39 +398,6 @@ atomic_sub_floor(uint64_t *value, uint64_t to_sub)
 	}
 }
 
-/*
- * Calculate the next closest divisor >= n for a given dividend.
- * If n is already a divisor, it returns n.
- */
-static inline uint64_t
-calculate_next_divisor(uint64_t dividend, uint64_t n)
-{
-	uint64_t i;
-
-	/* Handle the edge case where the dividend is 0. */
-	if (dividend == 0) {
-		return 0;
-	}
-
-	/* Start searching from n upwards. The loop continues as long as the potential
-	 * divisor 'i' is less than or equal to the dividend.
-	 */
-	for (i = n; i <= dividend; i++) {
-		if ((dividend % i) == 0) {
-			return i;
-		}
-	}
-
-	/* If no divisor is found in the range [n, dividend], the only remaining divisor is
-	 * the dividend itself. The loop condition i <= dividend ensures we check the
-	 * dividend itself.
-	 *
-	 * If we reach here, it implies n > dividend initially. The most logical return in
-	 * this scenario is probably the dividend itself.
-	 */
-	return dividend;
-}
-
 void
 bdev_burst_qos_get_opts(struct bdev_burst_qos_opts *opts, size_t opts_size)
 {
@@ -755,7 +722,8 @@ global_token_bucket_set(struct global_token_bucket *global_bucket, uint64_t avg_
 {
 	struct token_bucket *steady_bucket = &global_bucket->steady_bucket;
 	struct token_bucket *burst_bucket = &global_bucket->burst_bucket;
-	uint64_t min_rate, complement, ticks_per_sec, batch_demand, refills_per_sec;
+	uint64_t min_rate, complement, ticks_per_sec, batch_demand;
+	uint64_t requested_period_ticks, min_period_ticks, refill_period_ticks;
 
 	switch (qos_mode) {
 	case BDEV_QOS_MODE_STRICT:
@@ -824,28 +792,44 @@ global_token_bucket_set(struct global_token_bucket *global_bucket, uint64_t avg_
 	/* Align to the tick resolution. */
 	refill_period_us = spdk_round_up(refill_period_us, g_qos_opts.tick_period_us);
 
-	/* Calculate user's desired frequency. */
-	refills_per_sec = SPDK_SEC_TO_USEC / refill_period_us;
+	/* Derive the period in whole ticks. Ticks are the only granularity the refill
+	 * poller can deliver, so deriving a frequency first and converting to ticks
+	 * afterwards truncates the period while the income stays sized for the
+	 * untruncated frequency, and the enforced rate then exceeds avg_rate.
+	 */
+	requested_period_ticks = refill_period_us / g_qos_opts.tick_period_us;
 
 	/* Calculate total batch demand. We want to refill enough to satisfy one
 	 * batched consumption for every local bucket per period.
 	 */
 	batch_demand = io_burst * spdk_env_get_core_count();
 
-	/* Align batch demand safely. Find a divisor of avg_rate which is >= batch demand.
-	 * This ensures limit / batch_demand results in an integer max frequency. */
-	batch_demand = calculate_next_divisor(avg_rate, batch_demand);
-
-	/* The prioritize but protect logic. Use user's frequency unless it exceeds the safe max. */
-	refills_per_sec = spdk_min(refills_per_sec, avg_rate / batch_demand);
-
-	/* Now we derive the final income and period. Since refills_per_sec is derived from a
-	 * divisor, this division is usually clean.
+	/* The prioritize but protect logic. Stretch the period until a single refill
+	 * covers the batch demand, rounding up so the guarantee is never short.
 	 */
-	global_bucket->income_per_refill = avg_rate / refills_per_sec;
+	min_period_ticks = spdk_divide_round_up(batch_demand * ticks_per_sec, avg_rate);
 
-	/* Recalculate ticks from the finalized frequency. */
-	global_bucket->refill_period_ticks = ticks_per_sec / refills_per_sec;
+	refill_period_ticks = spdk_max(requested_period_ticks, min_period_ticks);
+
+	/* One second is the longest period the refill accounting supports. */
+	refill_period_ticks = spdk_min(refill_period_ticks, ticks_per_sec);
+
+	if (refill_period_ticks > requested_period_ticks) {
+		SPDK_WARNLOG("io_burst %" PRIu64 " on %" PRIu32 " cores requires a %" PRIu64
+			     " us refill period at avg_rate %" PRIu64 ", overriding the "
+			     "requested %" PRIu64 " us. Tail latency follows the longer "
+			     "period; lower io_burst or raise avg_rate to avoid this.\n",
+			     io_burst, spdk_env_get_core_count(),
+			     refill_period_ticks * g_qos_opts.tick_period_us,
+			     avg_rate, refill_period_us);
+	}
+
+	global_bucket->refill_period_ticks = refill_period_ticks;
+
+	/* Income follows from the period, so the enforced rate is avg_rate by
+	 * construction. The truncation here is under one token per refill, downwards.
+	 */
+	global_bucket->income_per_refill = avg_rate * refill_period_ticks / ticks_per_sec;
 
 	burst_bucket->capacity = 0;
 	global_bucket->max_burst_time_in_sec = 0;
@@ -882,7 +866,8 @@ global_token_bucket_set(struct global_token_bucket *global_bucket, uint64_t avg_
 		}
 
 		global_bucket->max_burst_time_in_sec = max_burst_time_in_sec;
-		global_bucket->transfer_per_refill = (max_burst_rate - avg_rate) / refills_per_sec;
+		global_bucket->transfer_per_refill = (max_burst_rate - avg_rate) *
+						     refill_period_ticks / ticks_per_sec;
 
 		/* Steady bucket must be large enough to handle the peak rate. */
 		steady_bucket->capacity = global_bucket->income_per_refill +
