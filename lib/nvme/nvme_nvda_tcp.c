@@ -1791,7 +1791,7 @@ nvme_tcp_ctrlr_disconnect_qpair(struct spdk_nvme_ctrlr *ctrlr, struct spdk_nvme_
 			      tqpair->zcopy_tx_pdus);
 	}
 
-	nvme_tcp_qpair_set_recv_state(tqpair, NVME_TCP_PDU_RECV_STATE_QUIESCING);
+	nvme_tcp_qpair_set_recv_quiescing(tqpair);
 
 	if (need_lock) {
 		spdk_spin_unlock(&g_xlio_admin_group_lock);
@@ -2980,7 +2980,7 @@ nvme_tcp_qpair_send_h2c_term_req(struct nvme_tcp_qpair *tqpair, struct nvme_tcp_
 
 	/* Contain the header len of the wrong received pdu */
 	h2c_term_req->common.plen = h2c_term_req->common.hlen + copy_len;
-	nvme_tcp_qpair_set_recv_state(tqpair, NVME_TCP_PDU_RECV_STATE_QUIESCING);
+	nvme_tcp_qpair_set_recv_quiescing(tqpair);
 	nvme_tcp_qpair_write_control_pdu(tqpair, rsp_pdu, nvme_tcp_qpair_send_h2c_term_req_complete);
 }
 
@@ -3165,7 +3165,7 @@ nvme_tcp_c2h_term_req_payload_handle(struct nvme_tcp_qpair *tqpair,
 	}
 	nvme_tcp_c2h_term_req_dump(&tqpair->ctrl_hdr.term_req);
 	nvme_tcp_qpair_abort_reqs(&tqpair->qpair, 0);
-	nvme_tcp_qpair_set_recv_state(tqpair, NVME_TCP_PDU_RECV_STATE_QUIESCING);
+	nvme_tcp_qpair_set_recv_quiescing(tqpair);
 	if (need_lock) {
 		spdk_spin_unlock(&g_xlio_admin_group_lock);
 	}
@@ -4294,7 +4294,7 @@ nvme_tcp_read_pdu(struct nvme_tcp_qpair *tqpair, uint32_t *reaped, uint32_t max_
 				pdu = tqpair->recv_pdu = nvme_tcp_recv_pdu_get(tqpair);
 				if (spdk_unlikely(!pdu)) {
 					SPDK_ERRLOG("Failed to get recv pdu\n");
-					nvme_tcp_qpair_set_recv_state(tqpair, NVME_TCP_PDU_RECV_STATE_QUIESCING);
+					nvme_tcp_qpair_set_recv_quiescing(tqpair);
 					break;
 				}
 
