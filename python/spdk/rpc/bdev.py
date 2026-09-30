@@ -1808,7 +1808,7 @@ def bdev_burst_qos_set_limit(
         max_burst_rate,
         max_burst_time_in_sec,
         refill_period_us,
-        io_burst,
+        per_core_guaranteed_refill,
         max_withdraw_batch_size,
         additive_increase_step):
     """Set rate limit for a QoS metric on a QoS device.
@@ -1820,8 +1820,9 @@ def bdev_burst_qos_set_limit(
         burst_size: The burst limit (Relevant only for burst_ready mode). (optional)
         max_burst_rate: Peak rate allowed during a burst (Relevant only for earned_burst mode). (optional)
         max_burst_time_in_sec: The maximum duration max_burst_rate can be sustained (Relevant only for earned_burst mode). (optional)
-        refill_period_us: Refill period in microseconds. (optional)
-        io_burst: Max I/O allowed in a single burst. (optional)
+        refill_period_us: Requested refill period in microseconds. A lower bound only. (optional)
+        per_core_guaranteed_refill: Tokens every core is guaranteed from each refill. Multiplied
+            by the core count to derive the refill period. (optional)
         max_withdraw_batch_size: Max withdraw batch size for this bucket. (optional)
         additive_increase_step: AIMD additive increase step for this bucket. (optional)
     """
@@ -1839,8 +1840,8 @@ def bdev_burst_qos_set_limit(
         params['max_burst_time_in_sec'] = max_burst_time_in_sec
     if refill_period_us is not None:
         params['refill_period_us'] = refill_period_us
-    if io_burst is not None:
-        params['io_burst'] = io_burst
+    if per_core_guaranteed_refill is not None:
+        params['per_core_guaranteed_refill'] = per_core_guaranteed_refill
     if max_withdraw_batch_size is not None:
         params['max_withdraw_batch_size'] = max_withdraw_batch_size
     if additive_increase_step is not None:

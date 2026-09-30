@@ -1316,7 +1316,7 @@ def add_parser(subparsers):
                                           max_burst_rate=args.max_burst_rate,
                                           max_burst_time_in_sec=args.max_burst_time_in_sec,
                                           refill_period_us=args.refill_period_us,
-                                          io_burst=args.io_burst,
+                                          per_core_guaranteed_refill=args.per_core_guaranteed_refill,
                                           max_withdraw_batch_size=args.max_withdraw_batch_size,
                                           additive_increase_step=args.additive_increase_step)
 
@@ -1330,8 +1330,12 @@ def add_parser(subparsers):
     p.add_argument('-r', '--max-burst-rate', help='Peak rate allowed during a burst (Relevant only for earned_burst mode)', type=int)
     p.add_argument('-t', '--max-burst-time-in-sec', help="""The maximum duration max_burst_rate can be sustained
     (Relevant only for earned_burst mode)""", type=int)
-    p.add_argument('-p', '--refill-period-us', help='Refill period in microseconds', type=int)
-    p.add_argument('-i', '--io-burst', help='Max I/O allowed in a single burst', type=int)
+    p.add_argument('-p', '--refill-period-us',
+                   help='Requested refill period in microseconds. A lower bound only', type=int)
+    p.add_argument('-i', '--per-core-guaranteed-refill', '--io-burst',
+                   help="""Tokens every core is guaranteed from each refill, per core.
+    Multiplied by the core count to derive the refill period.
+    --io-burst is the former name of this option and is still accepted""", type=int)
     p.add_argument('-z', '--max-withdraw-batch-size', help='Max withdraw batch size for this bucket', type=int)
     p.add_argument('-a', '--additive-increase-step', help='AIMD additive increase step for this bucket', type=int)
     p.set_defaults(func=bdev_burst_qos_set_limit)

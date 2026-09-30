@@ -22,8 +22,8 @@
 #define BDEV_QOS_BYTE_ADDITIVE_INCREASE_STEP	16384
 #define BDEV_QOS_MIN_IO_PER_SEC			1000
 #define BDEV_QOS_MIN_BYTE_PER_SEC		(1024 * 1024)
-#define BDEV_QOS_DEFAULT_IO_BURST_SIZE		64
-#define BDEV_QOS_DEFAULT_IO_BURST_BYTES		(64 * 65536)
+#define BDEV_QOS_DEFAULT_PER_CORE_REFILL_IOS	64
+#define BDEV_QOS_DEFAULT_PER_CORE_REFILL_BYTES	(64 * 65536)
 #define BDEV_QOS_DEFAULT_RETRY_BUDGET		256
 
 /** Metric controlled by QoS rate limit */
@@ -148,7 +148,7 @@ struct global_token_bucket {
 	uint64_t max_burst_time_in_sec;
 
 	/* Max I/O allowed in a single burst */
-	uint64_t io_burst;
+	uint64_t per_core_guaranteed_refill;
 
 	/* Minimum batch size to withdraw for this bucket. */
 	uint64_t min_withdraw_batch_size;
@@ -646,7 +646,7 @@ global_token_bucket_reset(struct global_token_bucket *global_bucket)
 	global_bucket->transfer_per_refill = 0;
 	global_bucket->refill_period_ticks = 0;
 	global_bucket->max_burst_time_in_sec = 0;
-	global_bucket->io_burst = 0;
+	global_bucket->per_core_guaranteed_refill = 0;
 	/* min_withdraw_batch_size is fixed by metric. */
 	global_bucket->max_withdraw_batch_size = 0;
 	global_bucket->additive_increase_step = 0;
@@ -709,14 +709,16 @@ global_token_bucket_remove_local_bucket(struct global_token_bucket *global_bucke
  * \param max_burst_rate Peak rate allowed during a burst (Relevant only for earned_burst mode).
  * \param max_burst_time_in_sec The maximum duration max_burst_rate can be sustained (Relevant
  *                              only for earned_burst mode).
- * \param refill_period_us Refill period in microseconds.
- * \param io_burst Max I/O allowed in a single burst.
+ * \param refill_period_us Requested refill period in microseconds. A lower bound only.
+ * \param per_core_guaranteed_refill Tokens every core is guaranteed from each refill, and so
+ *                                   the most it can spend without reaching the shared pool.
+ *                                   Multiplied by the core count to derive the refill period.
  */
 static int
 global_token_bucket_set(struct global_token_bucket *global_bucket, uint64_t avg_rate,
 			enum bdev_qos_mode qos_mode, uint64_t burst_size,
 			uint64_t max_burst_rate, uint64_t max_burst_time_in_sec,
-			uint64_t refill_period_us, uint64_t io_burst,
+			uint64_t refill_period_us, uint64_t per_core_guaranteed_refill,
 			uint64_t max_withdraw_batch_size,
 			uint64_t additive_increase_step)
 {
@@ -739,7 +741,7 @@ global_token_bucket_set(struct global_token_bucket *global_bucket, uint64_t avg_
 		return 0;
 	}
 
-	if (io_burst == 0) {
+	if (per_core_guaranteed_refill == 0) {
 		return -EINVAL;
 	}
 
@@ -780,7 +782,7 @@ global_token_bucket_set(struct global_token_bucket *global_bucket, uint64_t avg_
 
 	global_bucket->avg_rate = avg_rate;
 
-	global_bucket->io_burst = io_burst;
+	global_bucket->per_core_guaranteed_refill = per_core_guaranteed_refill;
 	global_bucket->max_withdraw_batch_size = max_withdraw_batch_size;
 	global_bucket->additive_increase_step = additive_increase_step;
 
@@ -802,7 +804,7 @@ global_token_bucket_set(struct global_token_bucket *global_bucket, uint64_t avg_
 	/* Calculate total batch demand. We want to refill enough to satisfy one
 	 * batched consumption for every local bucket per period.
 	 */
-	batch_demand = io_burst * spdk_env_get_core_count();
+	batch_demand = per_core_guaranteed_refill * spdk_env_get_core_count();
 
 	/* The prioritize but protect logic. Stretch the period until a single refill
 	 * covers the batch demand, rounding up so the guarantee is never short.
@@ -815,11 +817,11 @@ global_token_bucket_set(struct global_token_bucket *global_bucket, uint64_t avg_
 	refill_period_ticks = spdk_min(refill_period_ticks, ticks_per_sec);
 
 	if (refill_period_ticks > requested_period_ticks) {
-		SPDK_WARNLOG("io_burst %" PRIu64 " on %" PRIu32 " cores requires a %" PRIu64
-			     " us refill period at avg_rate %" PRIu64 ", overriding the "
-			     "requested %" PRIu64 " us. Tail latency follows the longer "
-			     "period; lower io_burst or raise avg_rate to avoid this.\n",
-			     io_burst, spdk_env_get_core_count(),
+		SPDK_WARNLOG("A guaranteed refill of %" PRIu64 " on %" PRIu32 " cores needs a %"
+			     PRIu64 " us refill period at avg_rate %" PRIu64 ", overriding the "
+			     "requested %" PRIu64 " us. Tail latency follows the longer period; "
+			     "lower the guaranteed refill or raise avg_rate to avoid this.\n",
+			     per_core_guaranteed_refill, spdk_env_get_core_count(),
 			     refill_period_ticks * g_qos_opts.tick_period_us,
 			     avg_rate, refill_period_us);
 	}
@@ -952,7 +954,8 @@ global_token_bucket_config_json(struct global_token_bucket *global_bucket, const
 	}
 	spdk_json_write_named_uint64(w, "refill_period_us",
 				     g_qos_opts.tick_period_us * global_bucket->refill_period_ticks);
-	spdk_json_write_named_uint64(w, "io_burst", global_bucket->io_burst);
+	spdk_json_write_named_uint64(w, "per_core_guaranteed_refill",
+				     global_bucket->per_core_guaranteed_refill);
 	spdk_json_write_named_uint64(w, "max_withdraw_batch_size",
 				     global_bucket->max_withdraw_batch_size);
 	spdk_json_write_named_uint64(w, "additive_increase_step",
@@ -989,7 +992,8 @@ global_token_bucket_info_json(struct global_token_bucket *global_bucket,
 	}
 	spdk_json_write_named_uint64(w, "refill_period_us",
 				     g_qos_opts.tick_period_us * global_bucket->refill_period_ticks);
-	spdk_json_write_named_uint64(w, "io_burst", global_bucket->io_burst);
+	spdk_json_write_named_uint64(w, "per_core_guaranteed_refill",
+				     global_bucket->per_core_guaranteed_refill);
 
 	spdk_json_write_object_end(w);
 }
@@ -1275,8 +1279,8 @@ local_token_bucket_reset(struct local_token_bucket *local_bucket)
 	} else {
 		local_bucket->withdraw_batch_size = BDEV_QOS_MIN_BYTE_WITHDRAW_BATCH_SIZE;
 	}
-	__atomic_store_n(&local_bucket->capacity, global_bucket->io_burst,
-			 __ATOMIC_RELAXED);
+	__atomic_store_n(&local_bucket->capacity,
+			 global_bucket->per_core_guaranteed_refill, __ATOMIC_RELAXED);
 }
 
 static void
@@ -1807,7 +1811,7 @@ bdev_burst_qos_set_limit(struct spdk_bdev_qos_impl *qos_impl,
 			 enum bdev_qos_metric qos_metric, uint64_t avg_rate,
 			 enum bdev_qos_mode qos_mode, uint64_t burst_size,
 			 uint64_t max_burst_rate, uint64_t max_burst_time_in_sec,
-			 uint64_t refill_period_us, uint64_t io_burst,
+			 uint64_t refill_period_us, uint64_t per_core_guaranteed_refill,
 			 uint64_t max_withdraw_batch_size,
 			 uint64_t additive_increase_step,
 			 spdk_bdev_qos_op_cb cb_fn, void *cb_arg)
@@ -1835,7 +1839,7 @@ bdev_burst_qos_set_limit(struct spdk_bdev_qos_impl *qos_impl,
 
 	rc = global_token_bucket_set(global_bucket, avg_rate, qos_mode, burst_size,
 				     max_burst_rate, max_burst_time_in_sec,
-				     refill_period_us, io_burst,
+				     refill_period_us, per_core_guaranteed_refill,
 				     max_withdraw_batch_size, additive_increase_step);
 	if (rc != 0) {
 		bdev_burst_qos_set_limit_done(ctx, rc);
@@ -1854,7 +1858,7 @@ struct burst_qos_json {
 	uint64_t max_burst_rate;
 	uint64_t max_burst_time_in_sec;
 	uint64_t refill_period_us;
-	uint64_t io_burst;
+	uint64_t per_core_guaranteed_refill;
 	uint64_t max_withdraw_batch_size;
 	uint64_t additive_increase_step;
 };
@@ -1910,7 +1914,16 @@ static const struct spdk_json_object_decoder burst_qos_json_decoders[] = {
 
 static const struct spdk_json_object_decoder burst_qos_json_decoders2[] = {
 	{"refill_period_us", offsetof(struct burst_qos_json, refill_period_us), spdk_json_decode_uint64, true},
-	{"io_burst", offsetof(struct burst_qos_json, io_burst), spdk_json_decode_uint64, true},
+	{
+		"per_core_guaranteed_refill",
+		offsetof(struct burst_qos_json, per_core_guaranteed_refill),
+		spdk_json_decode_uint64, true
+	},
+	/* Legacy name for per_core_guaranteed_refill, kept so existing callers and saved
+	 * configurations keep working. If both keys are present, the later one in the
+	 * request wins.
+	 */
+	{"io_burst", offsetof(struct burst_qos_json, per_core_guaranteed_refill), spdk_json_decode_uint64, true},
 	{"max_withdraw_batch_size", offsetof(struct burst_qos_json, max_withdraw_batch_size), spdk_json_decode_uint64, true},
 	{"additive_increase_step", offsetof(struct burst_qos_json, additive_increase_step), spdk_json_decode_uint64, true},
 };
@@ -2084,11 +2097,11 @@ bdev_burst_qos_set_limit_json(struct spdk_bdev_qos *qos,
 
 	req.refill_period_us = 0;
 	if (bdev_qos_metric_is_iops(req.qos_metric)) {
-		req.io_burst = BDEV_QOS_DEFAULT_IO_BURST_SIZE;
+		req.per_core_guaranteed_refill = BDEV_QOS_DEFAULT_PER_CORE_REFILL_IOS;
 		req.max_withdraw_batch_size = g_qos_opts.max_io_withdraw_batch_size;
 		req.additive_increase_step = g_qos_opts.io_additive_increase_step;
 	} else {
-		req.io_burst = BDEV_QOS_DEFAULT_IO_BURST_BYTES;
+		req.per_core_guaranteed_refill = BDEV_QOS_DEFAULT_PER_CORE_REFILL_BYTES;
 		req.max_withdraw_batch_size = g_qos_opts.max_byte_withdraw_batch_size;
 		req.additive_increase_step = g_qos_opts.byte_additive_increase_step;
 	}
@@ -2102,7 +2115,7 @@ bdev_burst_qos_set_limit_json(struct spdk_bdev_qos *qos,
 	bdev_burst_qos_set_limit(qos_impl, req.qos_metric, req.avg_rate, req.qos_mode,
 				 req.burst_size,
 				 req.max_burst_rate, req.max_burst_time_in_sec,
-				 req.refill_period_us, req.io_burst,
+				 req.refill_period_us, req.per_core_guaranteed_refill,
 				 req.max_withdraw_batch_size,
 				 req.additive_increase_step,
 				 cb_fn, cb_arg);

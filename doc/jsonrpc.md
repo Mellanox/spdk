@@ -3355,33 +3355,41 @@ max_burst_rate and max_burst_time_in_sec are used only if qos_mode is earned_bur
 If qos_mode is burst_ready, rate limiter starts ready to burst immediately.
 If qos_mode is earned_burst, rate limiter starts like strict leaky bucket, but can burst later if credits are earned.
 
-The refill period is derived from io_burst rather than taken from refill_period_us. io_burst is a
-per-core value: the module multiplies it by the core count to get the total that a single refill has
-to cover, so the period is (io_burst * core_count) / avg_rate seconds, rounded up to a whole
-tick_period_us, never shorter than refill_period_us, and capped at one second. refill_period_us is
-therefore a lower bound rather than a setting, and a warning is logged whenever io_burst forces a
-longer period than requested.
+The refill period is derived from per_core_guaranteed_refill rather than taken from
+refill_period_us. per_core_guaranteed_refill is a per-core value: the module multiplies it by the
+core count to get the total that a single refill has to cover, so the period is
+(per_core_guaranteed_refill * core_count) / avg_rate seconds, rounded up to a whole tick_period_us,
+never shorter than refill_period_us, and capped at one second. refill_period_us is therefore a
+lower bound rather than a setting, and a warning is logged whenever per_core_guaranteed_refill
+forces a longer period than requested.
 
 The refill period is what bounds tail latency, while the enforced average rate is avg_rate either
-way. A large io_burst at a low avg_rate is therefore the usual cause of an unexpectedly high p99
-alongside a correct average rate, and passing a host's total queue depth instead of its per-core
-depth is the usual cause of a large io_burst.
+way. A large per_core_guaranteed_refill at a low avg_rate is therefore the usual cause of an
+unexpectedly high p99 alongside a correct average rate, and passing a host's total queue depth
+instead of its per-core depth is the usual cause of a large per_core_guaranteed_refill.
+
+io_burst is the former name of per_core_guaranteed_refill and is still accepted as an alias, so that
+existing callers and saved configurations keep working. New callers should use
+per_core_guaranteed_refill. If a request carries both keys, whichever appears later in it takes
+effect. The same applies to the `--io-burst` option of `rpc.py bdev_burst_qos_set_limit`, which is
+an alias for `-i`/`--per-core-guaranteed-refill`.
 
 #### Parameters
 
- Name                    | Optional   | Type   | Description
------------------------- | ---------- | ------ | ------------------------------------------------------------------
- name                    | Required   | string | QoS device name
- qos_metric              | Required   | string | Metric controlled by QoS rate limit.
- avg_rate                | Required   | number | Average rate for this metric. 0 means unlimited.
- qos_mode                | Optional   | string | Operating mode (strict, burst_ready, or earned_burst). (Default is strict.)
- burst_size              | Optional   | number | The burst limit (Relevant only if qos_mode is burst_ready).
- max_burst_rate          | Optional   | number | Peak rate allowed during a burst (Relevant only if qos_mode is earned_burst).
- max_burst_time_in_sec   | Optional   | number | The maximum duration max_burst_rate can be sustained (Relevant only if qos_mode is earned_burst).
- refill_period_us        | Optional   | number | Requested refill period in microseconds. A lower bound only; io_burst may force a longer one (default is 0, meaning tick_period_us)
- io_burst                | Optional   | number | Max I/O allowed in a single burst, per core. Multiplied by the core count to derive the refill period (default: 64 for IOPS limit, 64 x 64KiB for BW limit)
- max_withdraw_batch_size | Optional   | number | Max withdraw batch size for this bucket (default is per-metric global option)
- additive_increase_step  | Optional   | number | AIMD additive increase step for this bucket (default is per-metric global option)
+ Name                       | Optional   | Type   | Description
+--------------------------- | ---------- | ------ | ------------------------------------------------------------------
+ name                       | Required   | string | QoS device name
+ qos_metric                 | Required   | string | Metric controlled by QoS rate limit.
+ avg_rate                   | Required   | number | Average rate for this metric. 0 means unlimited.
+ qos_mode                   | Optional   | string | Operating mode (strict, burst_ready, or earned_burst). (Default is strict.)
+ burst_size                 | Optional   | number | The burst limit (Relevant only if qos_mode is burst_ready).
+ max_burst_rate             | Optional   | number | Peak rate allowed during a burst (Relevant only if qos_mode is earned_burst).
+ max_burst_time_in_sec      | Optional   | number | The maximum duration max_burst_rate can be sustained (Relevant only if qos_mode is earned_burst).
+ refill_period_us           | Optional   | number | Requested refill period in microseconds. A lower bound only (default is 0, meaning tick_period_us)
+ per_core_guaranteed_refill | Optional   | number | Tokens every core is guaranteed from each refill; sets the refill period (default: 64 for IOPS, 64 x 64KiB for BW)
+ io_burst                   | Optional   | number | Legacy alias for per_core_guaranteed_refill
+ max_withdraw_batch_size    | Optional   | number | Max withdraw batch size for this bucket (default is per-metric global option)
+ additive_increase_step     | Optional   | number | AIMD additive increase step for this bucket (default is per-metric global option)
 
 #### Example
 
