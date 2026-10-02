@@ -57,10 +57,17 @@ enum bdev_qos_mode {
 };
 
 struct token_bucket {
-	/* Current tokens available in the bucket. Overdraw is not allowed. */
+	/*
+	 * Current tokens available. Consumers subtract from this; it never goes
+	 * below zero. steady_bucket->tokens is accessed by multiple I/O threads
+	 * via atomics; burst_bucket->tokens is touched only by the app-thread
+	 * refill poller and requires no atomic operations.
+	 */
 	uint64_t tokens;
 
-	/* Maximum tokens in the bucket. */
+	/* Upper bound on tokens. Adding income beyond this amount produces
+	 * overflow that may be redirected to the burst bucket.
+	 */
 	uint64_t capacity;
 };
 
@@ -68,23 +75,40 @@ struct local_token_bucket;
 
 struct global_token_bucket {
 	/*
-	 * Steady bucket is the primary "spending account" that I/O requests directly
-	 * consume from. Its capacity is set to the max_burst_rate to handle peak
-	 * throughput. On every tick, it receives the system's base income (avg_rate)
-	 * and is also eagerly "topped up" with any available burst credits, ensuring
-	 * it is always as full as possible to immediate demand.
+	 * Steady bucket is the primary "spending account" that I/O threads consume
+	 * tokens from directly (via atomic_sub_floor). Its capacity and initial
+	 * fill depend on the operating mode:
+	 *
+	 *   STRICT:       capacity = income_per_refill; starts empty.
+	 *                 Tokens are replenished at exactly avg_rate — no bursting.
+	 *
+	 *   BURST_READY:  capacity = burst_size (≥ avg_rate); starts fully loaded.
+	 *                 The pre-filled headroom lets the workload burst immediately
+	 *                 without having to earn any credits first.
+	 *
+	 *   EARNED_BURST: capacity = income_per_refill + transfer_per_refill;
+	 *                 starts empty. Each tick receives income_per_refill new
+	 *                 tokens; additional tokens are transferred from the burst
+	 *                 bucket (up to transfer_per_refill) to deploy saved credits.
+	 *
+	 * Because multiple I/O threads subtract tokens concurrently, its tokens
+	 * field is accessed with atomics.
 	 */
 	struct token_bucket steady_bucket;
 
 	/*
-	 * Burst bucket is the dedicated "savings account" that stores all burst credits.
-	 * It only accumulates tokens when the steady bucket overflows from low consumption.
-	 * These saved credits are then eagerly transferred back to the steady bucket on
-	 * subsequent ticks whenever there is room, proactively preparing it for a future
-	 * burst.
+	 * Burst bucket is the "savings account" used exclusively in EARNED_BURST
+	 * mode (capacity = 0 in STRICT and BURST_READY, so it is never touched).
 	 *
-	 * Burst bucket is accessed only by a single global poller running on the
-	 * SPDK app thread. Hence, no atomic operation is necessary for burst bucket.
+	 * It fills when the workload is idle: income added to a full steady bucket
+	 * overflows into the burst bucket (up to burst_bucket->capacity).
+	 *
+	 * It drains when the workload is busy: each tick, up to transfer_per_refill
+	 * tokens are moved from burst bucket → steady bucket, deploying the saved
+	 * credits to sustain a burst above avg_rate.
+	 *
+	 * The burst bucket is read and written only by the single app-thread refill
+	 * poller, so no atomic operations are required.
 	 */
 	struct token_bucket burst_bucket;
 
