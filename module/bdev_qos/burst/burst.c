@@ -198,6 +198,18 @@ struct local_token_bucket {
 	/* Pointer to the global token bucket. */
 	struct global_token_bucket *global_bucket;
 
+	/* Accumulated statistics. Written only by the owning I/O thread; no locking needed. */
+	struct {
+		uint64_t throttled_events;
+		uint64_t throttled_ticks;
+	} stat;
+
+	/*
+	 * TSC when the first I/O was queued into an otherwise-empty queue (bucket
+	 * transitioned from unthrottled to throttled). 0 means not currently throttled.
+	 */
+	uint64_t throttle_start_tsc;
+
 	STAILQ_ENTRY(local_token_bucket) slink;
 	TAILQ_ENTRY(local_token_bucket) link;
 };
@@ -206,6 +218,16 @@ struct bdev_burst_qos {
 	struct spdk_bdev_qos_impl base;
 
 	struct global_token_bucket global_buckets[BDEV_QOS_NUM_METRICS];
+
+	/*
+	 * Cumulative throttle stats from channels that have been destroyed.
+	 * Active channel stats are folded in here on channel put so aggregated
+	 * get_stats remains useful after I/O channels are torn down.
+	 */
+	struct {
+		uint64_t throttled_events;
+		uint64_t throttled_ticks;
+	} retained_stat[BDEV_QOS_NUM_METRICS];
 
 	TAILQ_ENTRY(bdev_burst_qos) link;
 };
@@ -271,6 +293,15 @@ static inline struct bdev_burst_qos_channel *
 bdev_burst_qos_channel(struct spdk_bdev_qos_channel_impl *qos_ch_impl)
 {
 	return SPDK_CONTAINEROF(qos_ch_impl, struct bdev_burst_qos_channel, base);
+}
+
+static inline struct bdev_burst_qos_channel *
+bdev_burst_qos_find_channel(struct spdk_bdev_qos_channel *qos_ch)
+{
+	struct spdk_bdev_qos_channel_impl *qos_ch_impl;
+
+	qos_ch_impl = spdk_bdev_qos_channel_find_impl(qos_ch, &bdev_burst_qos_if);
+	return qos_ch_impl != NULL ? bdev_burst_qos_channel(qos_ch_impl) : NULL;
 }
 
 static const char *
@@ -1179,6 +1210,7 @@ local_token_bucket_queue_io(struct local_token_bucket *local_bucket,
 	if (!TAILQ_EMPTY(&local_bucket->queued_io)) {
 		/* To ensure FIFO locally, append this I/O to the list. */
 		TAILQ_INSERT_TAIL(&local_bucket->queued_io, bdev_io, internal.link);
+		local_bucket->stat.throttled_events++;
 		return;
 	}
 
@@ -1186,7 +1218,10 @@ local_token_bucket_queue_io(struct local_token_bucket *local_bucket,
 		/* Rate limit check passed for this QoS metric. */
 		local_token_bucket_queue_io_done(local_bucket, bdev_io);
 	} else {
+		/* Queue was empty and tokens are exhausted: bucket enters throttled state. */
+		local_bucket->throttle_start_tsc = spdk_get_ticks();
 		TAILQ_INSERT_TAIL(&local_bucket->queued_io, bdev_io, internal.link);
+		local_bucket->stat.throttled_events++;
 	}
 }
 
@@ -1212,6 +1247,12 @@ local_token_bucket_retry_queued_io(struct local_token_bucket *local_bucket, uint
 		if (--budget == 0) {
 			break;
 		}
+	}
+
+	/* If the queue drained fully, close the throttle window and accumulate time. */
+	if (TAILQ_EMPTY(&local_bucket->queued_io) && local_bucket->throttle_start_tsc != 0) {
+		local_bucket->stat.throttled_ticks += spdk_get_ticks() - local_bucket->throttle_start_tsc;
+		local_bucket->throttle_start_tsc = 0;
 	}
 
 	return budget;
@@ -1286,6 +1327,30 @@ static void
 local_token_bucket_fini(struct local_token_bucket *local_bucket)
 {
 	global_token_bucket_remove_local_bucket(local_bucket->global_bucket, local_bucket);
+}
+
+static void
+bdev_burst_qos_channel_retain_stats(struct bdev_burst_qos *bqos,
+				    struct bdev_burst_qos_channel *bqos_ch)
+{
+	struct local_token_bucket *lb;
+	uint64_t now = spdk_get_ticks();
+	int i;
+
+	for (i = 0; i < BDEV_QOS_NUM_METRICS; i++) {
+		uint64_t throttled_ticks;
+
+		lb = &bqos_ch->local_buckets[i];
+		throttled_ticks = lb->stat.throttled_ticks;
+		if (lb->throttle_start_tsc != 0) {
+			throttled_ticks += now - lb->throttle_start_tsc;
+		}
+
+		__atomic_fetch_add(&bqos->retained_stat[i].throttled_events,
+				   lb->stat.throttled_events, __ATOMIC_RELAXED);
+		__atomic_fetch_add(&bqos->retained_stat[i].throttled_ticks,
+				   throttled_ticks, __ATOMIC_RELAXED);
+	}
 }
 
 static struct spdk_bdev_qos_impl *
@@ -1420,6 +1485,8 @@ bdev_burst_qos_channel_put(struct spdk_bdev_qos_channel_impl *qos_ch_impl)
 		local_token_bucket_fini(&bqos_ch->local_buckets[i]);
 	}
 
+	bdev_burst_qos_channel_retain_stats(bqos_ch->bqos, bqos_ch);
+
 	free(qos_ch_impl);
 }
 
@@ -1507,16 +1574,6 @@ bdev_burst_qos_channel_retry_queued_io(struct bdev_burst_qos_channel *bqos_ch, u
 	return budget;
 }
 
-static struct local_token_bucket *
-bdev_burst_qos_channel_find_local_bucket(struct spdk_bdev_qos_channel_impl *qos_ch_impl,
-		enum bdev_qos_metric metric)
-{
-	struct bdev_burst_qos_channel *bqos_ch = bdev_burst_qos_channel(qos_ch_impl);
-
-	assert(metric < BDEV_QOS_NUM_METRICS);
-
-	return &bqos_ch->local_buckets[metric];
-}
 
 static int
 bdev_burst_qos_poll_group_drain_queued_io(void *arg)
@@ -1739,13 +1796,14 @@ bdev_burst_qos_channel_reset(struct spdk_io_channel_iter *i)
 	struct burst_qos_set_limit_ctx *ctx = spdk_io_channel_iter_get_ctx(i);
 	struct spdk_io_channel *_ch = spdk_io_channel_iter_get_channel(i);
 	struct spdk_bdev_qos_channel *qos_ch = spdk_io_channel_get_ctx(_ch);
-	struct spdk_bdev_qos_channel_impl *qos_ch_impl;
+	struct bdev_burst_qos_channel *bqos_ch;
 	struct local_token_bucket *local_bucket;
 
-	qos_ch_impl = spdk_bdev_qos_channel_find_impl(qos_ch, &bdev_burst_qos_if);
-	assert(qos_ch_impl != NULL);
+	bqos_ch = bdev_burst_qos_find_channel(qos_ch);
+	assert(bqos_ch != NULL);
 
-	local_bucket = bdev_burst_qos_channel_find_local_bucket(qos_ch_impl, ctx->metric);
+	assert(ctx->metric < BDEV_QOS_NUM_METRICS);
+	local_bucket = &bqos_ch->local_buckets[ctx->metric];
 	local_token_bucket_reset(local_bucket);
 
 	spdk_for_each_channel_continue(i, 0);
@@ -1871,6 +1929,146 @@ static const struct spdk_json_object_decoder burst_qos_json_decoders2[] = {
 	{"max_withdraw_batch_size", offsetof(struct burst_qos_json, max_withdraw_batch_size), spdk_json_decode_uint64, true},
 	{"additive_increase_step", offsetof(struct burst_qos_json, additive_increase_step), spdk_json_decode_uint64, true},
 };
+
+struct spdk_bdev_qos_impl *
+bdev_burst_qos_find_impl(struct spdk_bdev_qos *qos)
+{
+	return spdk_bdev_qos_find_impl(qos, &bdev_burst_qos_if);
+}
+
+static void
+bdev_burst_qos_channel_get_stats(struct bdev_burst_qos_channel *bqos_ch,
+				 struct bdev_burst_qos_metric_stat out[4])
+{
+	struct local_token_bucket *lb;
+	uint64_t now = spdk_get_ticks();
+	int i;
+
+	for (i = 0; i < BDEV_QOS_NUM_METRICS; i++) {
+		lb = &bqos_ch->local_buckets[i];
+		out[i].throttled_events = lb->stat.throttled_events;
+		out[i].throttled_ticks  = lb->stat.throttled_ticks;
+		if (lb->throttle_start_tsc != 0) {
+			out[i].throttled_ticks += now - lb->throttle_start_tsc;
+		}
+		/* Per-channel view: current_tokens is this thread's local token cache. */
+		out[i].current_tokens = lb->tokens;
+	}
+}
+
+bool
+bdev_burst_qos_channel_get_per_channel_stats(struct spdk_bdev_qos_channel *qos_ch,
+		struct bdev_burst_qos_metric_stat out[4])
+{
+	struct bdev_burst_qos_channel *bqos_ch;
+
+	bqos_ch = bdev_burst_qos_find_channel(qos_ch);
+	if (bqos_ch == NULL) {
+		return false;
+	}
+
+	bdev_burst_qos_channel_get_stats(bqos_ch, out);
+	return true;
+}
+
+struct bdev_burst_qos_get_stats_ctx {
+	struct bdev_burst_qos		*bqos;
+	bdev_burst_qos_get_stats_cb	cb_fn;
+	void				*cb_arg;
+	struct bdev_burst_qos_stats	stats;
+};
+
+static void
+bdev_burst_qos_channel_collect_stats(struct spdk_io_channel_iter *it)
+{
+	struct bdev_burst_qos_get_stats_ctx *ctx = spdk_io_channel_iter_get_ctx(it);
+	struct spdk_io_channel *_ch = spdk_io_channel_iter_get_channel(it);
+	struct spdk_bdev_qos_channel *qos_ch = spdk_io_channel_get_ctx(_ch);
+	struct bdev_burst_qos_channel *bqos_ch;
+	struct local_token_bucket *lb;
+	uint64_t now;
+	int i;
+
+	bqos_ch = bdev_burst_qos_find_channel(qos_ch);
+	if (bqos_ch == NULL) {
+		spdk_for_each_channel_continue(it, 0);
+		return;
+	}
+	now = spdk_get_ticks();
+
+	for (i = 0; i < BDEV_QOS_NUM_METRICS; i++) {
+		lb = &bqos_ch->local_buckets[i];
+		ctx->stats.metrics[i].throttled_events += lb->stat.throttled_events;
+		ctx->stats.metrics[i].throttled_ticks  += lb->stat.throttled_ticks;
+		/* Include in-flight throttle window if the bucket is currently throttled. */
+		if (lb->throttle_start_tsc != 0) {
+			ctx->stats.metrics[i].throttled_ticks += now - lb->throttle_start_tsc;
+		}
+	}
+
+	spdk_for_each_channel_continue(it, 0);
+}
+
+static void
+bdev_burst_qos_channel_collect_stats_done(struct spdk_io_channel_iter *it, int status)
+{
+	struct bdev_burst_qos_get_stats_ctx *ctx = spdk_io_channel_iter_get_ctx(it);
+	int i;
+
+	for (i = 0; i < BDEV_QOS_NUM_METRICS; i++) {
+		ctx->stats.metrics[i].throttled_events +=
+			__atomic_load_n(&ctx->bqos->retained_stat[i].throttled_events, __ATOMIC_RELAXED);
+		ctx->stats.metrics[i].throttled_ticks +=
+			__atomic_load_n(&ctx->bqos->retained_stat[i].throttled_ticks, __ATOMIC_RELAXED);
+	}
+
+	/*
+	 * Read current_tokens from each global steady bucket. Runs on the app thread,
+	 * which is the same thread that refills steady_bucket, so a relaxed atomic
+	 * load gives a consistent snapshot.
+	 */
+	for (i = 0; i < BDEV_QOS_NUM_METRICS; i++) {
+		struct global_token_bucket *gb = &ctx->bqos->global_buckets[i];
+
+		if (gb->avg_rate != UINT64_MAX) {
+			ctx->stats.metrics[i].current_tokens =
+				__atomic_load_n(&gb->steady_bucket.tokens, __ATOMIC_RELAXED);
+		}
+	}
+
+	ctx->cb_fn(ctx->cb_arg, &ctx->stats, status);
+	free(ctx);
+}
+
+void
+bdev_burst_qos_get_stats(struct spdk_bdev_qos *qos,
+			 bdev_burst_qos_get_stats_cb cb_fn, void *cb_arg)
+{
+	struct bdev_burst_qos_get_stats_ctx *ctx;
+	struct spdk_bdev_qos_impl *qos_impl;
+
+	qos_impl = spdk_bdev_qos_find_impl(qos, &bdev_burst_qos_if);
+	if (qos_impl == NULL) {
+		cb_fn(cb_arg, NULL, -EINVAL);
+		return;
+	}
+
+	ctx = calloc(1, sizeof(*ctx));
+	if (ctx == NULL) {
+		cb_fn(cb_arg, NULL, -ENOMEM);
+		return;
+	}
+
+	ctx->bqos = bdev_burst_qos(qos_impl);
+	ctx->stats.ticks_rate = spdk_get_ticks_hz();
+	ctx->cb_fn = cb_fn;
+	ctx->cb_arg = cb_arg;
+
+	spdk_for_each_channel(qos_impl->qos,
+			      bdev_burst_qos_channel_collect_stats,
+			      ctx,
+			      bdev_burst_qos_channel_collect_stats_done);
+}
 
 void
 bdev_burst_qos_set_limit_json(struct spdk_bdev_qos *qos,

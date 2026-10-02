@@ -3402,6 +3402,63 @@ Example response:
 }
 ~
 
+### bdev_burst_qos_get_stats {#rpc_bdev_burst_qos_get_stats}
+
+Get per-metric statistics for one or all burst QoS devices.
+
+#### Parameters
+
+Name                    | Optional | Type        | Description
+----------------------- |----------| ----------- | -----------
+name                    | Optional | string      | Name of the QoS device. If omitted, all devices are returned.
+per_channel             | Optional | boolean     | Report per-thread stats instead of aggregated totals. Requires `name`.
+
+#### Response
+
+The response is an array of objects containing statistics of the requested QoS devices.
+
+#### Example
+
+Example request:
+
+~~~json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "bdev_burst_qos_get_stats",
+  "params": {
+    "name": "qos_service1"
+  }
+}
+~~~
+
+Example response:
+
+~~~json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "ticks_rate": 1000000000,
+    "qos_devices": [
+      {
+        "name": "qos_service1",
+        "metrics": [
+          { "metric": "rw_iops", "throttled_events": 890,
+            "throttled_ticks": 5000000, "current_tokens": 128 },
+          { "metric": "rw_mbps", "throttled_events": 0,
+            "throttled_ticks": 0, "current_tokens": 0 },
+          { "metric": "r_mbps",  "throttled_events": 0,
+            "throttled_ticks": 0, "current_tokens": 0 },
+          { "metric": "w_mbps",  "throttled_events": 0,
+            "throttled_ticks": 0, "current_tokens": 0 }
+        ]
+      }
+    ]
+  }
+}
+~~~
+
 ### bdev_set_ro {#rpc_bdev_set_ro}
 
 Set a bdev to read-only state

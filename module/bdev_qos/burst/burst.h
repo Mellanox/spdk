@@ -46,4 +46,65 @@ void bdev_burst_qos_set_limit_json(struct spdk_bdev_qos *qos,
 				   const struct spdk_json_val *params,
 				   spdk_bdev_qos_op_cb cb_fn, void *cb_arg);
 
+/*
+ * Per-metric statistics collected by bdev_burst_qos_get_stats().
+ * Indexed by enum bdev_qos_metric (rw_iops=0, rw_mbps=1, r_mbps=2, w_mbps=3).
+ */
+struct bdev_burst_qos_metric_stat {
+	/*
+	 * Cumulative number of I/Os that had to wait in the QoS queue
+	 * (both FIFO hold-backs and token-exhaustion stalls).
+	 * Aggregated across all I/O threads.
+	 */
+	uint64_t throttled_events;
+
+	/*
+	 * Cumulative ticks each bucket instance spent in a throttled state
+	 * (queue non-empty). Divide by ticks_rate to convert to seconds.
+	 * Aggregated across all I/O threads.
+	 */
+	uint64_t throttled_ticks;
+
+	/*
+	 * Token count snapshot at query time.
+	 * In aggregated mode: global steady-bucket count; 0 for disabled metrics.
+	 * In per-channel mode: this thread's local bucket cache.
+	 */
+	uint64_t current_tokens;
+};
+
+struct bdev_burst_qos_stats {
+	/* Ticks per second; use to convert throttled_ticks to wall-clock seconds. */
+	uint64_t ticks_rate;
+
+	/* One entry per QoS metric, ordered rw_iops, rw_mbps, r_mbps, w_mbps. */
+	struct bdev_burst_qos_metric_stat metrics[4];
+};
+
+typedef void (*bdev_burst_qos_get_stats_cb)(void *cb_arg,
+		const struct bdev_burst_qos_stats *stats, int status);
+
+/*
+ * Asynchronously collect per-metric statistics for a burst QoS device.
+ * Uses spdk_for_each_channel internally; must be called from the app thread.
+ * On completion, cb_fn is called with a filled bdev_burst_qos_stats (or NULL
+ * and a non-zero status on error).
+ */
+void bdev_burst_qos_get_stats(struct spdk_bdev_qos *qos,
+			      bdev_burst_qos_get_stats_cb cb_fn, void *cb_arg);
+
+/* Return the burst QoS impl for a QoS device, or NULL if not configured. */
+struct spdk_bdev_qos_impl *bdev_burst_qos_find_impl(struct spdk_bdev_qos *qos);
+
+/*
+ * Extract per-channel stats from a single QoS channel's local buckets.
+ * out[i].current_tokens is this thread's local token cache (not the global bucket).
+ * Must be called from an spdk_for_each_channel callback on the owning thread.
+ * Returns false (and leaves out unchanged) if the burst impl is not present on
+ * this channel.
+ */
+bool bdev_burst_qos_channel_get_per_channel_stats(struct spdk_bdev_qos_channel *qos_ch,
+		struct bdev_burst_qos_metric_stat out[4]);
+
+
 #endif /* SPDK_BDEV_BURST_QOS_H */

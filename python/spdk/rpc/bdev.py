@@ -1848,6 +1848,27 @@ def bdev_burst_qos_set_limit(
     return client.call('bdev_burst_qos_set_limit', params)
 
 
+def bdev_burst_qos_get_stats(client, name=None, per_channel=None):
+    """Get per-metric statistics for burst QoS device(s).
+
+    Args:
+        name: Name of the QoS device. If omitted, stats for all QoS devices
+              are returned as a qos_devices array. (optional)
+        per_channel: If True, return per-thread channel stats instead of
+                     aggregated totals. Requires name. (optional)
+
+    Returns:
+        Dictionary with ticks_rate and either a qos_devices array (aggregated)
+        or name + channels array (per_channel).
+    """
+    params = {}
+    if name is not None:
+        params['name'] = name
+    if per_channel is not None:
+        params['per_channel'] = per_channel
+    return client.call('bdev_burst_qos_get_stats', params)
+
+
 def bdev_nvme_apply_firmware(client, bdev_name, filename):
     """Download and commit firmware to NVMe device.
     Args:

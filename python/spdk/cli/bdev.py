@@ -1336,6 +1336,17 @@ def add_parser(subparsers):
     p.add_argument('-a', '--additive-increase-step', help='AIMD additive increase step for this bucket', type=int)
     p.set_defaults(func=bdev_burst_qos_set_limit)
 
+    def bdev_burst_qos_get_stats(args):
+        print_dict(args.client.bdev_burst_qos_get_stats(
+            name=args.name,
+            per_channel=args.per_channel))
+    p = subparsers.add_parser('bdev_burst_qos_get_stats',
+                              help='Get per-metric statistics for burst QoS device(s)')
+    p.add_argument('--name', '-n', help='Name of the QoS device (omit for all devices)', default=None)
+    p.add_argument('--per-channel', '-c', help='Report per-thread channel stats (requires --name)',
+                   action='store_true', default=None)
+    p.set_defaults(func=bdev_burst_qos_get_stats)
+
     def bdev_error_inject_error(args):
         args.client.bdev_error_inject_error(
                                          name=args.name,
