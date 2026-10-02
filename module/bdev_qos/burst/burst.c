@@ -834,7 +834,7 @@ global_token_bucket_set(struct global_token_bucket *global_bucket, uint64_t avg_
 		steady_bucket->capacity = burst_size;
 
 		__atomic_store_n(&steady_bucket->tokens, steady_bucket->capacity, __ATOMIC_SEQ_CST);
-		burst_bucket->tokens = burst_bucket->capacity;
+		burst_bucket->tokens = 0; /* burst_bucket is unused in BURST_READY mode */
 	} else {
 		assert(qos_mode == BDEV_QOS_MODE_EARNED_BURST);
 		if (max_burst_rate == 0) {
