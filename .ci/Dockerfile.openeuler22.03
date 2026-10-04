@@ -3,7 +3,7 @@ ARG _UID=6213
 ARG _GID=11429
 ARG _LOGIN=swx-jenkins
 ARG _HOME=/var/home/$_LOGIN
-ARG MOFED_VER
+ARG DOCA_VER
 ENV LANG=en_US.utf-8
 USER root
 
@@ -43,12 +43,14 @@ RUN yum install -y \
 RUN pip3 install patchelf
 
 RUN set -eux; \
-    echo -e "[mlnx_ofed]\n\
-name=Mellanox Technologies \$basearch mlnx_ofed\n\
-baseurl=http://nbu-nfs.gtm.nvidia.com/auto/mswg/release/MLNX_OFED/MLNX_OFED_LINUX-${MOFED_VER}/MLNX_OFED_LINUX-${MOFED_VER}-openeuler22.03sp4-\$basearch/RPMS/\n\
+    echo -e "[doca]\n\
+name=NVIDIA DOCA \$basearch\n\
+baseurl=https://linux.mellanox.com/public/repo/doca/${DOCA_VER}/openeuler22.03/arm64-sbsa/\n\
 enabled=1\n\
-gpgcheck=0" > /etc/yum.repos.d/mellanox_mlnx_ofed.repo; \
-	dnf install -y mlnx-ofed-basic-user-only
+gpgcheck=1\n\
+repo_gpgcheck=1\n\
+gpgkey=https://linux.mellanox.com/public/repo/doca/${DOCA_VER}/openeuler22.03/arm64-sbsa/RPM-GPG-KEY-doca" > /etc/yum.repos.d/nvidia_doca.repo; \
+	dnf install -y doca-ofed-userspace
 
 RUN pip3 install --prefix=/usr/ pyelftools
 

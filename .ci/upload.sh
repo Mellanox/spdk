@@ -129,15 +129,23 @@ if [ -z "$VER" ]; then
 fi
 
 name="spdk"
-repo_name="${name}-${VER}"
-
-if command -v ofed_info >/dev/null 2>&1; then
-    # 4.6-1.0.1.2 => 4.6
-    ofed_ver=$(ofed_info -n | cut -d - -f1)
-    repo_name="${repo_name}-mlnx-ofed-${ofed_ver}"
+doca_ver=""
+if [[ -f /etc/debian_version ]]; then
+    # 3.5.0-082000 => 3.5.0
+    doca_ver=$(dpkg-query -W -f '${Version}' doca-ofed-userspace 2>/dev/null | cut -d- -f1)
+else
+    doca_ver=$(rpm -q --qf '%{VERSION}' doca-ofed-userspace 2>/dev/null) || doca_ver=""
 fi
+if [ -z "$doca_ver" ]; then
+    echo "[ERROR]: doca-ofed-userspace is not installed"
+    exit 1
+fi
+repo_name="${name}-${VER}-doca-ofed-${doca_ver}"
 
-if test -n "$ghprbPullId"; then
+if [[ "${do_release:-}" == "true" ]]; then
+    REV=${BUILD_NUMBER:-1}
+    STAGE="release"
+elif [[ -n "${ghprbPullId:-}" ]]; then
     REV="pr${ghprbPullId}"
     repo_name="${repo_name}-pr"
     STAGE="pr"
@@ -146,8 +154,8 @@ elif [[ "${REFSPEC:-}" =~ refs/merge-requests/([0-9]+) ]]; then
     repo_name="${repo_name}-mr"
     STAGE="pr"
 else
-    REV=${BUILD_NUMBER:-1}
-    STAGE="release"
+    echo "[ERROR]: refusing to publish. Pass refs/merge-requests/<iid>/head or set do_release=true"
+    exit 1
 fi
 
 if [[ -f /etc/debian_version ]]; then

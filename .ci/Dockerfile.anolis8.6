@@ -3,16 +3,18 @@ ARG _UID=6213
 ARG _GID=11429
 ARG _LOGIN=swx-jenkins
 ARG _HOME=/var/home/$_LOGIN
-ARG MOFED_VER
+ARG DOCA_VER
 ENV LANG=en_US.utf-8
 USER root
 
 RUN set -eux; \
-    echo -e "[mlnx_ofed]\n\
-name=Mellanox Technologies \$basearch mlnx_ofed\n\
-baseurl=http://nbu-nfs.gtm.nvidia.com/auto/mswg/release/MLNX_OFED/MLNX_OFED_LINUX-${MOFED_VER}/MLNX_OFED_LINUX-${MOFED_VER}-anolis8.6-\$basearch/RPMS/\n\
+    echo -e "[doca]\n\
+name=NVIDIA DOCA \$basearch\n\
+baseurl=https://linux.mellanox.com/public/repo/doca/${DOCA_VER}/anolis8.6/arm64-sbsa/\n\
 enabled=1\n\
-gpgcheck=0" > /etc/yum.repos.d/mellanox_mlnx_ofed.repo
+gpgcheck=1\n\
+repo_gpgcheck=1\n\
+gpgkey=https://linux.mellanox.com/public/repo/doca/${DOCA_VER}/anolis8.6/arm64-sbsa/RPM-GPG-KEY-doca" > /etc/yum.repos.d/nvidia_doca.repo
 
 RUN yum install -y ca-certificates
 
@@ -43,7 +45,7 @@ RUN yum install -y \
     python3-configshell \
     pkgconfig autoconf automake libtool \
     fuse3-devel patchelf \
-    mlnx-ofed-basic-user-only
+    doca-ofed-userspace
 
 RUN pip3 install --prefix=/usr/ pyelftools
 

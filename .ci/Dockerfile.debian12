@@ -4,7 +4,7 @@ ARG _GID=11429
 ARG _LOGIN=swx-jenkins
 ARG _HOME=/var/home/$_LOGIN
 ARG DEBIAN_FRONTEND=noninteractive
-ARG MOFED_VER
+ARG DOCA_VER
 ENV TZ=Etc/UTC
 USER root
 
@@ -40,8 +40,10 @@ RUN apt-get update && \
       libfuse3-dev \
       lsb-release
 
-RUN echo "deb [trusted=yes] http://nbu-nfs.gtm.nvidia.com/auto/mswg/release/MLNX_OFED/MLNX_OFED_LINUX-${MOFED_VER}/MLNX_OFED_LINUX-${MOFED_VER}-debian12.5-$(dpkg-architecture -qDEB_HOST_GNU_CPU)/DEBS/ ./" > /etc/apt/sources.list.d/ofed.list && \
-    apt update && KVERSION=$(ls /lib/modules) apt install -y mlnx-ofed-basic-user-only
+RUN set -eux; \
+    echo "deb [trusted=yes] https://linux.mellanox.com/public/repo/doca/${DOCA_VER}/debian12/arm64-sbsa/ ./" > /etc/apt/sources.list.d/doca.list && \
+    apt-get update && \
+    apt-get install -y doca-ofed-userspace
 
 RUN echo "${_LOGIN} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 RUN mkdir -p $_HOME
