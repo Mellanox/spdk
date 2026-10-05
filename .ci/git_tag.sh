@@ -24,10 +24,13 @@ REV=${BUILD_NUMBER:-1}
 
 git_tag="v$VER-${REV}"
 
-# SCM checkout is from gitlab-master; also push the release tag to GitHub mirror.
+# SCM checkout is from gitlab-master. Push the same tag to GitHub only when
+# the PUBLISH_GITHUB pipeline parameter is checked.
 GITLAB_REMOTE="${GITLAB_REMOTE:-ssh://git@gitlab-master.nvidia.com:12051/spdk_team/spdk.git}"
 GITHUB_REMOTE="${GITHUB_REMOTE:-git@github.com:Mellanox/spdk.git}"
 
 git tag $git_tag
 git push "$GITLAB_REMOTE" $git_tag
-git push "$GITHUB_REMOTE" $git_tag
+if [[ "${PUBLISH_GITHUB:-}" == "true" ]]; then
+	git push "$GITHUB_REMOTE" $git_tag
+fi

@@ -30,6 +30,10 @@
             name: "do_release"
             default: false
             description: "Release packages"
+        - bool:
+            name: "PUBLISH_GITHUB"
+            default: false
+            description: "Also push the release tag to GitHub (Mellanox/spdk)"
         - string:
             name: "script"
             default: "{jjb_jenkinsfile}"
