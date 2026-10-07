@@ -450,7 +450,6 @@ nvmf_ctrlr_create(struct spdk_nvmf_subsystem *subsystem,
 	struct spdk_nvmf_ctrlr *ctrlr;
 	struct spdk_nvmf_transport *transport = req->qpair->transport;
 	struct spdk_nvme_transport_id listen_trid = {};
-	bool subsys_has_multi_iocs = false;
 
 	ctrlr = calloc(1, sizeof(*ctrlr));
 	if (ctrlr == NULL) {
@@ -561,13 +560,11 @@ nvmf_ctrlr_create(struct spdk_nvmf_subsystem *subsystem,
 	/* ready timeout - 500 msec units */
 	ctrlr->vcprop.cap.bits.to = NVMF_CTRLR_RESET_SHN_TIMEOUT_IN_MS / 500;
 	ctrlr->vcprop.cap.bits.dstrd = 0; /* fixed to 0 for NVMe-oF */
-	subsys_has_multi_iocs = nvmf_subsystem_has_zns_iocs(subsystem) ||
-				nvmf_subsystem_has_kv_iocs(subsystem);
-	if (subsys_has_multi_iocs) {
-		ctrlr->vcprop.cap.bits.css =
+
+	ctrlr->vcprop.cap.bits.css = SPDK_NVME_CAP_CSS_NVM; /* NVM command set */
+	if (nvmf_subsystem_has_zns_iocs(subsystem) || nvmf_subsystem_has_kv_iocs(subsystem)) {
+		ctrlr->vcprop.cap.bits.css |=
 			SPDK_NVME_CAP_CSS_IOCS; /* One or more I/O command sets supported */
-	} else {
-		ctrlr->vcprop.cap.bits.css = SPDK_NVME_CAP_CSS_NVM; /* NVM command set */
 	}
 
 	ctrlr->vcprop.cap.bits.mpsmin = 0; /* 2 ^ (12 + mpsmin) == 4k */
@@ -584,7 +581,7 @@ nvmf_ctrlr_create(struct spdk_nvmf_subsystem *subsystem,
 
 	ctrlr->vcprop.cc.raw = 0;
 	ctrlr->vcprop.cc.bits.en = 0; /* Init controller disabled */
-	if (subsys_has_multi_iocs) {
+	if (ctrlr->vcprop.cap.bits.css & SPDK_NVME_CAP_CSS_IOCS) {
 		ctrlr->vcprop.cc.bits.css =
 			SPDK_NVME_CC_CSS_IOCS; /* All supported I/O Command Sets */
 	}
