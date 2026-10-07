@@ -1255,6 +1255,20 @@ const char *spdk_nvmf_subsystem_get_mn(const struct spdk_nvmf_subsystem *subsyst
 int spdk_nvmf_subsystem_set_mn(struct spdk_nvmf_subsystem *subsystem, const char *mn);
 
 /**
+ * Set the Command Sets supported by the subsystem.  Once set, only namespaces with the supported
+ * Command Sets can be added to the subsystem.  This function will fail if the subsystem holds
+ * namespaces with unsupported Command Sets.
+ *
+ * May only be performed on subsystems in the PAUSED or INACTIVE states.
+ *
+ * \param subsystem Subsystem.
+ * \param csm Mask of supported Command Sets (see `enum spdk_nvme_csi`).
+ *
+ * \return 0 on success, negative errno on failure.
+ */
+int spdk_nvmf_subsystem_set_command_sets(struct spdk_nvmf_subsystem *subsystem, uint64_t csm);
+
+/**
  * Get the NQN of the specified subsystem.
  *
  * \param subsystem Subsystem to query.

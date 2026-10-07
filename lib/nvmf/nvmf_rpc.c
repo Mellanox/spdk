@@ -331,7 +331,46 @@ struct rpc_subsystem_create {
 	uint64_t max_write_zeroes_size_kib;
 	bool passthrough;
 	bool enable_nssr;
+	uint64_t command_sets;
 };
+
+static int
+decode_command_set(const struct spdk_json_val *val, void *out)
+{
+	uint64_t *command_sets = out;
+
+	if (spdk_json_strequal(val, "nvm")) {
+		*command_sets |= SPDK_BIT(SPDK_NVME_CSI_NVM);
+	} else if (spdk_json_strequal(val, "kv")) {
+		*command_sets |= SPDK_BIT(SPDK_NVME_CSI_KV);
+	} else if (spdk_json_strequal(val, "zns")) {
+		*command_sets |= SPDK_BIT(SPDK_NVME_CSI_ZNS);
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
+decode_command_sets(const struct spdk_json_val *val, void *out)
+{
+	uint64_t *command_sets = out;
+	int rc;
+
+	*command_sets = 0;
+	rc = spdk_json_decode_array(val, decode_command_set, out, 64, NULL, 0);
+	if (rc != 0) {
+		return rc;
+	}
+
+	/* We only set the command sets if the mask is non-zero, so reject empty arrays */
+	if (*command_sets == 0) {
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 static const struct spdk_json_object_decoder rpc_subsystem_create_decoders[] = {
 	{"nqn", offsetof(struct rpc_subsystem_create, nqn), spdk_json_decode_string},
@@ -347,6 +386,7 @@ static const struct spdk_json_object_decoder rpc_subsystem_create_decoders[] = {
 	{"max_write_zeroes_size_kib", offsetof(struct rpc_subsystem_create, max_write_zeroes_size_kib), spdk_json_decode_uint64, true},
 	{"passthrough", offsetof(struct rpc_subsystem_create, passthrough), spdk_json_decode_bool, true},
 	{"enable_nssr", offsetof(struct rpc_subsystem_create, enable_nssr), spdk_json_decode_bool, true},
+	{"command_sets", offsetof(struct rpc_subsystem_create, command_sets), decode_command_sets, true},
 };
 
 static void
@@ -423,6 +463,16 @@ rpc_nvmf_create_subsystem(struct spdk_jsonrpc_request *request,
 			SPDK_ERRLOG("Subsystem %s: invalid model number '%s'\n", req->nqn, req->model_number);
 			spdk_jsonrpc_send_error_response_fmt(request, SPDK_JSONRPC_ERROR_INVALID_PARAMS,
 							     "Invalid MN %s", req->model_number);
+			goto cleanup;
+		}
+	}
+
+	if (req->command_sets != 0) {
+		if (spdk_nvmf_subsystem_set_command_sets(subsystem, req->command_sets)) {
+			SPDK_ERRLOG("Subsystem %s: invalid command sets 0x%" PRIx64 "\n", req->nqn,
+				    req->command_sets);
+			spdk_jsonrpc_send_error_response_fmt(request, SPDK_JSONRPC_ERROR_INVALID_PARAMS,
+							     "Invalid command sets 0x%" PRIx64, req->command_sets);
 			goto cleanup;
 		}
 	}

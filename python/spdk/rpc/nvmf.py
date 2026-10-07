@@ -207,7 +207,8 @@ def nvmf_create_subsystem(client,
                           max_discard_size_kib=0,
                           max_write_zeroes_size_kib=0,
                           passthrough=False,
-                          enable_nssr=False):
+                          enable_nssr=False,
+                          command_sets=None):
     """Construct an NVMe over Fabrics target subsystem.
 
     Args:
@@ -224,6 +225,7 @@ def nvmf_create_subsystem(client,
         max_write_zeroes_size_kib: Maximum write_zeroes size (Kib). Default: 0
         passthrough: Use NVMe passthrough for I/O commands and namespace-directed admin commands. Default: `false`
         enable_nssr: Enable NSSR (NVMe subsystem reset) support. Default: `false`
+        command_sets: List of supported Command Sets: `nvm`, `kv`, `zns`. (Optional)
 
 
     Returns:
@@ -268,6 +270,9 @@ def nvmf_create_subsystem(client,
 
     if enable_nssr:
         params['enable_nssr'] = enable_nssr
+
+    if command_sets is not None:
+        params['command_sets'] = command_sets
 
     return client.call('nvmf_create_subsystem', params)
 

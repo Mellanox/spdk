@@ -554,6 +554,20 @@ nvmf_write_nvme_subsystem_config(struct spdk_json_write_ctx *w,
 	spdk_json_write_named_uint32(w, "max_cntlid", spdk_nvmf_subsystem_get_max_cntlid(subsystem));
 	spdk_json_write_named_bool(w, "ana_reporting", spdk_nvmf_subsystem_get_ana_reporting(subsystem));
 
+	if (subsystem->command_sets != 0) {
+		spdk_json_write_named_array_begin(w, "command_sets");
+		if (subsystem->command_sets & SPDK_BIT(SPDK_NVME_CSI_NVM)) {
+			spdk_json_write_string(w, "nvm");
+		}
+		if (subsystem->command_sets & SPDK_BIT(SPDK_NVME_CSI_KV)) {
+			spdk_json_write_string(w, "kv");
+		}
+		if (subsystem->command_sets & SPDK_BIT(SPDK_NVME_CSI_ZNS)) {
+			spdk_json_write_string(w, "zns");
+		}
+		spdk_json_write_array_end(w);
+	}
+
 	/*     } "params" */
 	spdk_json_write_object_end(w);
 

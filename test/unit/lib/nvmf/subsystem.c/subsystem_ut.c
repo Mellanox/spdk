@@ -718,6 +718,89 @@ test_spdk_nvmf_subsystem_set_sn(void)
 	CU_ASSERT(spdk_nvmf_subsystem_set_sn(&subsystem, "abcd\txyz") < 0);
 }
 
+static uint32_t
+ut_subsystem_add_ns(struct spdk_nvmf_subsystem *subsystem, enum spdk_nvme_csi csi)
+{
+	struct spdk_nvmf_ns_opts ns_opts;
+	uint32_t nsid;
+
+	MOCK_SET(spdk_bdev_is_zoned, csi == SPDK_NVME_CSI_ZNS);
+	MOCK_SET(spdk_bdev_get_nvme_csi, csi);
+	spdk_nvmf_ns_opts_get_defaults(&ns_opts, sizeof(ns_opts));
+	nsid = spdk_nvmf_subsystem_add_ns_ext(subsystem, "bdev2", &ns_opts, sizeof(ns_opts), NULL);
+	MOCK_SET(spdk_bdev_is_zoned, false);
+	MOCK_SET(spdk_bdev_get_nvme_csi, SPDK_NVME_CSI_NVM);
+
+	return nsid;
+}
+
+static void
+test_spdk_nvmf_subsystem_set_command_sets(void)
+{
+	struct spdk_nvmf_tgt tgt = {};
+	struct spdk_nvmf_subsystem subsystem = {
+		.max_nsid = 1024,
+		.ns = NULL,
+		.tgt = &tgt,
+	};
+	const uint64_t nvm = SPDK_BIT(SPDK_NVME_CSI_NVM);
+	const uint64_t kv = SPDK_BIT(SPDK_NVME_CSI_KV);
+	const uint64_t zns = SPDK_BIT(SPDK_NVME_CSI_ZNS);
+	uint32_t nvm_nsid, kv_nsid, zns_nsid;
+
+	subsystem.ns = calloc(subsystem.max_nsid, sizeof(struct spdk_nvmf_subsystem_ns *));
+	SPDK_CU_ASSERT_FATAL(subsystem.ns != NULL);
+	subsystem.ana_group = calloc(subsystem.max_nsid, sizeof(uint32_t));
+	SPDK_CU_ASSERT_FATAL(subsystem.ana_group != NULL);
+
+	tgt.max_subsystems = 1024;
+	RB_INIT(&tgt.subsystems);
+
+	/* At least one Command Set is required */
+	CU_ASSERT(spdk_nvmf_subsystem_set_command_sets(&subsystem, 0) == -EINVAL);
+	CU_ASSERT(subsystem.command_sets == 0);
+
+	/* Only inactive or paused subsystems can be modified */
+	subsystem.state = SPDK_NVMF_SUBSYSTEM_ACTIVE;
+	CU_ASSERT(spdk_nvmf_subsystem_set_command_sets(&subsystem, nvm) == -EINVAL);
+	CU_ASSERT(subsystem.command_sets == 0);
+	subsystem.state = SPDK_NVMF_SUBSYSTEM_PAUSED;
+	CU_ASSERT(spdk_nvmf_subsystem_set_command_sets(&subsystem, nvm) == 0);
+	CU_ASSERT(subsystem.command_sets == nvm);
+	subsystem.state = SPDK_NVMF_SUBSYSTEM_INACTIVE;
+
+	/* NVM only */
+	nvm_nsid = ut_subsystem_add_ns(&subsystem, SPDK_NVME_CSI_NVM);
+	CU_ASSERT(nvm_nsid != 0);
+	CU_ASSERT(ut_subsystem_add_ns(&subsystem, SPDK_NVME_CSI_KV) == 0);
+	CU_ASSERT(ut_subsystem_add_ns(&subsystem, SPDK_NVME_CSI_ZNS) == 0);
+	CU_ASSERT(spdk_nvmf_subsystem_set_command_sets(&subsystem, kv) == -EPERM);
+	CU_ASSERT(subsystem.command_sets == nvm);
+
+	/* NVM and KV */
+	CU_ASSERT(spdk_nvmf_subsystem_set_command_sets(&subsystem, nvm | kv) == 0);
+	kv_nsid = ut_subsystem_add_ns(&subsystem, SPDK_NVME_CSI_KV);
+	CU_ASSERT(kv_nsid != 0);
+	CU_ASSERT(ut_subsystem_add_ns(&subsystem, SPDK_NVME_CSI_ZNS) == 0);
+	CU_ASSERT(spdk_nvmf_subsystem_set_command_sets(&subsystem, nvm) == -EPERM);
+	CU_ASSERT(spdk_nvmf_subsystem_set_command_sets(&subsystem, kv) == -EPERM);
+
+	/* KV and ZNS */
+	CU_ASSERT(spdk_nvmf_subsystem_remove_ns(&subsystem, nvm_nsid) == 0);
+	CU_ASSERT(spdk_nvmf_subsystem_set_command_sets(&subsystem, kv | zns) == 0);
+	CU_ASSERT(subsystem.command_sets == (kv | zns));
+	CU_ASSERT(ut_subsystem_add_ns(&subsystem, SPDK_NVME_CSI_NVM) == 0);
+	zns_nsid = ut_subsystem_add_ns(&subsystem, SPDK_NVME_CSI_ZNS);
+	CU_ASSERT(zns_nsid != 0);
+	CU_ASSERT(spdk_nvmf_subsystem_set_command_sets(&subsystem, kv) == -EPERM);
+	CU_ASSERT(spdk_nvmf_subsystem_set_command_sets(&subsystem, zns) == -EPERM);
+
+	CU_ASSERT(spdk_nvmf_subsystem_remove_ns(&subsystem, kv_nsid) == 0);
+	CU_ASSERT(spdk_nvmf_subsystem_remove_ns(&subsystem, zns_nsid) == 0);
+	free(subsystem.ns);
+	free(subsystem.ana_group);
+}
+
 static void
 test_spdk_nvmf_ns_visible(void)
 {
@@ -2538,6 +2621,7 @@ main(int argc, char **argv)
 	CU_ADD_TEST(suite, test_spdk_nvmf_subsystem_vwc_present_no_ctrlrs);
 	CU_ADD_TEST(suite, test_spdk_nvmf_subsystem_vwc_present_with_ctrlrs);
 	CU_ADD_TEST(suite, test_spdk_nvmf_subsystem_set_sn);
+	CU_ADD_TEST(suite, test_spdk_nvmf_subsystem_set_command_sets);
 	CU_ADD_TEST(suite, test_spdk_nvmf_ns_visible);
 	CU_ADD_TEST(suite, test_reservation_register);
 	CU_ADD_TEST(suite, test_reservation_register_with_ptpl);

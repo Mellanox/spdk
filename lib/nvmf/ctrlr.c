@@ -427,6 +427,18 @@ nvmf_subsystem_has_kv_iocs(struct spdk_nvmf_subsystem *subsystem)
 	return false;
 }
 
+static bool
+nvmf_ctrlr_is_csi_supported(struct spdk_nvmf_ctrlr *ctrlr, uint8_t csi)
+{
+	if (ctrlr->subsys->command_sets != 0) {
+		return nvmf_subsystem_csi_supported(ctrlr->subsys, csi);
+	}
+
+	return (csi == SPDK_NVME_CSI_NVM) ||
+	       (csi == SPDK_NVME_CSI_ZNS && nvmf_subsystem_has_zns_iocs(ctrlr->subsys)) ||
+	       (csi == SPDK_NVME_CSI_KV && nvmf_subsystem_has_kv_iocs(ctrlr->subsys));
+}
+
 static void
 nvmf_ctrlr_init_visible_ns(struct spdk_nvmf_ctrlr *ctrlr)
 {
@@ -561,10 +573,12 @@ nvmf_ctrlr_create(struct spdk_nvmf_subsystem *subsystem,
 	ctrlr->vcprop.cap.bits.to = NVMF_CTRLR_RESET_SHN_TIMEOUT_IN_MS / 500;
 	ctrlr->vcprop.cap.bits.dstrd = 0; /* fixed to 0 for NVMe-oF */
 
-	ctrlr->vcprop.cap.bits.css = SPDK_NVME_CAP_CSS_NVM; /* NVM command set */
-	if (nvmf_subsystem_has_zns_iocs(subsystem) || nvmf_subsystem_has_kv_iocs(subsystem)) {
-		ctrlr->vcprop.cap.bits.css |=
-			SPDK_NVME_CAP_CSS_IOCS; /* One or more I/O command sets supported */
+	if (nvmf_ctrlr_is_csi_supported(ctrlr, SPDK_NVME_CSI_NVM)) {
+		ctrlr->vcprop.cap.bits.css |= SPDK_NVME_CAP_CSS_NVM;
+	}
+	if (nvmf_ctrlr_is_csi_supported(ctrlr, SPDK_NVME_CSI_KV) ||
+	    nvmf_ctrlr_is_csi_supported(ctrlr, SPDK_NVME_CSI_ZNS)) {
+		ctrlr->vcprop.cap.bits.css |= SPDK_NVME_CAP_CSS_IOCS;
 	}
 
 	ctrlr->vcprop.cap.bits.mpsmin = 0; /* 2 ^ (12 + mpsmin) == 4k */
@@ -2749,7 +2763,7 @@ spdk_nvmf_get_cmds_and_effects_log_page(struct spdk_nvmf_ctrlr *ctrlr,
 		entry = &log_page->io_cmds_supported[SPDK_NVME_OPC_COMPARE];
 		memset(entry, 0, sizeof(*entry));
 	}
-	if (!nvmf_subsystem_has_zns_iocs(ctrlr->subsys)) {
+	if (!nvmf_ctrlr_is_csi_supported(ctrlr, SPDK_NVME_CSI_ZNS)) {
 		entry = &log_page->io_cmds_supported[SPDK_NVME_OPC_ZONE_MGMT_SEND];
 		memset(entry, 0, sizeof(*entry));
 		entry = &log_page->io_cmds_supported[SPDK_NVME_OPC_ZONE_MGMT_RECV];
@@ -3655,14 +3669,6 @@ spdk_nvmf_identify_ns_iocs_independent(struct spdk_nvmf_ctrlr *ctrlr,
 	return SPDK_NVMF_REQUEST_EXEC_STATUS_COMPLETE;
 }
 
-static bool
-nvmf_ctrlr_is_csi_supported(struct spdk_nvmf_ctrlr *ctrlr, uint8_t csi)
-{
-	return (csi == SPDK_NVME_CSI_NVM) ||
-	       (csi == SPDK_NVME_CSI_ZNS && nvmf_subsystem_has_zns_iocs(ctrlr->subsys)) ||
-	       (csi == SPDK_NVME_CSI_KV && nvmf_subsystem_has_kv_iocs(ctrlr->subsys));
-}
-
 static int
 nvmf_ctrlr_identify_active_ns_list(struct spdk_nvmf_ctrlr *ctrlr,
 				   struct spdk_nvme_cmd *cmd,
@@ -3785,7 +3791,6 @@ nvmf_ctrlr_identify_iocs(struct spdk_nvmf_ctrlr *ctrlr,
 			 void *cdata, size_t cdata_size)
 {
 	struct spdk_nvme_iocs_vector *vector;
-	struct spdk_nvmf_ns *ns;
 
 	if (cdata_size < sizeof(struct spdk_nvme_iocs_vector)) {
 		rsp->status.sct = SPDK_NVME_SCT_GENERIC;
@@ -3805,19 +3810,9 @@ nvmf_ctrlr_identify_iocs(struct spdk_nvmf_ctrlr *ctrlr,
 	memset(cdata, 0, cdata_size);
 
 	vector = cdata;
-	vector->nvm = 1;
-	for (ns = spdk_nvmf_subsystem_get_first_ns(ctrlr->subsys); ns != NULL;
-	     ns = spdk_nvmf_subsystem_get_next_ns(ctrlr->subsys, ns)) {
-		if (ns->bdev == NULL) {
-			continue;
-		}
-		if (spdk_bdev_is_zoned(ns->bdev)) {
-			vector->zns = 1;
-		}
-		if (ns->csi == SPDK_NVME_CSI_KV) {
-			vector->kv = 1;
-		}
-	}
+	vector->nvm = nvmf_ctrlr_is_csi_supported(ctrlr, SPDK_NVME_CSI_NVM);
+	vector->kv = nvmf_ctrlr_is_csi_supported(ctrlr, SPDK_NVME_CSI_KV);
+	vector->zns = nvmf_ctrlr_is_csi_supported(ctrlr, SPDK_NVME_CSI_ZNS);
 
 	rsp->status.sct = SPDK_NVME_SCT_GENERIC;
 	rsp->status.sc = SPDK_NVME_SC_SUCCESS;

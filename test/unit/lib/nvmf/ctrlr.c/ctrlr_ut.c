@@ -313,6 +313,12 @@ spdk_nvmf_subsystem_get_next_ns(struct spdk_nvmf_subsystem *subsystem,
 }
 
 bool
+nvmf_subsystem_csi_supported(struct spdk_nvmf_subsystem *subsystem, uint8_t csi)
+{
+	return subsystem->command_sets & SPDK_BIT(csi);
+}
+
+bool
 nvmf_bdev_zcopy_enabled(struct spdk_bdev *bdev)
 {
 	return true;
@@ -2115,6 +2121,77 @@ test_identify_ctrlr_iocs_specific(void)
 }
 
 static void
+test_nvmf_ctrlr_css(void)
+{
+	struct spdk_nvmf_ns ns_kv = { .nsid = 1, .csi = SPDK_NVME_CSI_KV };
+	struct spdk_nvmf_ns *ns_arr[1] = { NULL };
+	struct spdk_nvmf_subsystem subsystem = { .max_nsid = 1, .ns = ns_arr };
+	struct spdk_nvmf_ctrlr ctrlr = { .subsys = &subsystem };
+	struct spdk_nvme_cmd cmd = { .cdw10_bits.identify.cntid = 0xFFFF };
+	struct spdk_nvme_cpl rsp = {};
+	struct spdk_nvme_iocs_vector vector;
+	struct spdk_nvme_ns_list ns_list;
+	struct spdk_nvme_cmds_and_effect_log_page log_page;
+
+	/* Derived from the namespaces */
+	nvmf_ctrlr_identify_iocs(&ctrlr, &cmd, &rsp, &vector, sizeof(vector));
+	CU_ASSERT(rsp.status.sc == SPDK_NVME_SC_SUCCESS);
+	CU_ASSERT(vector.nvm == 1);
+	CU_ASSERT(vector.kv == 0);
+	CU_ASSERT(vector.zns == 0);
+
+	ns_arr[0] = &ns_kv;
+	nvmf_ctrlr_identify_iocs(&ctrlr, &cmd, &rsp, &vector, sizeof(vector));
+	CU_ASSERT(rsp.status.sc == SPDK_NVME_SC_SUCCESS);
+	CU_ASSERT(vector.nvm == 1);
+	CU_ASSERT(vector.kv == 1);
+	CU_ASSERT(vector.zns == 0);
+	ns_arr[0] = NULL;
+
+	/* Explicitly set to KV only */
+	subsystem.command_sets = SPDK_BIT(SPDK_NVME_CSI_KV);
+
+	nvmf_ctrlr_identify_iocs(&ctrlr, &cmd, &rsp, &vector, sizeof(vector));
+	CU_ASSERT(rsp.status.sc == SPDK_NVME_SC_SUCCESS);
+	CU_ASSERT(vector.nvm == 0);
+	CU_ASSERT(vector.kv == 1);
+	CU_ASSERT(vector.zns == 0);
+
+	memset(&rsp, 0, sizeof(rsp));
+	cmd.cdw11_bits.identify.csi = SPDK_NVME_CSI_KV;
+	nvmf_ctrlr_identify_active_ns_list(&ctrlr, &cmd, &rsp, &ns_list, true);
+	CU_ASSERT(rsp.status.sc == SPDK_NVME_SC_SUCCESS);
+	cmd.cdw11_bits.identify.csi = SPDK_NVME_CSI_ZNS;
+	nvmf_ctrlr_identify_active_ns_list(&ctrlr, &cmd, &rsp, &ns_list, true);
+	CU_ASSERT(rsp.status.sc == SPDK_NVME_SC_INVALID_FIELD);
+
+	spdk_nvmf_get_cmds_and_effects_log_page(&ctrlr, &log_page);
+	CU_ASSERT(log_page.io_cmds_supported[SPDK_NVME_OPC_ZONE_MGMT_SEND].csupp == 0);
+	CU_ASSERT(log_page.io_cmds_supported[SPDK_NVME_OPC_ZONE_MGMT_RECV].csupp == 0);
+
+	/* Explicitly set to NVM and ZNS */
+	subsystem.command_sets = SPDK_BIT(SPDK_NVME_CSI_NVM) | SPDK_BIT(SPDK_NVME_CSI_ZNS);
+
+	nvmf_ctrlr_identify_iocs(&ctrlr, &cmd, &rsp, &vector, sizeof(vector));
+	CU_ASSERT(rsp.status.sc == SPDK_NVME_SC_SUCCESS);
+	CU_ASSERT(vector.nvm == 1);
+	CU_ASSERT(vector.kv == 0);
+	CU_ASSERT(vector.zns == 1);
+
+	memset(&rsp, 0, sizeof(rsp));
+	cmd.cdw11_bits.identify.csi = SPDK_NVME_CSI_ZNS;
+	nvmf_ctrlr_identify_active_ns_list(&ctrlr, &cmd, &rsp, &ns_list, true);
+	CU_ASSERT(rsp.status.sc == SPDK_NVME_SC_SUCCESS);
+	cmd.cdw11_bits.identify.csi = SPDK_NVME_CSI_KV;
+	nvmf_ctrlr_identify_active_ns_list(&ctrlr, &cmd, &rsp, &ns_list, true);
+	CU_ASSERT(rsp.status.sc == SPDK_NVME_SC_INVALID_FIELD);
+
+	spdk_nvmf_get_cmds_and_effects_log_page(&ctrlr, &log_page);
+	CU_ASSERT(log_page.io_cmds_supported[SPDK_NVME_OPC_ZONE_MGMT_SEND].csupp == 1);
+	CU_ASSERT(log_page.io_cmds_supported[SPDK_NVME_OPC_ZONE_MGMT_RECV].csupp == 1);
+}
+
+static void
 test_nvmf_ctrlr_vwc(void)
 {
 	struct spdk_nvmf_tgt tgt = {};
@@ -2923,6 +3000,44 @@ test_nvmf_ctrlr_create_destruct(void)
 	CU_ASSERT(ctrlr->vcprop.csts.raw == 0);
 	CU_ASSERT(ctrlr->vcprop.csts.bits.rdy == 0);
 	CU_ASSERT(ctrlr->dif_insert_or_strip == true);
+
+	ctrlr->in_destruct = true;
+	nvmf_ctrlr_destruct(ctrlr);
+	poll_threads();
+	CU_ASSERT(TAILQ_EMPTY(&subsystem.ctrlrs));
+	CU_ASSERT(TAILQ_EMPTY(&qpair.outstanding));
+
+	/* Explicitly set to NVM and KV */
+	subsystem.command_sets = SPDK_BIT(SPDK_NVME_CSI_NVM) | SPDK_BIT(SPDK_NVME_CSI_KV);
+	qpair.ctrlr = NULL;
+	qpair.state = SPDK_NVMF_QPAIR_CONNECTING;
+	TAILQ_INSERT_TAIL(&qpair.outstanding, &req, link);
+	sgroups[subsystem.id].mgmt_io_outstanding++;
+
+	ctrlr = nvmf_ctrlr_create(&subsystem, &req, &req.cmd->connect_cmd, req.iov[0].iov_base);
+	poll_threads();
+	SPDK_CU_ASSERT_FATAL(ctrlr != NULL);
+	CU_ASSERT(ctrlr->vcprop.cap.bits.css == (SPDK_NVME_CAP_CSS_NVM | SPDK_NVME_CAP_CSS_IOCS));
+	CU_ASSERT(ctrlr->vcprop.cc.bits.css == SPDK_NVME_CC_CSS_IOCS);
+
+	ctrlr->in_destruct = true;
+	nvmf_ctrlr_destruct(ctrlr);
+	poll_threads();
+	CU_ASSERT(TAILQ_EMPTY(&subsystem.ctrlrs));
+	CU_ASSERT(TAILQ_EMPTY(&qpair.outstanding));
+
+	/* Explicitly set to KV only */
+	subsystem.command_sets = SPDK_BIT(SPDK_NVME_CSI_KV);
+	qpair.ctrlr = NULL;
+	qpair.state = SPDK_NVMF_QPAIR_CONNECTING;
+	TAILQ_INSERT_TAIL(&qpair.outstanding, &req, link);
+	sgroups[subsystem.id].mgmt_io_outstanding++;
+
+	ctrlr = nvmf_ctrlr_create(&subsystem, &req, &req.cmd->connect_cmd, req.iov[0].iov_base);
+	poll_threads();
+	SPDK_CU_ASSERT_FATAL(ctrlr != NULL);
+	CU_ASSERT(ctrlr->vcprop.cap.bits.css == SPDK_NVME_CAP_CSS_IOCS);
+	CU_ASSERT(ctrlr->vcprop.cc.bits.css == SPDK_NVME_CC_CSS_IOCS);
 
 	ctrlr->in_destruct = true;
 	nvmf_ctrlr_destruct(ctrlr);
@@ -3828,6 +3943,7 @@ main(int argc, char **argv)
 	CU_ADD_TEST(suite, test_set_get_features);
 	CU_ADD_TEST(suite, test_identify_ctrlr);
 	CU_ADD_TEST(suite, test_identify_ctrlr_iocs_specific);
+	CU_ADD_TEST(suite, test_nvmf_ctrlr_css);
 	CU_ADD_TEST(suite, test_nvmf_ctrlr_vwc);
 	CU_ADD_TEST(suite, test_custom_admin_cmd);
 	CU_ADD_TEST(suite, test_fused_compare_and_write);

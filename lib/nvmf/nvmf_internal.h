@@ -341,6 +341,9 @@ struct spdk_nvmf_subsystem {
 	/* Volatile Write Cache (VWC) related fields */
 	bool						vwc_present;
 
+	/* Command Set mask */
+	uint64_t					command_sets;
+
 	/* Zoned storage related fields */
 	uint64_t					max_zone_append_size_kib;
 
@@ -472,6 +475,7 @@ struct spdk_nvmf_subsystem_listener *nvmf_subsystem_find_listener(
 	const struct spdk_nvme_transport_id *trid);
 bool nvmf_subsystem_listener_is_active(const struct spdk_nvmf_subsystem_listener *listener);
 bool nvmf_subsystem_zone_append_supported(struct spdk_nvmf_subsystem *subsystem);
+bool nvmf_subsystem_csi_supported(struct spdk_nvmf_subsystem *subsystem, uint8_t csi);
 struct spdk_nvmf_listener *nvmf_transport_find_listener(
 	struct spdk_nvmf_transport *transport,
 	const struct spdk_nvme_transport_id *trid);

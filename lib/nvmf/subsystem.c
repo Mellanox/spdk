@@ -2203,6 +2203,20 @@ nvmf_ns_set_memory_domain_support(struct spdk_nvmf_ns *ns, enum spdk_bdev_io_typ
 	}
 }
 
+bool
+nvmf_subsystem_csi_supported(struct spdk_nvmf_subsystem *subsystem, uint8_t csi)
+{
+	if (subsystem->command_sets == 0) {
+		return true;
+	}
+
+	if (csi >= 64) {
+		return false;
+	}
+
+	return !!(subsystem->command_sets & (1ull << csi));
+}
+
 uint32_t
 spdk_nvmf_subsystem_add_ns_ext(struct spdk_nvmf_subsystem *subsystem, const char *bdev_name,
 			       const struct spdk_nvmf_ns_opts *user_opts, size_t opts_size,
@@ -2337,6 +2351,11 @@ spdk_nvmf_subsystem_add_ns_ext(struct spdk_nvmf_subsystem *subsystem, const char
 
 	if (spdk_bdev_is_zoned(ns->bdev)) {
 		SPDK_DEBUGLOG(nvmf, "The added namespace is backed by a zoned block device.\n");
+		if (!nvmf_subsystem_csi_supported(subsystem, SPDK_NVME_CSI_ZNS)) {
+			SPDK_ERRLOG("The subsystem doesn't support ZNS Command Set\n");
+			goto err;
+		}
+
 		ns->csi = SPDK_NVME_CSI_ZNS;
 
 		zone_append_supported = spdk_bdev_io_type_supported(ns->bdev,
@@ -2354,6 +2373,11 @@ spdk_nvmf_subsystem_add_ns_ext(struct spdk_nvmf_subsystem *subsystem, const char
 		subsystem->max_zone_append_size_kib = max_zone_append_size_kib;
 	} else if (spdk_bdev_get_nvme_csi(ns->bdev) == SPDK_NVME_CSI_KV) {
 		SPDK_DEBUGLOG(nvmf, "The added namespace is a Key-Value namespace.\n");
+		if (!nvmf_subsystem_csi_supported(subsystem, SPDK_NVME_CSI_KV)) {
+			SPDK_ERRLOG("The subsystem doesn't support Key-Value Command Set\n");
+			goto err;
+		}
+
 		ns->csi = SPDK_NVME_CSI_KV;
 
 		for (transport = spdk_nvmf_transport_get_first(subsystem->tgt); transport;
@@ -2363,6 +2387,12 @@ spdk_nvmf_subsystem_add_ns_ext(struct spdk_nvmf_subsystem *subsystem, const char
 					    transport->ops->name);
 				goto err;
 			}
+		}
+	} else {
+		SPDK_DEBUGLOG(nvmf, "The added namespace is an NVM namespace.\n");
+		if (!nvmf_subsystem_csi_supported(subsystem, SPDK_NVME_CSI_NVM)) {
+			SPDK_ERRLOG("The subsystem doesn't support NVM Command Set\n");
+			goto err;
 		}
 	}
 
@@ -2639,6 +2669,36 @@ spdk_nvmf_subsystem_set_mn(struct spdk_nvmf_subsystem *subsystem, const char *mn
 
 	snprintf(subsystem->mn, sizeof(subsystem->mn), "%s", mn);
 
+	return 0;
+}
+
+int
+spdk_nvmf_subsystem_set_command_sets(struct spdk_nvmf_subsystem *subsystem, uint64_t csm)
+{
+	struct spdk_nvmf_ns *ns;
+
+	if (csm == 0) {
+		SPDK_ERRLOG("Unsupported Command Set mask (0x0): must allow at least one "
+			    "command set\n");
+		return -EINVAL;
+	}
+
+	if (!(subsystem->state == SPDK_NVMF_SUBSYSTEM_INACTIVE ||
+	      subsystem->state == SPDK_NVMF_SUBSYSTEM_PAUSED)) {
+		return -EINVAL;
+	}
+
+	for (ns = spdk_nvmf_subsystem_get_first_ns(subsystem);
+	     ns != NULL;
+	     ns = spdk_nvmf_subsystem_get_next_ns(subsystem, ns)) {
+		if (!(csm & (1ull << ns->csi))) {
+			SPDK_ERRLOG("Cannot set Command Set mask (0x%" PRIx64 "): subsystem has "
+				    "namespace(s) with CSI=%d\n", csm, ns->csi);
+			return -EPERM;
+		}
+	}
+
+	subsystem->command_sets = csm;
 	return 0;
 }
 
