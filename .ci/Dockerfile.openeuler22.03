@@ -10,7 +10,7 @@ USER root
 # Default openeuleros repos are unstable and very slow, so replace
 # them with URM mirror
 RUN set -eux; \
-    sed -i 's|http[s]*://repo.openeuler.org|https://urm.nvidia.com/artifactory/openeuler-rpm-remote|g' /etc/yum.repos.d/openEuler.repo; \
+    sed -i 's|http[s]*://repo.openeuler.org|https://artifactory.pdx.nvidia.com/artifactory/openeuler-rpm-remote|g' /etc/yum.repos.d/openEuler.repo; \
     sed -i 's|^metalink=|#metalink=|g' /etc/yum.repos.d/openEuler.repo
 
 RUN yum install -y ca-certificates
