@@ -512,7 +512,8 @@ test_csv_multiple_types(void)
 
 /*
  * When spdk_telemetry_exporter_register() fails (g_register_rc != 0),
- * telemetry_csv_create() must return the error and free dst_dir.
+ * telemetry_csv_create() must return the error, free dst_dir and leave the
+ * module unregistered, so that a retry can succeed.
  */
 static void
 test_csv_create_register_failure(void)
@@ -525,6 +526,15 @@ test_csv_create_register_failure(void)
 	rc = telemetry_csv_create(g_tmpdir);
 	CU_ASSERT_EQUAL(rc, -ENOENT);
 	CU_ASSERT(g_telemetry_csv.dst_dir == NULL);
+	CU_ASSERT(g_telemetry_csv.exporter.exporter.ctxt == NULL);
+
+	g_register_rc = 0;
+	rc = telemetry_csv_create(g_tmpdir);
+	CU_ASSERT_EQUAL(rc, 0);
+	CU_ASSERT(g_telemetry_csv.dst_dir != NULL);
+
+	rc = telemetry_csv_delete();
+	CU_ASSERT_EQUAL(rc, 0);
 }
 
 /*
