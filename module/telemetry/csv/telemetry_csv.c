@@ -432,6 +432,9 @@ telemetry_csv_create(const char *dst_dir)
 		SPDK_ERRLOG("Failed to register telemetry CSV exporter: %d\n", res);
 		free(g_telemetry_csv.dst_dir);
 		g_telemetry_csv.dst_dir = NULL;
+		g_telemetry_csv.exporter.exporter.ctxt = NULL;
+		g_telemetry_csv.exporter.exporter.fn_table = NULL;
+		g_telemetry_csv.exporter.exporter.module = NULL;
 		return res;
 	}
 
