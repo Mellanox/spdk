@@ -9,7 +9,7 @@ registry_host: nbu-harbor.gtm.nvidia.com
 registry_path: /swx-storage/spdk
 
 credentials:
-  - {credentialsId: 'svc-nbu-swx-repos', usernameVariable: 'REPO_USER', passwordVariable: 'REPO_PASS'}
+  - {credentialsId: 'svc-nbu-swx-snap-artifactory-token', usernameVariable: 'REPO_USER', passwordVariable: 'REPO_PASS'}
 
 failFast: false
 kubernetes:
@@ -79,9 +79,9 @@ steps:
         exit 1
       fi
 
-  - name: Upload distro package URM
+  - name: Upload distro package
     enable: true
-    credentialsId: 'svc-nbu-swx-repos'
+    credentialsId: 'svc-nbu-swx-snap-artifactory-token'
     resource: actions/nexus.py
     containerSelector:
       - "{name: 'ubuntu20_04', variant:1}"
@@ -97,12 +97,12 @@ steps:
       - "{name: 'rockylinux8_6', variant:1}"
       - "{name: 'openeuler22_03', variant:1}"
     run: |
-      .ci/upload.sh urm
+      .ci/upload.sh artifactory
 
   - name: Upload tar package
     containerSelector:
       - "{name: 'rockylinux9_2', variant:1}"
-    credentialsId: 'svc-nbu-swx-repos'
+    credentialsId: 'svc-nbu-swx-snap-artifactory-token'
     run: |
       if [[ "$(uname -m)" == "aarch64" ]]; then
           .ci/upload.sh tar
