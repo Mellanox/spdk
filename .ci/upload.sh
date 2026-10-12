@@ -30,7 +30,7 @@ get_os_name() {
     echo "${ID}_${VERSION_ID}"
 }
 
-upload_deb_urm() {
+upload_deb_artifactory() {
     # Import gpg key
     gpg --import ${GPG_KEY_PATH}
 
@@ -50,20 +50,20 @@ upload_deb_urm() {
         SHA1=$(shasum -a 1 $deb_pkg | awk '{ print $1 }')
         SHA256=$(shasum -a 256 $deb_pkg | awk '{ print $1 }')
         if [[ $deb_pkg =~ "_all.deb" ]]; then
-            upload_url_urm="${REPO_URL}/${name}/${codename}/${STAGE}/${VER}/${deb_pkg};deb.distribution=${codename};deb.component=${repo_name};deb.architecture=all"
+            upload_url="${REPO_URL}/${name}/${codename}/${STAGE}/${VER}/${deb_pkg};deb.distribution=${codename};deb.component=${repo_name};deb.architecture=all"
         else
-            upload_url_urm="${REPO_URL}/${name}/${codename}/${STAGE}/${VER}/${deb_pkg};deb.distribution=${codename};deb.component=${repo_name};deb.architecture=${arch}"
+            upload_url="${REPO_URL}/${name}/${codename}/${STAGE}/${VER}/${deb_pkg};deb.distribution=${codename};deb.component=${repo_name};deb.architecture=${arch}"
         fi
-        echo "INFO: Uploading package ${deb_pkg} to ${upload_url_urm}"
+        echo "INFO: Uploading package ${deb_pkg} to ${upload_url}"
         curl --fail -u "${REPO_USER}:${REPO_PASS}" -X PUT \
             -H "X-Checksum-MD5:${MD5}" \
             -H "X-Checksum-Sha1:${SHA1}" \
             -H "X-Checksum-Sha256:${SHA256}" \
-            -T "${deb_pkg}" "${upload_url_urm}"
+            -T "${deb_pkg}" "${upload_url}"
     done
 }
 
-upload_rpm_urm() {
+upload_rpm_artifactory() {
 
     releasever=$(get_releasever)
     if [ -z $releasever ]; then
@@ -145,9 +145,9 @@ if [[ -f /etc/debian_version ]]; then
     : ${GPG_KEY_PATH:? GPG_KEY_PATH is not found!}
     gpg_key_name=$(echo ${GPG_KEY_PATH##*/} | cut -d . -f 1)
 
-    if [ $1 == "urm" ]; then
+    if [ $1 == "artifactory" ]; then
         REPO_URL="${REPO_URL}/sw-nbu-swx-ci-debian-local"
-        upload_deb_urm
+        upload_deb_artifactory
     else
         echo "Repo not selected"
         exit 1
@@ -157,9 +157,9 @@ elif [[ -f /etc/redhat-release || -f /etc/openEuler-release ]]; then
 
     arch=$(uname -m)
 
-    if [ $1 == "urm" ]; then
+    if [ $1 == "artifactory" ]; then
         REPO_URL="${REPO_URL}/sw-nbu-swx-ci-rpm-local"
-        upload_rpm_urm
+        upload_rpm_artifactory
     else
         echo "Repo not selected"
         exit 1
