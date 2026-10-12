@@ -26,7 +26,7 @@ DIRS-$(CONFIG_XNVME) += xnvmebuild
 DIRS-$(CONFIG_GOLANG) += go/rpc
 DIRS-y += python
 
-.PHONY: all clean $(DIRS-y) include/spdk/config.h mk/config.mk \
+.PHONY: all clean $(DIRS-y) include/spdk/config.h include/spdk/version.h mk/config.mk \
 	cc_version cxx_version ar_version .libs_only_other .ldflags ldflags install \
 	uninstall
 
@@ -134,8 +134,12 @@ include/spdk/version.h: include/spdk/version.h.in VERSION
 		s/\$$SPDK_VERSION_MAJOR/$(version_major)/g; \
 		s/\$$SPDK_VERSION_MINOR/$(version_minor)/g; \
 		s/\$$SPDK_VERSION_PATCH/$(version_patch)/g; \
-		s/\$$SPDK_VERSION_SUFFIX/$(version_suffix)/g;" \
-		$@.in > $@
+		s/\$$SPDK_VERSION_SUFFIX/$(version_suffix)/g; \
+		s/\$$SPDK_GIT_COMMIT_SHA1/$(if $(SPDK_GIT_COMMIT), git sha1 $(SPDK_GIT_COMMIT))/g; \
+		s/\$$SPDK_GIT_COMMIT/$(SPDK_GIT_COMMIT)/g;" \
+		$@.in > $@.tmp; \
+		cmp -s $@.tmp $@ || mv $@.tmp $@; \
+		rm -f $@.tmp
 
 cc_version: mk/cc.mk
 	$(Q)echo "SPDK using CC=$(CC)"; $(CC) -v

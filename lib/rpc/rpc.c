@@ -430,9 +430,9 @@ rpc_spdk_get_version(struct spdk_jsonrpc_request *request, const struct spdk_jso
 	spdk_json_write_named_uint32(w, "minor", SPDK_VERSION_MINOR);
 	spdk_json_write_named_uint32(w, "patch", SPDK_VERSION_PATCH);
 	spdk_json_write_named_string_fmt(w, "suffix", "%s", SPDK_VERSION_SUFFIX);
-#ifdef SPDK_GIT_COMMIT
-	spdk_json_write_named_string_fmt(w, "commit", "%s", SPDK_GIT_COMMIT_STRING);
-#endif
+	if (strlen(SPDK_GIT_COMMIT_STRING) > 0) {
+		spdk_json_write_named_string_fmt(w, "commit", "%s", SPDK_GIT_COMMIT_STRING);
+	}
 	spdk_json_write_object_end(w);
 
 	spdk_json_write_object_end(w);

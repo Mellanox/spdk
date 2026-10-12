@@ -340,9 +340,6 @@ SPDK_GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null)
 else ifneq ($(wildcard $(SPDK_ROOT_DIR)/REVISION),)
 SPDK_GIT_COMMIT := $(shell cat $(SPDK_ROOT_DIR)/REVISION)
 endif
-ifneq (, $(SPDK_GIT_COMMIT))
-COMMON_CFLAGS += -DSPDK_GIT_COMMIT=$(SPDK_GIT_COMMIT)
-endif
 
 ifneq ($(OS),Windows)
 COMMON_CFLAGS += -pthread
