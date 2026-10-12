@@ -38,7 +38,7 @@
             description: "Jenkinsfile to load on trigger"
         - string:
             name: "REPO_URL"
-            default: "https://urm.nvidia.com/artifactory"
+            default: "https://artifactory.nvidia.com/artifactory"
             description: "Repository manager URL"
         - string:
             name: "GPG_KEY_PATH"
