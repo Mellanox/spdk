@@ -44,7 +44,8 @@ function pack_dist() {
 		)
 	done
 
-	git archive --format=tar.gz --prefix=spdk-$VER/ -o $ODIR/spdk-$VER.tar.gz HEAD
+	git archive --format=tar.gz --add-virtual-file "spdk-$VER/REVISION:$sha1"$'\n' \
+		--prefix=spdk-$VER/ -o $ODIR/spdk-$VER.tar.gz HEAD
 
 	pushd scripts
 	python3 setup.py sdist -d $ODIR/
