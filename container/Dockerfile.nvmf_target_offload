@@ -22,7 +22,7 @@ WORKDIR /build
 # Install dependecies
 RUN apt update && \
     apt install -y dpkg-dev debhelper patchelf python3-pyelftools \
-                   libfuse3-dev libaio-dev libncurses-dev skopeo && \
+                   libfuse3-dev libaio-dev libncurses-dev skopeo uuid-dev && \
     dpkg --force-all -r spdk spdk-rpc spdk-dev
 
 # Build and install DOCA STA
