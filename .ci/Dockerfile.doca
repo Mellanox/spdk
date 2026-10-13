@@ -35,7 +35,8 @@ RUN set -eux; \
     python3-pyelftools \
     libfuse3-dev \
     libaio-dev \
-    libncurses-dev
+    libncurses-dev \
+    uuid-dev
 
 ### PODMAN ###
 RUN printf "[storage.options]\nignore_chown_errors = \"true\"\n" > /etc/containers/storage.conf
