@@ -740,6 +740,7 @@ global_token_bucket_set(struct global_token_bucket *global_bucket, uint64_t avg_
 	struct token_bucket *burst_bucket = &global_bucket->burst_bucket;
 	uint64_t min_rate, complement, ticks_per_sec, batch_demand;
 	uint64_t requested_period_ticks, min_period_ticks, refill_period_ticks;
+	bool period_clamped;
 
 	switch (qos_mode) {
 	case BDEV_QOS_MODE_STRICT:
@@ -832,16 +833,39 @@ global_token_bucket_set(struct global_token_bucket *global_bucket, uint64_t avg_
 	refill_period_ticks = spdk_max(requested_period_ticks, min_period_ticks);
 
 	/* One second is the longest period the refill accounting supports. */
+	period_clamped = min_period_ticks > ticks_per_sec;
 	refill_period_ticks = spdk_min(refill_period_ticks, ticks_per_sec);
 
-	if (refill_period_ticks > requested_period_ticks) {
-		SPDK_WARNLOG("A guaranteed refill of %" PRIu64 " on %" PRIu32 " cores needs a %"
-			     PRIu64 " us refill period at avg_rate %" PRIu64 ", overriding the "
-			     "requested %" PRIu64 " us. Tail latency follows the longer period; "
-			     "lower the guaranteed refill or raise avg_rate to avoid this.\n",
-			     per_core_guaranteed_refill, spdk_env_get_core_count(),
-			     refill_period_ticks * g_qos_opts.tick_period_us,
-			     avg_rate, refill_period_us);
+	/* A longer period than requested is expected whenever the guarantee is sized
+	 * for a full queue at a low rate, and it trades tail latency against
+	 * contention among cores, so it is only informational. A period that would
+	 * exceed the maximum is different: one refill cannot cover the guarantee.
+	 */
+	if (period_clamped || refill_period_ticks > requested_period_ticks) {
+		const char *metric_str = bdev_qos_metric_str(global_bucket->metric);
+		bool is_iops = bdev_qos_metric_is_iops(global_bucket->metric);
+		const char *guarantee_unit = is_iops ? "I/Os" : "bytes";
+		const char *rate_unit = is_iops ? "IOPS" : "MiB/s";
+		uint64_t rate = is_iops ? avg_rate : avg_rate / (1024 * 1024);
+
+		if (period_clamped) {
+			SPDK_WARNLOG("%s: a guaranteed refill of %" PRIu64 " %s per core on %" PRIu32
+				     " cores at %" PRIu64 " %s would need a %" PRIu64 " us refill period, "
+				     "above the maximum of %" PRIu64 " us, so the guarantee cannot be covered. "
+				     "Reduce the queue depth per core or the core count, or raise the rate.\n",
+				     metric_str, per_core_guaranteed_refill, guarantee_unit,
+				     spdk_env_get_core_count(), rate, rate_unit,
+				     min_period_ticks * g_qos_opts.tick_period_us,
+				     ticks_per_sec * g_qos_opts.tick_period_us);
+		} else {
+			SPDK_NOTICELOG("%s: a guaranteed refill of %" PRIu64 " %s per core on %" PRIu32
+				       " cores at %" PRIu64 " %s needs a %" PRIu64 " us refill period "
+				       "(requested %" PRIu64 " us).\n",
+				       metric_str, per_core_guaranteed_refill, guarantee_unit,
+				       spdk_env_get_core_count(), rate, rate_unit,
+				       refill_period_ticks * g_qos_opts.tick_period_us,
+				       refill_period_us);
+		}
 	}
 
 	global_bucket->refill_period_ticks = refill_period_ticks;
