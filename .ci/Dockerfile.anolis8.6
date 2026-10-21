@@ -7,6 +7,20 @@ ARG MOFED_VER
 ENV LANG=en_US.utf-8
 USER root
 
+RUN set -eux; \
+    yum upgrade -y rpm; \
+    if [ -f /var/lib/rpm/Packages ]; then \
+        rm -rf /var/lib/rpmrebuilddb.*; \
+        rpmdb --rebuilddb || true; \
+        newdb=$(ls -d /var/lib/rpmrebuilddb.* | head -n1); \
+        test -f "$newdb/rpmdb.sqlite"; \
+        rm -rf /var/lib/rpm/*; \
+        mv "$newdb"/* /var/lib/rpm/; \
+        rmdir "$newdb"; \
+    fi; \
+    test -f /var/lib/rpm/rpmdb.sqlite; \
+    rpm -qa > /dev/null
+
 RUN yum install -y ca-certificates
 
 RUN yum install -y \
