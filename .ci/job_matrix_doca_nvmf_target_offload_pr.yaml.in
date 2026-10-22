@@ -16,7 +16,7 @@ registry_host: nbu-harbor.gtm.nvidia.com
 registry_path: /swx-storage/doca_nvmf_target_offload
 
 credentials:
-  - {credentialsId: 'svc-nbu-swx-repos', usernameVariable: 'REPO_USER', passwordVariable: 'REPO_PASS'}
+  - {credentialsId: 'svc-nbu-swx-snap-artifactory-token', usernameVariable: 'REPO_USER', passwordVariable: 'REPO_PASS'}
   - {credentialsId: 'svc-nbu-swx-repos-ngc-token', usernameVariable: 'NGC_CLI_USER', passwordVariable: 'NGC_CLI_API_KEY'}
   - {credentialsId: '3s-bf3-dpa-prod-role', usernameVariable: 'DPA_SIGN_USER', passwordVariable: 'DPA_SIGN_PASS'}
 
