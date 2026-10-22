@@ -75,7 +75,7 @@ if [[ -f "/etc/os-release" ]]; then
     . /etc/os-release
     case "$ID" in
         ubuntu|debian)
-            REPO_URL="https://urm.nvidia.com/artifactory/sw-nbu-swx-ci-generic-local/packages/tar"
+            REPO_URL="https://artifactory.nvidia.com/artifactory/sw-nbu-swx-ci-generic-local/packages/tar"
             upload_tar_urm
             ;;
         *)
