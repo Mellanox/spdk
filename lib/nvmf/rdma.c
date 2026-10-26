@@ -2878,29 +2878,33 @@ nvmf_rdma_memory_domain_transfer_data(struct spdk_memory_domain *dst_domain, voi
 	return 0;
 }
 
-static inline void
+static inline int
 nvmf_rdma_request_check_accel_sequence(struct spdk_nvmf_rdma_qpair *rqpair,
 				       struct spdk_nvmf_rdma_request *rdma_req)
 {
 	struct spdk_nvmf_subsystem *subsys;
+	struct spdk_nvme_cpl *rsp = &rdma_req->req.rsp->nvme_cpl;
 	struct spdk_nvmf_ns *ns;
 	uint8_t opc;
 
 	if (!rqpair->start_accel_sequence) {
-		return;
+		return 0;
 	}
 	opc = rdma_req->req.cmd->nvme_cmd.opc;
 	if (spdk_unlikely(opc == SPDK_NVME_OPC_FABRIC || !rqpair->qpair.ctrlr ||
 			  !rqpair->qpair.ctrlr->subsys)) {
-		return;
+		return 0;
 	}
 	subsys = rqpair->qpair.ctrlr->subsys;
 	ns = _nvmf_subsystem_get_ns(subsys, rdma_req->req.cmd->nvme_cmd.nsid);
 	if (spdk_unlikely(!ns)) {
-		return;
+		SPDK_DEBUGLOG(rdma, "Request %p: invalid namespace\n", rdma_req);
+		rsp->status.sc = SPDK_NVME_SC_INVALID_NAMESPACE_OR_FORMAT;
+		rsp->status.dnr = 1;
+		return -1;
 	}
 	if (ns->csi != SPDK_NVME_CSI_KV && (opc != SPDK_NVME_OPC_READ && opc != SPDK_NVME_OPC_WRITE)) {
-		return;
+		return 0;
 	}
 
 	rdma_req->req.use_accel_seq = ns->accel_sequence;
@@ -2909,6 +2913,7 @@ nvmf_rdma_request_check_accel_sequence(struct spdk_nvmf_rdma_qpair *rqpair,
 	SPDK_DEBUGLOG(rdma, "rqpair %p id %u, req %p, accel_seq %s, domain_trasfer %s\n", rqpair,
 		      rqpair->qpair.qid, rdma_req,
 		      ns->accel_sequence ? "YES" : "NO", rdma_req->req.use_memory_domain ? "YES" : "NO");
+	return 0;
 }
 
 /* Whether nvmf_rdma_request_check_accel_sequence() can set use_memory_domain for
@@ -3197,10 +3202,11 @@ nvmf_rdma_request_process(struct spdk_nvmf_rdma_transport *rtransport,
 				/* This request needs to wait in line to obtain a buffer */
 				break;
 			}
-			nvmf_rdma_request_check_accel_sequence(rqpair, rdma_req);
-
-			/* Try to get a data buffer */
-			rc = nvmf_rdma_request_parse_sgl(rtransport, device, rdma_req);
+			rc = nvmf_rdma_request_check_accel_sequence(rqpair, rdma_req);
+			if (spdk_likely(rc == 0)) {
+				/* Try to get a data buffer */
+				rc = nvmf_rdma_request_parse_sgl(rtransport, device, rdma_req);
+			}
 			if (spdk_unlikely(rc < 0)) {
 				STAILQ_REMOVE_HEAD(&rgroup->group.pending_buf_queue, buf_link);
 				nvmf_rdma_complete_request_with_status(rqpair, rdma_req, SPDK_NVME_SCT_GENERIC,
