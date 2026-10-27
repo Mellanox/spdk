@@ -135,6 +135,7 @@ static const char *fuse_opc_names[SPDK_FSDEV_MAX_FUSE_OPC] = {
 	"syncfs",
 	"tmpfile",
 	"statx",
+	"copy_file_range_64",
 };
 SPDK_STATIC_ASSERT(SPDK_COUNTOF(fuse_opc_names) == SPDK_FSDEV_MAX_FUSE_OPC, "Incorrect size");
 
@@ -2583,6 +2584,11 @@ static const struct fsdev_fuse_args g_fsdev_fuse_args[] = {
 	[FUSE_SETUPMAPPING]	= ARGS(sizeof(struct fuse_setupmapping_in), 0),
 	[FUSE_REMOVEMAPPING]	= ARGS(sizeof(struct fuse_removemapping_in), 0),
 	[FUSE_SYNCFS]		= ARGS(sizeof(struct fuse_syncfs_in), 0),
+	[FUSE_TMPFILE]		= ARGS(sizeof(struct fuse_create_in),
+				       sizeof(struct spdk_fuse_create_out)),
+	[FUSE_STATX]		= ARGS(sizeof(struct fuse_statx_in), sizeof(struct fuse_statx_out)),
+	[FUSE_COPY_FILE_RANGE_64] = ARGS(sizeof(struct fuse_copy_file_range_in),
+					 sizeof(struct fuse_copy_file_range_out)),
 };
 
 static int
