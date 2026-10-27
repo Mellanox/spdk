@@ -3364,6 +3364,11 @@ nvme_ctrlr_set_num_queues(struct spdk_nvme_ctrlr *ctrlr)
 {
 	int rc;
 
+	/* Start from the original request, a previous failed or reduced negotiation
+	 * must not limit this one.
+	 */
+	ctrlr->opts.num_io_queues = ctrlr->requested_num_io_queues;
+
 	if (ctrlr->opts.num_io_queues > SPDK_NVME_MAX_IO_QUEUES) {
 		NVME_CTRLR_NOTICELOG(ctrlr, "Limiting requested num_io_queues %u to max %d\n",
 				     ctrlr->opts.num_io_queues, SPDK_NVME_MAX_IO_QUEUES);
@@ -4729,6 +4734,8 @@ nvme_ctrlr_construct(struct spdk_nvme_ctrlr *ctrlr)
 				  ctrlr->opts.admin_queue_size);
 		ctrlr->opts.admin_queue_size = SPDK_NVME_ADMIN_QUEUE_MIN_ENTRIES;
 	}
+
+	ctrlr->requested_num_io_queues = ctrlr->opts.num_io_queues;
 
 	ctrlr->flags = 0;
 	ctrlr->free_io_qids = NULL;

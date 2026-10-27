@@ -580,10 +580,13 @@ spdk_nvme_ctrlr_cmd_get_log_page_ext(struct spdk_nvme_ctrlr *ctrlr, uint8_t log_
 	return 0;
 }
 
+static uint32_t g_ut_set_num_queues;
+
 int
 nvme_ctrlr_cmd_set_num_queues(struct spdk_nvme_ctrlr *ctrlr,
 			      uint32_t num_queues, spdk_nvme_cmd_cb cb_fn, void *cb_arg)
 {
+	g_ut_set_num_queues = num_queues;
 	fake_cpl_sc(cb_fn, cb_arg);
 	return 0;
 }
@@ -2618,6 +2621,7 @@ test_nvme_ctrlr_init_set_num_queues(void)
 {
 	DECLARE_AND_CONSTRUCT_CTRLR();
 
+	ctrlr.opts.num_io_queues = 64;
 	SPDK_CU_ASSERT_FATAL(nvme_ctrlr_construct(&ctrlr) == 0);
 
 	ctrlr.state = NVME_CTRLR_STATE_IDENTIFY;
@@ -2636,13 +2640,48 @@ test_nvme_ctrlr_init_set_num_queues(void)
 	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
 	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_SET_NUM_QUEUES);
 
-	ctrlr.opts.num_io_queues = 64;
 	/* Num queues is zero-based. So, use 31 to get 32 queues */
 	fake_cpl.cdw0 = 31 + (31 << 16);
 	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0); /* -> IDENTIFY_ACTIVE_NS */
 	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_IDENTIFY_ACTIVE_NS);
 	CU_ASSERT(ctrlr.opts.num_io_queues == 32);
 	fake_cpl.cdw0 = 0;
+
+	nvme_ctrlr_destruct(&ctrlr);
+}
+
+static void
+test_nvme_ctrlr_reset_num_queues(void)
+{
+	DECLARE_AND_CONSTRUCT_CTRLR();
+
+	ctrlr.opts.num_io_queues = 64;
+	SPDK_CU_ASSERT_FATAL(nvme_ctrlr_construct(&ctrlr) == 0);
+
+	/* Failed Set Features - Number of Queues leaves no I/O queues */
+	ctrlr.state = NVME_CTRLR_STATE_SET_NUM_QUEUES;
+	set_status_code = SPDK_NVME_SC_INTERNAL_DEVICE_ERROR;
+	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
+	set_status_code = SPDK_NVME_SC_SUCCESS;
+	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_IDENTIFY_ACTIVE_NS);
+	CU_ASSERT(ctrlr.opts.num_io_queues == 0);
+	spdk_bit_array_free(&ctrlr.free_io_qids);
+
+	/* Next negotiation starts from the original request again */
+	ctrlr.state = NVME_CTRLR_STATE_SET_NUM_QUEUES;
+	fake_cpl.cdw0 = 31 + (31 << 16);
+	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
+	CU_ASSERT(g_ut_set_num_queues == 64);
+	CU_ASSERT(ctrlr.opts.num_io_queues == 32);
+	spdk_bit_array_free(&ctrlr.free_io_qids);
+
+	/* A smaller grant does not carry over either */
+	ctrlr.state = NVME_CTRLR_STATE_SET_NUM_QUEUES;
+	fake_cpl.cdw0 = 63 + (63 << 16);
+	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
+	fake_cpl.cdw0 = 0;
+	CU_ASSERT(g_ut_set_num_queues == 64);
+	CU_ASSERT(ctrlr.opts.num_io_queues == 64);
 
 	nvme_ctrlr_destruct(&ctrlr);
 }
@@ -3781,6 +3820,7 @@ main(int argc, char **argv)
 	CU_ADD_TEST(suite, test_spdk_nvme_ctrlr_set_trid);
 	CU_ADD_TEST(suite, test_nvme_ctrlr_init_set_nvmf_ioccsz);
 	CU_ADD_TEST(suite, test_nvme_ctrlr_init_set_num_queues);
+	CU_ADD_TEST(suite, test_nvme_ctrlr_reset_num_queues);
 	CU_ADD_TEST(suite, test_nvme_ctrlr_init_set_keep_alive_timeout);
 	CU_ADD_TEST(suite, test_nvme_ctrlr_init_identify_iocs);
 	CU_ADD_TEST(suite, test_alloc_io_qpair_fail);

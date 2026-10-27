@@ -1181,6 +1181,11 @@ struct spdk_nvme_ctrlr {
 
 	struct spdk_nvme_ctrlr_opts	opts;
 
+	/* opts.num_io_queues is overwritten by the negotiated count, so keep the
+	 * original request for the next reset to negotiate from.
+	 */
+	uint32_t			requested_num_io_queues;
+
 	uint64_t			quirks;
 
 	/* Extra sleep time during controller initialization */
