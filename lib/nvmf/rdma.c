@@ -2273,6 +2273,10 @@ nvmf_rdma_request_parse_sgl(struct spdk_nvmf_rdma_transport *rtransport,
 	return -1;
 }
 
+/* The bdev module is done with a request by EXECUTED and holds none of its chunks
+ * after that, so the charge comes back there rather than once the response send
+ * completes. Free still calls this for requests that never reached EXECUTED.
+ */
 static inline void
 nvmf_rdma_request_release_chunks(struct spdk_nvmf_rdma_request *rdma_req)
 {
@@ -3416,6 +3420,7 @@ nvmf_rdma_request_process(struct spdk_nvmf_rdma_transport *rtransport,
 		case RDMA_REQUEST_STATE_EXECUTED:
 			spdk_trace_record(TRACE_RDMA_REQUEST_STATE_EXECUTED, 0, 0,
 					  (uintptr_t)rdma_req, (uintptr_t)rqpair);
+			nvmf_rdma_request_release_chunks(rdma_req);
 			if (rsp->status.sc == SPDK_NVME_SC_SUCCESS &&
 			    rdma_req->req.xfer == SPDK_NVME_DATA_CONTROLLER_TO_HOST) {
 				STAILQ_INSERT_TAIL(&rqpair->pending_rdma_write_queue, rdma_req, state_link);

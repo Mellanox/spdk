@@ -1124,6 +1124,100 @@ test_nvmf_rdma_dispatch_rotates_on_tie(void)
 }
 
 /*
+ * The bdev module holds none of a request's chunks once it completes it, so the
+ * charge comes back at EXECUTED. A request queued behind the budget can then
+ * dispatch while the first one is still sending its response, and freeing the
+ * first one afterwards must not return the charge a second time.
+ */
+static void
+test_nvmf_rdma_dispatch_released_at_executed(void)
+{
+	struct spdk_nvmf_rdma_transport rtransport = {};
+	struct spdk_nvmf_transport_ops ops = {};
+	struct spdk_nvmf_rdma_poll_group group = {};
+	struct spdk_nvmf_rdma_poller poller = {};
+	struct spdk_nvmf_rdma_device device = {};
+	struct spdk_nvmf_rdma_resources resources = {};
+	struct spdk_nvmf_rdma_qpair rqpair = {};
+	struct spdk_nvmf_rdma_recv *recv[2];
+	struct spdk_nvmf_rdma_request *req[2];
+	struct spdk_iobuf_channel ch = {};
+	int i;
+
+	group.group.buf_cache = &ch;
+	STAILQ_INIT(&group.group.pending_buf_queue);
+	TAILQ_INIT(&group.pollers);
+	poller_reset(&poller, &group);
+	TAILQ_INIT(&poller.active_qpairs);
+	TAILQ_INSERT_TAIL(&group.pollers, &poller, link);
+	qpair_reset(&rqpair, &poller, &device, &resources, &rtransport.transport);
+	STAILQ_INIT(&rqpair.queued_reqs);
+	TAILQ_INSERT_TAIL(&poller.active_qpairs, &rqpair, active_link);
+
+	rtransport.transport.opts = g_rdma_ut_transport_opts;
+	rtransport.transport.opts.enforce_memory_domain_transfer = true;
+	rtransport.data_wr_pool = spdk_mempool_create("test_executed_pool", 128,
+				  sizeof(struct spdk_nvmf_rdma_request_data),
+				  0, 0);
+	rtransport.transport.ops = &ops;
+	rtransport.large_bufsize = 0x1000;
+	rtransport.small_bufsize = 0x200;
+	rtransport.large_pool_count = 64;
+	MOCK_CLEAR(spdk_iobuf_get);
+
+	device.attr.device_cap_flags = 0;
+	device.map = (void *)0x0;
+
+	for (i = 0; i < 2; i++) {
+		recv[i] = create_recv(&rqpair, SPDK_NVME_OPC_READ);
+		req[i] = create_req(&rqpair, recv[i]);
+		req[i]->req.use_memory_domain = true;
+		req[i]->req.length = 0x800;
+		req[i]->state = RDMA_REQUEST_STATE_READY_TO_DISPATCH;
+		STAILQ_INSERT_TAIL(&rqpair.queued_reqs, req[i], state_link);
+	}
+	rqpair.current_recv_depth = 2;
+	rqpair.qpair.queue_depth = 2;
+
+	/* Room for one request, so req[1] waits behind req[0]. */
+	rtransport.chunk_budget = 1;
+	nvmf_rdma_poll_group_dispatch_queued(&rtransport, &group);
+	CU_ASSERT(req[0]->dispatched);
+	CU_ASSERT(!req[1]->dispatched);
+	CU_ASSERT(group.chunks_in_flight == 1);
+
+	req[0]->state = RDMA_REQUEST_STATE_EXECUTED;
+	nvmf_rdma_request_process(&rtransport, req[0]);
+	CU_ASSERT(req[0]->state != RDMA_REQUEST_STATE_FREE);
+	CU_ASSERT(!req[0]->dispatched);
+	CU_ASSERT(group.chunks_in_flight == 0);
+	CU_ASSERT(rqpair.num_active_chunks == 0);
+
+	nvmf_rdma_poll_group_dispatch_queued(&rtransport, &group);
+	CU_ASSERT(req[1]->dispatched);
+	CU_ASSERT(group.chunks_in_flight == 1);
+	CU_ASSERT(rqpair.num_active_chunks == 1);
+
+	req[0]->state = RDMA_REQUEST_STATE_COMPLETED;
+	nvmf_rdma_request_process(&rtransport, req[0]);
+	CU_ASSERT(req[0]->state == RDMA_REQUEST_STATE_FREE);
+	CU_ASSERT(group.chunks_in_flight == 1);
+	CU_ASSERT(rqpair.num_active_chunks == 1);
+
+	req[1]->state = RDMA_REQUEST_STATE_COMPLETED;
+	nvmf_rdma_request_process(&rtransport, req[1]);
+	CU_ASSERT(req[1]->state == RDMA_REQUEST_STATE_FREE);
+	CU_ASSERT(group.chunks_in_flight == 0);
+	CU_ASSERT(rqpair.num_active_chunks == 0);
+
+	for (i = 0; i < 2; i++) {
+		free_recv(recv[i]);
+		free_req(req[i]);
+	}
+	spdk_mempool_free(rtransport.data_wr_pool);
+}
+
+/*
  * The error path in nvmf_rdma_request_process() unlinks a READY_TO_DISPATCH
  * request from queued_reqs, so every way into that state has to have queued it.
  * The RDMA READ completion enters it from outside the state machine, and a qpair
@@ -2390,6 +2484,7 @@ main(int argc, char **argv)
 	CU_ADD_TEST(suite, test_spdk_nvmf_rdma_request_process);
 	CU_ADD_TEST(suite, test_nvmf_rdma_request_accel_task_failure);
 	CU_ADD_TEST(suite, test_nvmf_rdma_dispatch_rotates_on_tie);
+	CU_ADD_TEST(suite, test_nvmf_rdma_dispatch_released_at_executed);
 	CU_ADD_TEST(suite, test_nvmf_rdma_dispatch_queued_on_inactive_qpair);
 	CU_ADD_TEST(suite, test_nvmf_rdma_reject_fused_with_domain_transfer);
 	CU_ADD_TEST(suite, test_nvmf_rdma_get_optimal_poll_group);
