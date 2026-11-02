@@ -127,7 +127,10 @@ struct spdk_nvmf_transport_opts {
 	/* Maximum large iobuf pool buffers a single poll group may have committed to
 	 * the bdev layer at once. Optional; 0 lets the transport derive a value from
 	 * the pool size and its poll group count, which assumes every poll group
-	 * serves the bdevs equally. Set it when that isn't true. */
+	 * serves the bdevs equally. The derived value is half again the poll
+	 * group's share of the pool, since requests rarely hold their full charge,
+	 * but never less than one maximum sized request. Set it when that isn't
+	 * right. */
 	uint32_t max_chunks_per_poll_group;
 } __attribute__((packed));
 SPDK_STATIC_ASSERT(sizeof(struct spdk_nvmf_transport_opts) == 88, "Incorrect size");

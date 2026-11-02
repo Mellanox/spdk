@@ -1218,6 +1218,46 @@ test_nvmf_rdma_dispatch_released_at_executed(void)
 }
 
 /*
+ * The derived budget is half again each poll group's share of the pool, floored
+ * at one maximum sized request. An explicit max_chunks_per_poll_group is used as
+ * given.
+ */
+static void
+test_nvmf_rdma_recompute_chunk_budget(void)
+{
+	struct spdk_nvmf_rdma_transport rtransport = {};
+
+	rtransport.transport.opts = g_rdma_ut_transport_opts;
+	rtransport.large_pool_count = 128;
+	rtransport.large_bufsize = 128 * 1024;
+
+	/* No poll groups yet, so nothing to divide. */
+	rtransport.chunk_budget = 7;
+	nvmf_rdma_recompute_chunk_budget(&rtransport);
+	CU_ASSERT(rtransport.chunk_budget == 7);
+
+	/* An 8 MiB request floors the budget at 64 chunks. With two poll groups the
+	 * share is 64 and the overshoot takes it past the floor. With four the share
+	 * is 32 and the floor wins. */
+	rtransport.transport.opts.max_io_size = 8 * 1024 * 1024;
+	rtransport.num_poll_groups = 2;
+	nvmf_rdma_recompute_chunk_budget(&rtransport);
+	CU_ASSERT(rtransport.chunk_budget == 96);
+	rtransport.num_poll_groups = 4;
+	nvmf_rdma_recompute_chunk_budget(&rtransport);
+	CU_ASSERT(rtransport.chunk_budget == 64);
+
+	/* With a small maximum request only the share matters. */
+	rtransport.transport.opts.max_io_size = 128 * 1024;
+	nvmf_rdma_recompute_chunk_budget(&rtransport);
+	CU_ASSERT(rtransport.chunk_budget == 48);
+
+	rtransport.transport.opts.max_chunks_per_poll_group = 80;
+	nvmf_rdma_recompute_chunk_budget(&rtransport);
+	CU_ASSERT(rtransport.chunk_budget == 80);
+}
+
+/*
  * The error path in nvmf_rdma_request_process() unlinks a READY_TO_DISPATCH
  * request from queued_reqs, so every way into that state has to have queued it.
  * The RDMA READ completion enters it from outside the state machine, and a qpair
@@ -2485,6 +2525,7 @@ main(int argc, char **argv)
 	CU_ADD_TEST(suite, test_nvmf_rdma_request_accel_task_failure);
 	CU_ADD_TEST(suite, test_nvmf_rdma_dispatch_rotates_on_tie);
 	CU_ADD_TEST(suite, test_nvmf_rdma_dispatch_released_at_executed);
+	CU_ADD_TEST(suite, test_nvmf_rdma_recompute_chunk_budget);
 	CU_ADD_TEST(suite, test_nvmf_rdma_dispatch_queued_on_inactive_qpair);
 	CU_ADD_TEST(suite, test_nvmf_rdma_reject_fused_with_domain_transfer);
 	CU_ADD_TEST(suite, test_nvmf_rdma_get_optimal_poll_group);

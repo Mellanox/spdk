@@ -4625,9 +4625,13 @@ nvmf_rdma_retry_listen_port(struct spdk_nvmf_rdma_transport *rtransport)
 }
 
 /*
- * Dividing the pool among all poll groups is only a conservative default:
- * NUMA placement and bdev-local caches affect each group's actual share.
- * max_chunks_per_poll_group lets the application provide a better value.
+ * A request's charge is the most it can hold, not what it holds on average. A
+ * bdev module may hold nothing while it looks up metadata, and fewer buffers
+ * once it runs out of chunks to start, so each poll group gets half again its
+ * share of the pool. The overshoot is bounded rather than the budget removed
+ * because once the pool runs dry the bdev module waits on iobuf, which is FIFO
+ * rather than least loaded first. max_chunks_per_poll_group lets the
+ * application provide a better value.
  */
 static void
 nvmf_rdma_recompute_chunk_budget(struct spdk_nvmf_rdma_transport *rtransport)
@@ -4641,6 +4645,7 @@ nvmf_rdma_recompute_chunk_budget(struct spdk_nvmf_rdma_transport *rtransport)
 	budget = rtransport->transport.opts.max_chunks_per_poll_group;
 	if (budget == 0) {
 		budget = rtransport->large_pool_count / rtransport->num_poll_groups;
+		budget += budget / 2;
 
 		if (spdk_likely(rtransport->large_bufsize != 0)) {
 			floor = spdk_divide_round_up(rtransport->transport.opts.max_io_size,
