@@ -2273,6 +2273,26 @@ nvmf_rdma_request_parse_sgl(struct spdk_nvmf_rdma_transport *rtransport,
 	return -1;
 }
 
+static inline void
+nvmf_rdma_request_release_chunks(struct spdk_nvmf_rdma_request *rdma_req)
+{
+	struct spdk_nvmf_rdma_qpair *rqpair;
+	struct spdk_nvmf_rdma_poll_group *rgroup;
+
+	if (!rdma_req->dispatched) {
+		return;
+	}
+
+	rqpair = SPDK_CONTAINEROF(rdma_req->req.qpair, struct spdk_nvmf_rdma_qpair, qpair);
+	rdma_req->dispatched = 0;
+	assert(rqpair->num_active_chunks >= rdma_req->chunk_cost);
+	rqpair->num_active_chunks -= rdma_req->chunk_cost;
+	assert(rqpair->poller != NULL);
+	rgroup = rqpair->poller->group;
+	assert(rgroup->chunks_in_flight >= rdma_req->chunk_cost);
+	rgroup->chunks_in_flight -= rdma_req->chunk_cost;
+}
+
 static void
 _nvmf_rdma_request_free(struct spdk_nvmf_rdma_request *rdma_req,
 			struct spdk_nvmf_rdma_transport	*rtransport)
@@ -2282,15 +2302,7 @@ _nvmf_rdma_request_free(struct spdk_nvmf_rdma_request *rdma_req,
 
 	assert(rdma_req->transfer_cpl_cb == NULL);
 	rqpair = SPDK_CONTAINEROF(rdma_req->req.qpair, struct spdk_nvmf_rdma_qpair, qpair);
-	if (rdma_req->dispatched) {
-		rdma_req->dispatched = 0;
-		assert(rqpair->num_active_chunks >= rdma_req->chunk_cost);
-		rqpair->num_active_chunks -= rdma_req->chunk_cost;
-		assert(rqpair->poller != NULL);
-		rgroup = rqpair->poller->group;
-		assert(rgroup->chunks_in_flight >= rdma_req->chunk_cost);
-		rgroup->chunks_in_flight -= rdma_req->chunk_cost;
-	}
+	nvmf_rdma_request_release_chunks(rdma_req);
 	if (spdk_unlikely(rdma_req->is_duplicated_aer)) {
 		nvmf_rdma_aer_req_free(rdma_req);
 		goto done;
