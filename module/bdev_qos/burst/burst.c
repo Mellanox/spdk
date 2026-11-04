@@ -536,15 +536,27 @@ global_token_bucket_withdraw(struct global_token_bucket *global_bucket,
 
 static inline void
 _global_token_bucket_refill(struct global_token_bucket *global_bucket,
-			    uint64_t tokens_to_refill)
+			    uint64_t tokens_to_refill, uint64_t income)
 {
 	struct token_bucket *steady_bucket = &global_bucket->steady_bucket;
 	struct token_bucket *burst_bucket = &global_bucket->burst_bucket;
-	uint64_t overflow, tokens_to_transfer, transfer;
+	uint64_t cap, overflow, tokens_to_transfer, transfer;
+
+	/* A late refill pays the income of every missed period at once, and idle
+	 * local buckets return their share of it. Without a burst bucket to save
+	 * it in, hold all of it instead of discarding what exceeds one period. The
+	 * next refill that adds to the steady bucket clamps it back to its capacity.
+	 * burst_ready has no burst bucket either, but its steady bucket already
+	 * holds up to burst_size, and anything above that would pass the burst
+	 * limit. Its refill is not forced like strict's, so nothing would clamp it.
+	 */
+	cap = steady_bucket->capacity;
+	if (burst_bucket->capacity == 0 && global_bucket->mode != BDEV_QOS_MODE_BURST_READY) {
+		cap = spdk_max(cap, income);
+	}
 
 	/* Add income to steady bucket first. */
-	overflow = atomic_add_capped(&steady_bucket->tokens, tokens_to_refill,
-				     steady_bucket->capacity);
+	overflow = atomic_add_capped(&steady_bucket->tokens, tokens_to_refill, cap);
 
 	if (overflow > 0 && burst_bucket->capacity != 0) {
 		/* Handle overflow into burst bucket. */
@@ -618,12 +630,13 @@ global_token_bucket_refill(struct global_token_bucket *global_bucket)
 	}
 	spdk_spin_unlock(&global_bucket->spinlock);
 
-	if (to_global > 0 || global_bucket->burst_bucket.tokens > 0) {
+	if (to_global > 0 || global_bucket->burst_bucket.tokens > 0 ||
+	    global_bucket->mode == BDEV_QOS_MODE_STRICT) {
 		/* Excess tokens are back to the global pool to maintain work-conserving
 		 * behavior. Also allow burst credits to transfer even when there is no
 		 * excess refill to the global pool.
 		 */
-		_global_token_bucket_refill(global_bucket, to_global);
+		_global_token_bucket_refill(global_bucket, to_global, tokens_to_refill);
 	}
 }
 
