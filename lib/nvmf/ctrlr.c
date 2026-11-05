@@ -51,7 +51,8 @@ static struct spdk_nvmf_custom_admin_cmd g_nvmf_custom_admin_cmd_hdlrs[SPDK_NVME
 
 static void _nvmf_request_complete(void *ctx);
 int nvmf_passthru_admin_cmd_for_ctrlr(struct spdk_nvmf_request *req, struct spdk_nvmf_ctrlr *ctrlr);
-static int nvmf_passthru_admin_cmd(struct spdk_nvmf_request *req);
+static int nvmf_passthru_admin_cmd(struct spdk_nvmf_request *req,
+				   spdk_nvmf_nvme_passthru_cmd_cb cb_fn);
 
 static inline void
 nvmf_invalid_connect_response(struct spdk_nvmf_fabric_connect_rsp *rsp,
@@ -3009,10 +3010,64 @@ nvmf_get_supported_log_pages(struct spdk_nvmf_ctrlr *ctrlr, struct iovec *iovs, 
 	return 0;
 }
 
+static uint32_t
+nvmf_ctrlr_get_admin_passthru_nsid(struct spdk_nvmf_request *req)
+{
+	struct spdk_nvme_cmd *cmd = spdk_nvmf_request_get_cmd(req);
+
+	if (g_nvmf_custom_admin_cmd_hdlrs[cmd->opc].nsid != 0) {
+		return g_nvmf_custom_admin_cmd_hdlrs[cmd->opc].nsid;
+	} else {
+		return cmd->nsid;
+	}
+}
+
+static void
+nvmf_ctrlr_get_vendor_specific_log_page_done(struct spdk_nvmf_request *req)
+{
+	struct spdk_nvme_cpl *rsp = spdk_nvmf_request_get_response(req);
+
+	/*
+	 * If the bdev doesn't support passthru or doesn't support GET_LOG_PAGE passthru, it'll set
+	 * the status to INVALID_OPCODE, so let's turn it into INVALID_FIELD, which is what should
+	 * be returned for unknown log pages.
+	 */
+	if (rsp->status.sct == SPDK_NVME_SCT_GENERIC &&
+	    rsp->status.sc == SPDK_NVME_SC_INVALID_OPCODE) {
+		rsp->status.sc = SPDK_NVME_SC_INVALID_FIELD;
+	}
+}
+
+static int
+nvmf_ctrlr_get_vendor_log_page(struct spdk_nvmf_request *req)
+{
+	struct spdk_bdev *bdev;
+	struct spdk_bdev_desc *desc;
+	struct spdk_io_channel *ch;
+	struct spdk_nvme_cpl *rsp = spdk_nvmf_request_get_response(req);
+	uint32_t nsid = nvmf_ctrlr_get_admin_passthru_nsid(req);
+	int rc;
+
+	rc = spdk_nvmf_request_get_bdev(nsid, req, &bdev, &desc, &ch);
+	if (rc) {
+		rsp->status.sct = SPDK_NVME_SCT_GENERIC;
+		rsp->status.sc = SPDK_NVME_SC_INVALID_FIELD;
+		return SPDK_NVMF_REQUEST_EXEC_STATUS_COMPLETE;
+	}
+
+	rc = nvmf_passthru_admin_cmd(req, nvmf_ctrlr_get_vendor_specific_log_page_done);
+	if (rc == SPDK_NVMF_REQUEST_EXEC_STATUS_COMPLETE) {
+		nvmf_ctrlr_get_vendor_specific_log_page_done(req);
+	}
+
+	return rc;
+}
+
 static int
 nvmf_ctrlr_get_log_page(struct spdk_nvmf_request *req)
 {
-	struct spdk_nvmf_ctrlr *ctrlr = req->qpair->ctrlr;
+	struct spdk_nvmf_qpair *qpair = req->qpair;
+	struct spdk_nvmf_ctrlr *ctrlr = qpair->ctrlr;
 	struct spdk_nvmf_subsystem *subsystem = ctrlr->subsys;
 	struct spdk_nvme_cmd *cmd = &req->cmd->nvme_cmd;
 	struct spdk_nvme_cpl *response = &req->rsp->nvme_cpl;
@@ -3127,6 +3182,12 @@ nvmf_ctrlr_get_log_page(struct spdk_nvmf_request *req)
 	case SPDK_NVME_LOG_NVME_MI_COMMANDS_EFFECTS:
 		/* To comply with id-ctrl LPA bit 5, don't fail this log but return zeroed buffer instead. */
 		return SPDK_NVMF_REQUEST_EXEC_STATUS_COMPLETE;
+	case SPDK_NVME_LOG_VENDOR_SPECIFIC_START ... SPDK_NVME_LOG_VENDOR_SPECIFIC_END:
+		if (qpair->transport->opts.disable_command_passthru) {
+			SPDK_INFOLOG(nvmf, "Unsupported Get Log Page Identifier 0x%02X\n", lid);
+			goto invalid_field_log_page;
+		}
+		return nvmf_ctrlr_get_vendor_log_page(req);
 	default:
 		SPDK_INFOLOG(nvmf, "Unsupported Get Log Page Identifier 0x%02X\n", lid);
 		goto invalid_field_log_page;
@@ -4396,7 +4457,7 @@ nvmf_ctrlr_process_admin_cmd(struct spdk_nvmf_request *req)
 	 * However, we don't want to passthrough a command with intended for all namespaces.
 	 */
 	if (ctrlr->subsys->passthrough && cmd->nsid && cmd->nsid != SPDK_NVME_GLOBAL_NS_TAG) {
-		return nvmf_passthru_admin_cmd(req);
+		return nvmf_passthru_admin_cmd(req, NULL);
 	}
 
 	switch (cmd->opc) {
@@ -5530,7 +5591,8 @@ spdk_nvmf_set_custom_admin_cmd_hdlr(uint8_t opc, spdk_nvmf_custom_cmd_hdlr hdlr)
 }
 
 static int
-nvmf_passthru_admin_cmd_for_bdev_nsid(struct spdk_nvmf_request *req, uint32_t bdev_nsid)
+nvmf_passthru_admin_cmd_for_bdev_nsid(struct spdk_nvmf_request *req, uint32_t bdev_nsid,
+				      spdk_nvmf_nvme_passthru_cmd_cb cb_fn)
 {
 	struct spdk_bdev *bdev;
 	struct spdk_bdev_desc *desc;
@@ -5554,22 +5616,21 @@ nvmf_passthru_admin_cmd_for_bdev_nsid(struct spdk_nvmf_request *req, uint32_t bd
 		req->cmd->nvme_cmd.nsid = ns->passthru_nsid;
 	}
 
-	return spdk_nvmf_bdev_ctrlr_nvme_passthru_admin(bdev, desc, ch, req, NULL);
+	return spdk_nvmf_bdev_ctrlr_nvme_passthru_admin(bdev, desc, ch, req, cb_fn);
 }
 
 static int
-nvmf_passthru_admin_cmd(struct spdk_nvmf_request *req)
+nvmf_passthru_admin_cmd(struct spdk_nvmf_request *req, spdk_nvmf_nvme_passthru_cmd_cb cb_fn)
 {
-	struct spdk_nvme_cmd *cmd = spdk_nvmf_request_get_cmd(req);
-	uint32_t bdev_nsid;
+	uint32_t bdev_nsid = nvmf_ctrlr_get_admin_passthru_nsid(req);
 
-	if (g_nvmf_custom_admin_cmd_hdlrs[cmd->opc].nsid != 0) {
-		bdev_nsid = g_nvmf_custom_admin_cmd_hdlrs[cmd->opc].nsid;
-	} else {
-		bdev_nsid = cmd->nsid;
-	}
+	return nvmf_passthru_admin_cmd_for_bdev_nsid(req, bdev_nsid, cb_fn);
+}
 
-	return nvmf_passthru_admin_cmd_for_bdev_nsid(req, bdev_nsid);
+static int
+_nvmf_passthru_admin_cmd(struct spdk_nvmf_request *req)
+{
+	return nvmf_passthru_admin_cmd(req, NULL);
 }
 
 int
@@ -5586,13 +5647,13 @@ nvmf_passthru_admin_cmd_for_ctrlr(struct spdk_nvmf_request *req, struct spdk_nvm
 		return SPDK_NVMF_REQUEST_EXEC_STATUS_COMPLETE;
 	}
 
-	return nvmf_passthru_admin_cmd_for_bdev_nsid(req, ns->nsid);
+	return nvmf_passthru_admin_cmd_for_bdev_nsid(req, ns->nsid, NULL);
 }
 
 void
 spdk_nvmf_set_passthru_admin_cmd(uint8_t opc, uint32_t forward_nsid)
 {
-	g_nvmf_custom_admin_cmd_hdlrs[opc].hdlr = nvmf_passthru_admin_cmd;
+	g_nvmf_custom_admin_cmd_hdlrs[opc].hdlr = _nvmf_passthru_admin_cmd;
 	g_nvmf_custom_admin_cmd_hdlrs[opc].nsid = forward_nsid;
 }
 
