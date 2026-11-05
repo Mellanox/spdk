@@ -131,6 +131,7 @@ enum spdk_bdev_io_type {
 	SPDK_BDEV_IO_TYPE_RESERVATION_REPORT,
 	SPDK_BDEV_IO_TYPE_NVME_NSSR,
 	SPDK_BDEV_IO_TYPE_WRITE_UNCORRECTABLE,
+	SPDK_BDEV_IO_TYPE_NVME_ADMIN_IOV,
 	SPDK_BDEV_NUM_IO_TYPES /* Keep last */
 };
 
@@ -2253,6 +2254,33 @@ int spdk_bdev_nvme_admin_passthru(struct spdk_bdev_desc *desc,
 				  const struct spdk_nvme_cmd *cmd,
 				  void *buf, size_t nbytes,
 				  spdk_bdev_io_completion_cb cb, void *cb_arg);
+
+/**
+ * Submit an NVMe Admin command to the bdev. This passes directly through
+ * the block layer to the device. Support for NVMe passthru is optional,
+ * indicated by calling spdk_bdev_io_type_supported().
+ *
+ * \ingroup bdev_io_submit_functions
+ *
+ * \param desc Block device descriptor.
+ * \param ch I/O channel. Obtained by calling spdk_bdev_get_io_channel().
+ * \param cmd The raw NVMe command. Must be an admin command.
+ * \param iovs A scatter gather list of buffers for the command to use.
+ * \param iovcnt The number of elements in iov.
+ * \param cb Called when the request is complete.
+ * \param cb_arg Argument passed to cb.
+ *
+ * \return 0 on success. On success, the callback will always
+ * be called (even if the request ultimately failed). Return
+ * negated errno on failure, in which case the callback will not be called.
+ *   * -ENOMEM - spdk_bdev_io buffer cannot be allocated
+ *   * -EBADF - desc not open for writing
+ */
+int spdk_bdev_nvme_admin_iov_passthru(struct spdk_bdev_desc *desc,
+				      struct spdk_io_channel *ch,
+				      const struct spdk_nvme_cmd *cmd,
+				      struct iovec *iovs, int iovcnt,
+				      spdk_bdev_io_completion_cb cb, void *cb_arg);
 
 /**
  * Submit an NVMe I/O command to the bdev. This passes directly through

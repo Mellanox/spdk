@@ -4250,6 +4250,7 @@ bdev_io_type_supported(struct spdk_bdev *bdev, enum spdk_bdev_io_type io_type)
 		case SPDK_BDEV_IO_TYPE_UNMAP:
 		case SPDK_BDEV_IO_TYPE_FLUSH:
 		case SPDK_BDEV_IO_TYPE_NVME_ADMIN:
+		case SPDK_BDEV_IO_TYPE_NVME_ADMIN_IOV:
 		case SPDK_BDEV_IO_TYPE_NVME_IO:
 		case SPDK_BDEV_IO_TYPE_NVME_IO_MD:
 		case SPDK_BDEV_IO_TYPE_WRITE_ZEROES:
@@ -4282,6 +4283,7 @@ spdk_bdev_is_read_only(struct spdk_bdev *bdev)
 	    || spdk_bdev_io_type_supported(bdev, SPDK_BDEV_IO_TYPE_UNMAP)
 	    || spdk_bdev_io_type_supported(bdev, SPDK_BDEV_IO_TYPE_FLUSH)
 	    || spdk_bdev_io_type_supported(bdev, SPDK_BDEV_IO_TYPE_NVME_ADMIN)
+	    || spdk_bdev_io_type_supported(bdev, SPDK_BDEV_IO_TYPE_NVME_ADMIN_IOV)
 	    || spdk_bdev_io_type_supported(bdev, SPDK_BDEV_IO_TYPE_NVME_IO)
 	    || spdk_bdev_io_type_supported(bdev, SPDK_BDEV_IO_TYPE_NVME_IO_MD)
 	    || spdk_bdev_io_type_supported(bdev, SPDK_BDEV_IO_TYPE_WRITE_ZEROES)
@@ -4323,6 +4325,7 @@ static const char *g_io_type_strings[] = {
 	[SPDK_BDEV_IO_TYPE_FLUSH] = "flush",
 	[SPDK_BDEV_IO_TYPE_RESET] = "reset",
 	[SPDK_BDEV_IO_TYPE_NVME_ADMIN] = "nvme_admin",
+	[SPDK_BDEV_IO_TYPE_NVME_ADMIN_IOV] = "nvme_admin_iov",
 	[SPDK_BDEV_IO_TYPE_NVME_IO] = "nvme_io",
 	[SPDK_BDEV_IO_TYPE_NVME_IO_MD] = "nvme_io_md",
 	[SPDK_BDEV_IO_TYPE_WRITE_ZEROES] = "write_zeroes",
@@ -8274,6 +8277,16 @@ spdk_bdev_nvme_admin_passthru(struct spdk_bdev_desc *desc, struct spdk_io_channe
 {
 	return bdev_nvme_passthru_init(desc, ch, cmd, buf, nbytes, SPDK_BDEV_IO_TYPE_NVME_ADMIN, NULL, 0,
 				       NULL, 0, cb, cb_arg);
+}
+
+int
+spdk_bdev_nvme_admin_iov_passthru(struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
+				  const struct spdk_nvme_cmd *cmd, struct iovec *iovs, int iovcnt,
+				  spdk_bdev_io_completion_cb cb, void *cb_arg)
+{
+	return bdev_nvme_passthru_init(desc, ch, cmd, NULL, spdk_iov_length(iovs, iovcnt),
+				       SPDK_BDEV_IO_TYPE_NVME_ADMIN_IOV, iovs, iovcnt, NULL, 0,
+				       cb, cb_arg);
 }
 
 int

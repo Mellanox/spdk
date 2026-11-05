@@ -150,8 +150,10 @@ bdev_part_io_type_supported(void *_part, enum spdk_bdev_io_type io_type)
 	 */
 	switch (io_type) {
 	case SPDK_BDEV_IO_TYPE_NVME_ADMIN:
+	case SPDK_BDEV_IO_TYPE_NVME_ADMIN_IOV:
 	case SPDK_BDEV_IO_TYPE_NVME_IO:
 	case SPDK_BDEV_IO_TYPE_NVME_IO_MD:
+	case SPDK_BDEV_IO_TYPE_NVME_IOV_MD:
 		return false;
 	default:
 		break;
