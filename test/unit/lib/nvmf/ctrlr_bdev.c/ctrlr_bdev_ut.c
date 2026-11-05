@@ -56,6 +56,11 @@ DEFINE_STUB(spdk_bdev_nvme_admin_passthru, int,
 	     const struct spdk_nvme_cmd *cmd, void *buf, size_t nbytes,
 	     spdk_bdev_io_completion_cb cb, void *cb_arg), 0);
 
+DEFINE_STUB(spdk_bdev_nvme_admin_iov_passthru, int,
+	    (struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
+	     const struct spdk_nvme_cmd *cmd, struct iovec *iovs, int iovcnt,
+	     spdk_bdev_io_completion_cb cb, void *cb_arg), 0);
+
 DEFINE_STUB(spdk_bdev_abort, int,
 	    (struct spdk_bdev_desc *desc, struct spdk_io_channel *ch,
 	     void *bio_cb_arg, spdk_bdev_io_completion_cb cb, void *cb_arg), 0);
@@ -1024,6 +1029,8 @@ test_nvmf_bdev_ctrlr_nvme_passthru(void)
 
 	MOCK_SET(spdk_bdev_nvme_iov_passthru_ext, 0);
 
+	MOCK_SET(spdk_bdev_io_type_supported, false);
+
 	/* NVME_ADMIN success */
 	memset(&rsp, 0, sizeof(rsp));
 	rc = spdk_nvmf_bdev_ctrlr_nvme_passthru_admin(&bdev, desc, &ch, &req, NULL);
@@ -1059,6 +1066,35 @@ test_nvmf_bdev_ctrlr_nvme_passthru(void)
 	CU_ASSERT(group.stat.pending_bdev_io == 2);
 
 	MOCK_SET(spdk_bdev_nvme_admin_passthru, 0);
+
+	/* NVME_ADMIN with multiple buffers */
+	memset(&rsp, 0, sizeof(rsp));
+	req.iovcnt = 2;
+	rc = spdk_nvmf_bdev_ctrlr_nvme_passthru_admin(&bdev, desc, &ch, &req, NULL);
+	CU_ASSERT(rc == SPDK_NVMF_REQUEST_EXEC_STATUS_COMPLETE);
+	CU_ASSERT(rsp.nvme_cpl.status.sct == SPDK_NVME_SCT_GENERIC);
+	CU_ASSERT(rsp.nvme_cpl.status.sc == SPDK_NVME_SC_INTERNAL_DEVICE_ERROR);
+	CU_ASSERT(rsp.nvme_cpl.status.dnr == 1);
+
+	MOCK_SET(spdk_bdev_io_type_supported, true);
+
+	/* NVME_ADMIN_IOV with multiple buffers */
+	memset(&rsp, 0, sizeof(rsp));
+	rc = spdk_nvmf_bdev_ctrlr_nvme_passthru_admin(&bdev, desc, &ch, &req, NULL);
+	CU_ASSERT(rc == SPDK_NVMF_REQUEST_EXEC_STATUS_ASYNCHRONOUS);
+	nvmf_bdev_ctrlr_complete_admin_cmd(&bdev_io, true, &req);
+	CU_ASSERT(rsp.nvme_cpl.status.sct == SPDK_NVME_SCT_GENERIC);
+	CU_ASSERT(rsp.nvme_cpl.status.sc == SPDK_NVME_SC_SUCCESS);
+
+	/* NVME_ADMIN_IOV no channel - queue IO */
+	memset(&rsp, 0, sizeof(rsp));
+	MOCK_SET(spdk_bdev_nvme_admin_iov_passthru, -ENOMEM);
+	rc = spdk_nvmf_bdev_ctrlr_nvme_passthru_admin(&bdev, desc, &ch, &req, NULL);
+	CU_ASSERT(rc == SPDK_NVMF_REQUEST_EXEC_STATUS_ASYNCHRONOUS);
+	CU_ASSERT(group.stat.pending_bdev_io == 3);
+
+	MOCK_SET(spdk_bdev_nvme_admin_iov_passthru, 0);
+	MOCK_SET(spdk_bdev_io_type_supported, false);
 }
 
 int

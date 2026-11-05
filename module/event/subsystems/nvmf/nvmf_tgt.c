@@ -619,7 +619,8 @@ nvmf_admin_passthru_generic_hdlr(struct spdk_nvmf_request *req,
 		return -1;
 	}
 
-	if (!spdk_bdev_io_type_supported(bdev, SPDK_BDEV_IO_TYPE_NVME_ADMIN)) {
+	if (!spdk_bdev_io_type_supported(bdev, SPDK_BDEV_IO_TYPE_NVME_ADMIN_IOV) &&
+	    !spdk_bdev_io_type_supported(bdev, SPDK_BDEV_IO_TYPE_NVME_ADMIN)) {
 		return -1;
 	}
 

@@ -3314,6 +3314,13 @@ identify_ns_passthru_cb(struct spdk_nvmf_request *req)
 	spdk_nvmf_request_copy_from_buf(req, &nvmf_nsdata, datalen);
 }
 
+static bool
+nvmf_bdev_supports_admin_passthru(struct spdk_bdev *bdev)
+{
+	return spdk_bdev_io_type_supported(bdev, SPDK_BDEV_IO_TYPE_NVME_ADMIN_IOV) ||
+	       spdk_bdev_io_type_supported(bdev, SPDK_BDEV_IO_TYPE_NVME_ADMIN);
+}
+
 int
 spdk_nvmf_ctrlr_identify_ns_ext(struct spdk_nvmf_request *req)
 {
@@ -3335,7 +3342,7 @@ spdk_nvmf_ctrlr_identify_ns_ext(struct spdk_nvmf_request *req)
 		return SPDK_NVMF_REQUEST_EXEC_STATUS_COMPLETE;
 	}
 
-	if (!spdk_bdev_io_type_supported(bdev, SPDK_BDEV_IO_TYPE_NVME_ADMIN)) {
+	if (!nvmf_bdev_supports_admin_passthru(bdev)) {
 		spdk_iov_xfer_init(&ix, req->iov, req->iovcnt);
 		spdk_iov_xfer_from_buf(&ix, &nsdata, sizeof(nsdata));
 
@@ -3559,7 +3566,7 @@ nvmf_ns_identify_iocs_kv_passthru(struct spdk_nvmf_request *req)
 		return SPDK_NVMF_REQUEST_EXEC_STATUS_COMPLETE;
 	}
 
-	if (!spdk_bdev_io_type_supported(bdev, SPDK_BDEV_IO_TYPE_NVME_ADMIN)) {
+	if (!nvmf_bdev_supports_admin_passthru(bdev)) {
 		memset(req->iov[0].iov_base, 0, req->length);
 		return SPDK_NVMF_REQUEST_EXEC_STATUS_COMPLETE;
 	}
