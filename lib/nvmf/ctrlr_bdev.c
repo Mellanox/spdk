@@ -67,10 +67,8 @@ nvmf_ctrlr_copy_supported(struct spdk_nvmf_ctrlr *ctrlr)
 }
 
 static void
-nvmf_bdev_ctrlr_complete_cmd(struct spdk_bdev_io *bdev_io, bool success,
-			     void *cb_arg)
+nvmf_bdev_ctrlr_update_cmd_status(struct spdk_nvmf_request *req, struct spdk_bdev_io *bdev_io)
 {
-	struct spdk_nvmf_request	*req = cb_arg;
 	struct spdk_nvme_cpl		*response = &req->rsp->nvme_cpl;
 	int				sc = 0, sct = 0;
 	uint32_t			cdw0 = 0;
@@ -97,9 +95,12 @@ nvmf_bdev_ctrlr_complete_cmd(struct spdk_bdev_io *bdev_io, bool success,
 	response->cdw0 = cdw0;
 	response->status.sc = sc;
 	response->status.sct = sct;
+}
 
+static void
+nvmf_bdev_ctrlr_do_complete_cmd(struct spdk_nvmf_request *req, struct spdk_bdev_io *bdev_io)
+{
 	spdk_nvmf_request_complete(req);
-
 	if (req->use_accel_seq) {
 		req->bdev_io = bdev_io;
 	} else {
@@ -108,16 +109,27 @@ nvmf_bdev_ctrlr_complete_cmd(struct spdk_bdev_io *bdev_io, bool success,
 }
 
 static void
+nvmf_bdev_ctrlr_complete_cmd(struct spdk_bdev_io *bdev_io, bool success,
+			     void *cb_arg)
+{
+	struct spdk_nvmf_request *req = cb_arg;
+
+	nvmf_bdev_ctrlr_update_cmd_status(req, bdev_io);
+	nvmf_bdev_ctrlr_do_complete_cmd(req, bdev_io);
+}
+
+static void
 nvmf_bdev_ctrlr_complete_admin_cmd(struct spdk_bdev_io *bdev_io, bool success,
 				   void *cb_arg)
 {
 	struct spdk_nvmf_request *req = cb_arg;
 
+	nvmf_bdev_ctrlr_update_cmd_status(req, bdev_io);
 	if (req->cmd_cb_fn) {
 		req->cmd_cb_fn(req);
 	}
 
-	nvmf_bdev_ctrlr_complete_cmd(bdev_io, success, req);
+	nvmf_bdev_ctrlr_do_complete_cmd(req, bdev_io);
 }
 
 void
