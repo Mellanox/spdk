@@ -44,8 +44,18 @@ function pack_dist() {
 		)
 	done
 
-	git archive --format=tar.gz --add-virtual-file "spdk-$VER/REVISION:$sha1"$'\n' \
-		--prefix=spdk-$VER/ -o $ODIR/spdk-$VER.tar.gz HEAD
+	# --add-virtual-file requires git >= 2.39. Fall back to --add-file with a
+	# temporary file for older git (e.g. Ubuntu 22.04 ships 2.34).
+	if git archive -h 2>&1 | grep -q add-virtual-file; then
+		git archive --format=tar.gz --add-virtual-file "spdk-$VER/REVISION:$sha1"$'\n' \
+			--prefix=spdk-$VER/ -o $ODIR/spdk-$VER.tar.gz HEAD
+	else
+		revdir=$(mktemp -d)
+		echo "$sha1" > $revdir/REVISION
+		git archive --format=tar.gz --prefix=spdk-$VER/ --add-file=$revdir/REVISION \
+			-o $ODIR/spdk-$VER.tar.gz HEAD
+		rm -rf $revdir
+	fi
 
 	pushd scripts
 	python3 setup.py sdist -d $ODIR/
