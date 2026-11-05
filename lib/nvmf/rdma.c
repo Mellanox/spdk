@@ -381,6 +381,8 @@ struct spdk_nvmf_rdma_qpair {
 
 	/* The maximum number of SGEs per WR on the send queue */
 	uint32_t				max_send_sge;
+	/* Maximum size of a data buffer */
+	uint32_t				max_buf_size;
 
 	struct spdk_nvmf_rdma_resources		*resources;
 
@@ -1218,6 +1220,7 @@ nvmf_rdma_qpair_initialize(struct spdk_nvmf_qpair *qpair)
 	rqpair->max_send_depth = spdk_min((uint32_t)(rqpair->max_queue_depth * 2),
 					  qp_init_attr.cap.max_send_wr);
 	rqpair->max_send_sge = spdk_min(NVMF_DEFAULT_TX_SGE, qp_init_attr.cap.max_send_sge);
+	rqpair->max_buf_size = qpair->transport->opts.io_unit_size * rqpair->max_send_sge;
 	spdk_trace_record(TRACE_RDMA_QP_CREATE, 0, 0, (uintptr_t)rqpair);
 	SPDK_DEBUGLOG(rdma, "New RDMA Connection: %p\n", qpair);
 
@@ -1928,6 +1931,12 @@ nvmf_rdma_request_fill_iovs(struct spdk_nvmf_rdma_transport *rtransport,
 		return -EINVAL;
 	}
 
+	if (spdk_unlikely(length > rqpair->max_buf_size)) {
+		SPDK_ERRLOG("SGL length 0x%x needs more than %u buffers of %u bytes\n",
+			    length, rqpair->max_send_sge, rtransport->transport.opts.io_unit_size);
+		return -EINVAL;
+	}
+
 	rc = spdk_nvmf_request_get_buffers(req, &rgroup->group, &rtransport->transport,
 					   length);
 	rdma_req->iovpos = 0;
@@ -2045,6 +2054,13 @@ nvmf_rdma_request_fill_iovs_multi_sgl(struct spdk_nvmf_rdma_transport *rtranspor
 	if (spdk_unlikely(total_length > rtransport->transport.opts.max_io_size)) {
 		SPDK_ERRLOG("Multi SGL length 0x%x exceeds max io size 0x%x\n",
 			    total_length, rtransport->transport.opts.max_io_size);
+		req->rsp->nvme_cpl.status.sc = SPDK_NVME_SC_DATA_SGL_LENGTH_INVALID;
+		return -EINVAL;
+	}
+
+	if (spdk_unlikely(total_length > rqpair->max_buf_size)) {
+		SPDK_ERRLOG("Multi SGL length 0x%x needs more than %u buffers of %u bytes\n",
+			    total_length, rqpair->max_send_sge, rtransport->transport.opts.io_unit_size);
 		req->rsp->nvme_cpl.status.sc = SPDK_NVME_SC_DATA_SGL_LENGTH_INVALID;
 		return -EINVAL;
 	}

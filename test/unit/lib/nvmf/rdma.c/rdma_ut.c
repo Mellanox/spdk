@@ -222,6 +222,7 @@ test_spdk_nvmf_rdma_request_parse_sgl(void)
 	rtransport.transport.opts = g_rdma_ut_transport_opts;
 	rtransport.data_wr_pool = NULL;
 	rtransport.transport.ops = &ops;
+	rqpair.max_buf_size = rtransport.transport.opts.io_unit_size * rqpair.max_send_sge;
 
 	device.attr.device_cap_flags = 0;
 	sgl->keyed.key = 0xEEEE;
@@ -458,6 +459,132 @@ test_spdk_nvmf_rdma_request_parse_sgl(void)
 	reset_nvmf_rdma_request(&rdma_req);
 }
 
+static void
+test_nvmf_rdma_request_parse_sgl_max_buffers(void)
+{
+	struct spdk_nvmf_rdma_transport rtransport = {};
+	struct spdk_nvmf_transport_ops ops = {};
+	struct spdk_nvmf_rdma_device device = {};
+	struct spdk_nvmf_rdma_request rdma_req = {};
+	struct spdk_nvmf_rdma_recv recv = {};
+	struct spdk_nvmf_rdma_poll_group group = {};
+	struct spdk_nvmf_rdma_qpair rqpair = {};
+	struct spdk_nvmf_rdma_poller poller = {};
+	union nvmf_c2h_msg cpl = {};
+	union nvmf_h2c_msg cmd = {};
+	struct spdk_nvme_sgl_descriptor *sgl = &cmd.nvme_cmd.dptr.sgl1;
+	struct spdk_nvme_sgl_descriptor sgl_desc[2] = {};
+	struct spdk_nvmf_rdma_request_data data = {};
+	uint32_t io_unit_size;
+	int rc, i;
+
+	data.wr.sg_list = data.sgl;
+	group.group.transport = &rtransport.transport;
+	poller.group = &group;
+	rqpair.poller = &poller;
+	rqpair.max_send_sge = SPDK_NVMF_MAX_SGL_ENTRIES;
+
+	rdma_req.recv = &recv;
+	rdma_req.req.cmd = &cmd;
+	rdma_req.req.rsp = &cpl;
+	rdma_req.data.wr.sg_list = rdma_req.data.sgl;
+	rdma_req.req.qpair = &rqpair.qpair;
+	rdma_req.req.xfer = SPDK_NVME_DATA_CONTROLLER_TO_HOST;
+
+	/* With memory domain transfer enforced, max_io_size can exceed what fits into a WR */
+	rtransport.transport.opts = g_rdma_ut_transport_opts;
+	rtransport.transport.opts.enforce_memory_domain_transfer = true;
+	rtransport.transport.opts.max_io_size *= 4;
+	rtransport.transport.ops = &ops;
+	io_unit_size = rtransport.transport.opts.io_unit_size;
+	rqpair.max_buf_size = io_unit_size * rqpair.max_send_sge;
+
+	sgl->generic.type = SPDK_NVME_SGL_TYPE_KEYED_DATA_BLOCK;
+	sgl->keyed.subtype = SPDK_NVME_SGL_SUBTYPE_ADDRESS;
+	sgl->keyed.key = 0xEEEE;
+	sgl->address = 0xFFFF;
+	MOCK_SET(spdk_iobuf_get, (void *)0x2000);
+
+	/* As many buffers as the WR has SGEs */
+	reset_nvmf_rdma_request(&rdma_req);
+	sgl->keyed.length = io_unit_size * SPDK_NVMF_MAX_SGL_ENTRIES;
+	rc = nvmf_rdma_request_parse_sgl(&rtransport, &device, &rdma_req);
+	CU_ASSERT(rc == 0);
+	CU_ASSERT(rdma_req.req.data_from_pool == true);
+	CU_ASSERT(rdma_req.req.iovcnt == SPDK_NVMF_MAX_SGL_ENTRIES);
+	CU_ASSERT(rdma_req.data.wr.num_sge == SPDK_NVMF_MAX_SGL_ENTRIES);
+
+	/* One more byte needs one more buffer */
+	reset_nvmf_rdma_request(&rdma_req);
+	memset(&cpl, 0, sizeof(cpl));
+	sgl->keyed.length = io_unit_size * SPDK_NVMF_MAX_SGL_ENTRIES + 1;
+	rc = nvmf_rdma_request_parse_sgl(&rtransport, &device, &rdma_req);
+	CU_ASSERT(rc == -1);
+	CU_ASSERT(cpl.nvme_cpl.status.sc == SPDK_NVME_SC_DATA_SGL_LENGTH_INVALID);
+	CU_ASSERT(rdma_req.req.data_from_pool == false);
+	CU_ASSERT(rdma_req.req.iovcnt == 0);
+
+	/* The request is rejected rather than left waiting for buffers */
+	MOCK_SET(spdk_iobuf_get, NULL);
+	reset_nvmf_rdma_request(&rdma_req);
+	memset(&cpl, 0, sizeof(cpl));
+	rc = nvmf_rdma_request_parse_sgl(&rtransport, &device, &rdma_req);
+	CU_ASSERT(rc == -1);
+	CU_ASSERT(cpl.nvme_cpl.status.sc == SPDK_NVME_SC_DATA_SGL_LENGTH_INVALID);
+	MOCK_SET(spdk_iobuf_get, (void *)0x2000);
+
+	/* The limit follows the SGE count of the qpair */
+	rqpair.max_send_sge = 4;
+	rqpair.max_buf_size = io_unit_size * rqpair.max_send_sge;
+	reset_nvmf_rdma_request(&rdma_req);
+	sgl->keyed.length = io_unit_size * 4;
+	rc = nvmf_rdma_request_parse_sgl(&rtransport, &device, &rdma_req);
+	CU_ASSERT(rc == 0);
+	CU_ASSERT(rdma_req.req.iovcnt == 4);
+
+	reset_nvmf_rdma_request(&rdma_req);
+	memset(&cpl, 0, sizeof(cpl));
+	sgl->keyed.length = io_unit_size * 4 + 1;
+	rc = nvmf_rdma_request_parse_sgl(&rtransport, &device, &rdma_req);
+	CU_ASSERT(rc == -1);
+	CU_ASSERT(cpl.nvme_cpl.status.sc == SPDK_NVME_SC_DATA_SGL_LENGTH_INVALID);
+	CU_ASSERT(rdma_req.req.iovcnt == 0);
+	rqpair.max_send_sge = SPDK_NVMF_MAX_SGL_ENTRIES;
+	rqpair.max_buf_size = io_unit_size * rqpair.max_send_sge;
+
+	/* Multi SGL: the buffers of all descriptors count towards the limit */
+	sgl->generic.type = SPDK_NVME_SGL_TYPE_LAST_SEGMENT;
+	sgl->unkeyed.subtype = SPDK_NVME_SGL_SUBTYPE_OFFSET;
+	sgl->unkeyed.length = 2 * sizeof(struct spdk_nvme_sgl_descriptor);
+	sgl->address = 0;
+	recv.buf = (void *)&sgl_desc;
+	MOCK_SET(spdk_mempool_get, &data);
+	for (i = 0; i < 2; i++) {
+		sgl_desc[i].keyed.type = SPDK_NVME_SGL_TYPE_KEYED_DATA_BLOCK;
+		sgl_desc[i].keyed.subtype = SPDK_NVME_SGL_SUBTYPE_ADDRESS;
+		sgl_desc[i].keyed.length = io_unit_size * SPDK_NVMF_MAX_SGL_ENTRIES / 2;
+		sgl_desc[i].address = 0x4000 + i * io_unit_size * SPDK_NVMF_MAX_SGL_ENTRIES / 2;
+		sgl_desc[i].keyed.key = 0x44;
+	}
+
+	reset_nvmf_rdma_request(&rdma_req);
+	rc = nvmf_rdma_request_parse_sgl(&rtransport, &device, &rdma_req);
+	CU_ASSERT(rc == 0);
+	CU_ASSERT(rdma_req.req.iovcnt == SPDK_NVMF_MAX_SGL_ENTRIES);
+
+	reset_nvmf_rdma_request(&rdma_req);
+	memset(&cpl, 0, sizeof(cpl));
+	sgl_desc[1].keyed.length++;
+	rc = nvmf_rdma_request_parse_sgl(&rtransport, &device, &rdma_req);
+	CU_ASSERT(rc == -1);
+	CU_ASSERT(cpl.nvme_cpl.status.sc == SPDK_NVME_SC_DATA_SGL_LENGTH_INVALID);
+	CU_ASSERT(rdma_req.req.iovcnt == 0);
+
+	MOCK_CLEAR(spdk_mempool_get);
+	MOCK_CLEAR(spdk_iobuf_get);
+	reset_nvmf_rdma_request(&rdma_req);
+}
+
 static struct spdk_nvmf_rdma_recv *
 create_recv(struct spdk_nvmf_rdma_qpair *rqpair, enum spdk_nvme_nvm_opcode opc)
 {
@@ -533,6 +660,8 @@ qpair_reset(struct spdk_nvmf_rdma_qpair *rqpair,
 	rqpair->qpair.qid = 1;
 	rqpair->qpair.state = SPDK_NVMF_QPAIR_ENABLED;
 	rqpair->max_send_sge = SPDK_NVMF_MAX_SGL_ENTRIES;
+	/* Some tests only copy the transport opts after resetting the qpair */
+	rqpair->max_buf_size = g_rdma_ut_transport_opts.io_unit_size * rqpair->max_send_sge;
 	rqpair->max_send_depth = 16;
 	rqpair->max_read_depth = 16;
 	rqpair->qpair.transport = transport;
@@ -1467,6 +1596,7 @@ test_spdk_nvmf_rdma_request_parse_sgl_with_md(void)
 			  0, 0, 0, 0, 0, &dif_opts);
 	rdma_req.req.dif_enabled = true;
 	rtransport.transport.opts.io_unit_size = data_bs * 8;
+	rqpair.max_buf_size = rtransport.transport.opts.io_unit_size * rqpair.max_send_sge;
 	rdma_req.req.qpair->transport = &rtransport.transport;
 	sgl->keyed.length = data_bs * 4;
 
@@ -1497,6 +1627,7 @@ test_spdk_nvmf_rdma_request_parse_sgl_with_md(void)
 			  0, 0, 0, 0, 0, &dif_opts);
 	rdma_req.req.dif_enabled = true;
 	rtransport.transport.opts.io_unit_size = data_bs * 4;
+	rqpair.max_buf_size = rtransport.transport.opts.io_unit_size * rqpair.max_send_sge;
 	sgl->keyed.length = data_bs * 4;
 
 	rc = nvmf_rdma_request_parse_sgl(&rtransport, &device, &rdma_req);
@@ -1535,6 +1666,7 @@ test_spdk_nvmf_rdma_request_parse_sgl_with_md(void)
 			  0, 0, 0, 0, 0, &dif_opts);
 	rdma_req.req.dif_enabled = true;
 	rtransport.transport.opts.io_unit_size = data_bs;
+	rqpair.max_buf_size = rtransport.transport.opts.io_unit_size * rqpair.max_send_sge;
 	sgl->keyed.length = data_bs;
 
 	rc = nvmf_rdma_request_parse_sgl(&rtransport, &device, &rdma_req);
@@ -1571,6 +1703,7 @@ test_spdk_nvmf_rdma_request_parse_sgl_with_md(void)
 			  0, 0, 0, 0, 0, &dif_opts);
 	rdma_req.req.dif_enabled = true;
 	rtransport.transport.opts.io_unit_size = (data_bs + md_size) * 4;
+	rqpair.max_buf_size = rtransport.transport.opts.io_unit_size * rqpair.max_send_sge;
 	sgl->keyed.length = data_bs * 4;
 
 	rc = nvmf_rdma_request_parse_sgl(&rtransport, &device, &rdma_req);
@@ -1600,6 +1733,7 @@ test_spdk_nvmf_rdma_request_parse_sgl_with_md(void)
 			  0, 0, 0, 0, 0, &dif_opts);
 	rdma_req.req.dif_enabled = true;
 	rtransport.transport.opts.io_unit_size = (data_bs + md_size) * 2;
+	rqpair.max_buf_size = rtransport.transport.opts.io_unit_size * rqpair.max_send_sge;
 	sgl->keyed.length = data_bs * 4;
 
 	rc = nvmf_rdma_request_parse_sgl(&rtransport, &device, &rdma_req);
@@ -1630,6 +1764,7 @@ test_spdk_nvmf_rdma_request_parse_sgl_with_md(void)
 			  0, 0, 0, 0, 0, &dif_opts);
 	rdma_req.req.dif_enabled = true;
 	rtransport.transport.opts.io_unit_size = data_bs * 4;
+	rqpair.max_buf_size = rtransport.transport.opts.io_unit_size * rqpair.max_send_sge;
 	sgl->keyed.length = data_bs * 6;
 
 	rc = nvmf_rdma_request_parse_sgl(&rtransport, &device, &rdma_req);
@@ -1678,6 +1813,7 @@ test_spdk_nvmf_rdma_request_parse_sgl_with_md(void)
 			  0, 0, 0, 0, 0, &dif_opts);
 	rdma_req.req.dif_enabled = true;
 	rtransport.transport.opts.io_unit_size = data_bs * 16;
+	rqpair.max_buf_size = rtransport.transport.opts.io_unit_size * rqpair.max_send_sge;
 	sgl->keyed.length = data_bs * 16;
 
 	rc = nvmf_rdma_request_parse_sgl(&rtransport, &device, &rdma_req);
@@ -1721,6 +1857,7 @@ test_spdk_nvmf_rdma_request_parse_sgl_with_md(void)
 			  0, 0, 0, 0, 0, &dif_opts);
 	rdma_req.req.dif_enabled = true;
 	rtransport.transport.opts.io_unit_size = 516;
+	rqpair.max_buf_size = rtransport.transport.opts.io_unit_size * rqpair.max_send_sge;
 	sgl->keyed.length = data_bs * 2;
 
 	rc = nvmf_rdma_request_parse_sgl(&rtransport, &device, &rdma_req);
@@ -1762,6 +1899,7 @@ test_spdk_nvmf_rdma_request_parse_sgl_with_md(void)
 			  0, 0, 0, 0, 0, &dif_opts);
 	rdma_req.req.dif_enabled = true;
 	rtransport.transport.opts.io_unit_size = (data_bs + md_size) * 4;
+	rqpair.max_buf_size = rtransport.transport.opts.io_unit_size * rqpair.max_send_sge;
 	sgl->unkeyed.length = 2 * sizeof(struct spdk_nvme_sgl_descriptor);
 
 	for (i = 0; i < 2; i++) {
@@ -2248,6 +2386,7 @@ main(int argc, char **argv)
 	suite = CU_add_suite("nvmf", NULL, NULL);
 
 	CU_ADD_TEST(suite, test_spdk_nvmf_rdma_request_parse_sgl);
+	CU_ADD_TEST(suite, test_nvmf_rdma_request_parse_sgl_max_buffers);
 	CU_ADD_TEST(suite, test_spdk_nvmf_rdma_request_process);
 	CU_ADD_TEST(suite, test_nvmf_rdma_request_accel_task_failure);
 	CU_ADD_TEST(suite, test_nvmf_rdma_dispatch_rotates_on_tie);
