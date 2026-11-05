@@ -198,6 +198,21 @@ test_spdk_nvmf_transport_create(void)
 	CU_ASSERT(rc != 0);
 	CU_ASSERT(transport == NULL);
 
+	/* Requests that don't use memory domains still need buffers of io_unit_size */
+	g_rdma_ut_transport_opts.enforce_memory_domain_transfer = true;
+	g_rdma_ut_transport_opts.io_unit_size = 0;
+	rc = spdk_nvmf_transport_create_async("new_ops", &g_rdma_ut_transport_opts,
+					      test_nvmf_create_transport_done, &transport);
+	CU_ASSERT(rc != 0);
+	CU_ASSERT(transport == NULL);
+
+	g_rdma_ut_transport_opts.io_unit_size = opts_iobuf.large_bufsize * 2;
+	rc = spdk_nvmf_transport_create_async("new_ops", &g_rdma_ut_transport_opts,
+					      test_nvmf_create_transport_done, &transport);
+	CU_ASSERT(rc != 0);
+	CU_ASSERT(transport == NULL);
+
+	g_rdma_ut_transport_opts.enforce_memory_domain_transfer = false;
 	g_rdma_ut_transport_opts.io_unit_size = SPDK_NVMF_RDMA_MIN_IO_BUFFER_SIZE;
 
 	/* Ensure kas cannot be set to 0 */

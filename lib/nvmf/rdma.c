@@ -2224,7 +2224,7 @@ nvmf_rdma_request_parse_sgl(struct spdk_nvmf_rdma_transport *rtransport,
 					      "Queueing request %p\n", rdma_req);
 				return 0;
 			} else if (rc == -EINVAL) {
-				SPDK_ERRLOG("SGL length exceeds the max I/O size\n");
+				SPDK_ERRLOG("SGL exceeds the maximum number of SGEs\n");
 				rsp->status.sc = SPDK_NVME_SC_DATA_SGL_LENGTH_INVALID;
 				return -1;
 			} else {
@@ -2247,8 +2247,7 @@ nvmf_rdma_request_parse_sgl(struct spdk_nvmf_rdma_transport *rtransport,
 					      "request %p\n", rdma_req);
 				return 0;
 			} else if (rc == -EINVAL) {
-				SPDK_ERRLOG("Multi SGL element request length exceeds the max "
-					    "I/O size\n");
+				SPDK_ERRLOG("Multi SGL exceeds the maximum number of SGEs\n");
 				rsp->status.sc = SPDK_NVME_SC_DATA_SGL_LENGTH_INVALID;
 				return -1;
 			} else {
@@ -3927,8 +3926,12 @@ nvmf_rdma_create(struct spdk_nvmf_transport_opts *opts)
 		}
 	}
 
+	/* With memory domain transfer enforced, reads and writes never use buffers, so
+	 * max_io_size doesn't need to fit into the SGEs of a WR.  Requests that do use
+	 * them are limited to io_unit_size * max_send_sge instead.
+	 */
 	sge_count = opts->max_io_size / opts->io_unit_size;
-	if (sge_count > NVMF_DEFAULT_TX_SGE) {
+	if (!opts->enforce_memory_domain_transfer && sge_count > NVMF_DEFAULT_TX_SGE) {
 		SPDK_ERRLOG("Unsupported IO Unit size specified, %d bytes\n", opts->io_unit_size);
 		nvmf_rdma_destroy(&rtransport->transport, NULL, NULL);
 		return NULL;
@@ -4039,7 +4042,8 @@ nvmf_rdma_create(struct spdk_nvmf_transport_opts *opts)
 	}
 	rdma_free_devices(contexts);
 
-	if (opts->io_unit_size * max_device_sge < opts->max_io_size) {
+	if (!opts->enforce_memory_domain_transfer &&
+	    opts->io_unit_size * max_device_sge < opts->max_io_size) {
 		/* divide and round up. */
 		opts->io_unit_size = (opts->max_io_size + max_device_sge - 1) / max_device_sge;
 

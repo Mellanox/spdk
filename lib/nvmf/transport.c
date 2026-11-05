@@ -319,31 +319,28 @@ nvmf_transport_create(const char *transport_name, struct spdk_nvmf_transport_opt
 	kas_in_ms = ctx->opts.kas * NVMF_KAS_TIME_UNIT_IN_MS;
 	ctx->opts.min_kato = spdk_round_up(ctx->opts.min_kato, kas_in_ms);
 
-	if (!ctx->opts.enforce_memory_domain_transfer) {
-		spdk_iobuf_get_opts(&opts_iobuf, sizeof(opts_iobuf));
-		if (ctx->opts.io_unit_size == 0) {
-			SPDK_ERRLOG("io_unit_size cannot be 0\n");
-			goto err;
-		}
+	spdk_iobuf_get_opts(&opts_iobuf, sizeof(opts_iobuf));
+	if (ctx->opts.io_unit_size == 0) {
+		SPDK_ERRLOG("io_unit_size cannot be 0\n");
+		goto err;
+	}
+	if (ctx->opts.io_unit_size > opts_iobuf.large_bufsize) {
+		SPDK_ERRLOG("io_unit_size %u is larger than iobuf pool large buffer size %d\n",
+			    ctx->opts.io_unit_size, opts_iobuf.large_bufsize);
+		goto err;
+	}
 
-		if (ctx->opts.io_unit_size > opts_iobuf.large_bufsize) {
-			SPDK_ERRLOG("io_unit_size %u is larger than iobuf pool large buffer size "
-				    "%d\n", ctx->opts.io_unit_size, opts_iobuf.large_bufsize);
-			goto err;
-		}
+	if (ctx->opts.io_unit_size <= opts_iobuf.small_bufsize) {
+		/* We'll be using the small buffer pool only */
+		count = opts_iobuf.small_pool_count;
+	} else {
+		count = spdk_min(opts_iobuf.small_pool_count, opts_iobuf.large_pool_count);
+	}
 
-		if (ctx->opts.io_unit_size <= opts_iobuf.small_bufsize) {
-			/* We'll be using the small buffer pool only */
-			count = opts_iobuf.small_pool_count;
-		} else {
-			count = spdk_min(opts_iobuf.small_pool_count, opts_iobuf.large_pool_count);
-		}
-
-		if (ctx->opts.num_shared_buffers > count) {
-			SPDK_WARNLOG("The num_shared_buffers value (%u) is larger than the "
-				     "available iobuf  pool size (%lu). Please increase the iobuf "
-				     "pool sizes.\n", ctx->opts.num_shared_buffers, count);
-		}
+	if (ctx->opts.num_shared_buffers > count) {
+		SPDK_WARNLOG("The num_shared_buffers value (%u) is larger than the available iobuf"
+			     " pool size (%lu). Please increase the iobuf pool sizes.\n",
+			     ctx->opts.num_shared_buffers, count);
 	}
 
 	ctx->cb_fn = cb_fn;
