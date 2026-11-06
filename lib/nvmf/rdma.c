@@ -2218,36 +2218,48 @@ nvmf_rdma_request_parse_sgl(struct spdk_nvmf_rdma_transport *rtransport,
 
 		rc = nvmf_rdma_request_fill_iovs(rtransport, device, rdma_req);
 		if (spdk_unlikely(rc < 0)) {
-			if (rc == -EINVAL) {
+			if (rc == -ENOMEM) {
+				/* No available buffers. Queue this request up. */
+				SPDK_DEBUGLOG(rdma, "No available large data buffers. "
+					      "Queueing request %p\n", rdma_req);
+				return 0;
+			} else if (rc == -EINVAL) {
 				SPDK_ERRLOG("SGL length exceeds the max I/O size\n");
 				rsp->status.sc = SPDK_NVME_SC_DATA_SGL_LENGTH_INVALID;
 				return -1;
+			} else {
+				SPDK_ERRLOG("Failed to fill iovs: %s\n", spdk_strerror(-rc));
+				rsp->status.sc = SPDK_NVME_SC_INTERNAL_DEVICE_ERROR;
+				return -1;
 			}
-			/* No available buffers. Queue this request up. */
-			SPDK_DEBUGLOG(rdma, "No available large data buffers. Queueing request %p\n", rdma_req);
-			return 0;
 		}
 
 		SPDK_DEBUGLOG(rdma, "Request %p took %d buffer/s from central pool\n", rdma_req,
 			      req->iovcnt);
-
 		return 0;
 	} else if (sgl->generic.type == SPDK_NVME_SGL_TYPE_LAST_SEGMENT &&
 		   sgl->unkeyed.subtype == SPDK_NVME_SGL_SUBTYPE_OFFSET) {
 
 		rc = nvmf_rdma_request_fill_iovs_multi_sgl(rtransport, device, rdma_req);
-		if (spdk_unlikely(rc == -ENOMEM)) {
-			SPDK_DEBUGLOG(rdma, "No available large data buffers. Queueing request %p\n", rdma_req);
-			return 0;
-		} else if (spdk_unlikely(rc == -EINVAL)) {
-			SPDK_ERRLOG("Multi SGL element request length exceeds the max I/O size\n");
-			rsp->status.sc = SPDK_NVME_SC_DATA_SGL_LENGTH_INVALID;
-			return -1;
+		if (spdk_unlikely(rc < 0)) {
+			if (rc == -ENOMEM) {
+				SPDK_DEBUGLOG(rdma, "No available large data buffers. Queueing "
+					      "request %p\n", rdma_req);
+				return 0;
+			} else if (rc == -EINVAL) {
+				SPDK_ERRLOG("Multi SGL element request length exceeds the max "
+					    "I/O size\n");
+				rsp->status.sc = SPDK_NVME_SC_DATA_SGL_LENGTH_INVALID;
+				return -1;
+			} else {
+				SPDK_ERRLOG("Failed to fill iovs: %s\n", spdk_strerror(-rc));
+				rsp->status.sc = SPDK_NVME_SC_INTERNAL_DEVICE_ERROR;
+				return -1;
+			}
 		}
 
 		SPDK_DEBUGLOG(rdma, "Request %p took %d buffer/s from central pool\n", rdma_req,
 			      req->iovcnt);
-
 		return 0;
 	} else if (sgl->generic.type == SPDK_NVME_SGL_TYPE_DATA_BLOCK &&
 		   sgl->unkeyed.subtype == SPDK_NVME_SGL_SUBTYPE_OFFSET) {
