@@ -2041,7 +2041,7 @@ nvmf_rdma_request_fill_iovs_multi_sgl(struct spdk_nvmf_rdma_transport *rtranspor
 
 	rc = nvmf_request_alloc_wrs(rtransport, rdma_req, num_sgl_descriptors - 1, true);
 	if (spdk_unlikely(rc != 0)) {
-		return -ENOMEM;
+		return rc;
 	}
 
 	if (req->use_memory_domain) {
@@ -2109,7 +2109,7 @@ nvmf_rdma_request_fill_iovs_multi_sgl(struct spdk_nvmf_rdma_transport *rtranspor
 							    lengths[i], 0);
 		}
 		if (spdk_unlikely(rc != 0)) {
-			rc = -ENOMEM;
+			rc = -EINVAL;
 			goto err_exit;
 		}
 
