@@ -705,7 +705,8 @@ global_token_bucket_remove_local_bucket(struct global_token_bucket *global_bucke
  * \param global_bucket Global token bucket.
  * \param avg_rate The long-term sustained throughput.
  * \param mode Operating mode.
- * \param burst_size The burst limit (Relevant only for burst_ready mode).
+ * \param burst_size The burst limit, in the same unit as avg_rate (Relevant only for
+ *                   burst_ready mode).
  * \param max_burst_rate Peak rate allowed during a burst (Relevant only for earned_burst mode).
  * \param max_burst_time_in_sec The maximum duration max_burst_rate can be sustained (Relevant
  *                              only for earned_burst mode).
@@ -751,8 +752,12 @@ global_token_bucket_set(struct global_token_bucket *global_bucket, uint64_t avg_
 		min_rate = BDEV_QOS_MIN_IO_PER_SEC;
 	} else {
 		min_rate = BDEV_QOS_MIN_BYTE_PER_SEC;
+		/* Bandwidth inputs are mebibytes. burst_size is a capacity in that
+		 * unit, and 0 is left for the default of one second of avg_rate.
+		 */
 		avg_rate *= 1024 * 1024;
 		max_burst_rate *= 1024 * 1024;
+		burst_size *= 1024 * 1024;
 	}
 
 	if (max_withdraw_batch_size < global_bucket->min_withdraw_batch_size) {

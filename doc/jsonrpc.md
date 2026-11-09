@@ -3382,7 +3382,7 @@ an alias for `-i`/`--per-core-guaranteed-refill`.
  qos_metric                 | Required   | string | Metric controlled by QoS rate limit.
  avg_rate                   | Required   | number | Average rate for this metric. 0 means unlimited.
  qos_mode                   | Optional   | string | Operating mode (strict, burst_ready, or earned_burst). (Default is strict.)
- burst_size                 | Optional   | number | The burst limit (Relevant only if qos_mode is burst_ready).
+ burst_size                 | Optional   | number | The burst limit, in the same unit as avg_rate (Relevant only if qos_mode is burst_ready).
  max_burst_rate             | Optional   | number | Peak rate allowed during a burst (Relevant only if qos_mode is earned_burst).
  max_burst_time_in_sec      | Optional   | number | The maximum duration max_burst_rate can be sustained (Relevant only if qos_mode is earned_burst).
  refill_period_us           | Optional   | number | Requested refill period in microseconds. A lower bound only (default is 0, meaning tick_period_us)
