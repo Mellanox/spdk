@@ -110,6 +110,7 @@ struct ut_qos_channel {
 	struct spdk_bdev_qos_channel_impl base;
 	bdev_io_tailq_t queued_io;
 	bool throttled;
+	uint32_t num_queue_io;
 	TAILQ_ENTRY(ut_qos_channel) link;
 };
 
@@ -535,6 +536,8 @@ ut_qos_channel_queue_io(struct spdk_bdev_qos_channel_impl *qos_ch_impl,
 			struct spdk_bdev_io *bdev_io)
 {
 	struct ut_qos_channel *ut_qos_ch = SPDK_CONTAINEROF(qos_ch_impl, struct ut_qos_channel, base);
+
+	ut_qos_ch->num_queue_io++;
 
 	if (!ut_qos_ch->throttled) {
 		spdk_bdev_qos_channel_impl_queue_io_done(bdev_io);
@@ -2776,6 +2779,136 @@ multi_qos_modules(void)
 	teardown_test();
 }
 
+static void
+split_io_qos(void)
+{
+	struct spdk_bdev_qos *qos = NULL;
+	struct spdk_bdev_qos_desc *desc = NULL;
+	struct spdk_bdev *bdev;
+	struct spdk_io_channel *bdev_io_ch;
+	struct spdk_bdev_channel *bdev_ch;
+	struct ut_qos_channel *ut_qos_ch;
+	struct spdk_bdev_io *bdev_io;
+	const char *enabled_module[1] = {"ut_qos"};
+	enum spdk_bdev_io_status io_status, io_status2;
+	int rc, status;
+
+	setup_test();
+
+	/* Offset 14 and length 8 cross the boundary at 16, so the read is split into
+	 * two children.
+	 */
+	g_bdev.bdev.optimal_io_boundary = 16;
+	g_bdev.bdev.split_on_optimal_io_boundary = true;
+
+	rc = spdk_bdev_qos_create("ut_qos_service", NULL, enabled_module, 1, &qos, &desc);
+	CU_ASSERT(rc == 0);
+	SPDK_CU_ASSERT_FATAL(qos != NULL);
+	SPDK_CU_ASSERT_FATAL(desc != NULL);
+
+	bdev = spdk_bdev_desc_get_bdev(g_desc);
+
+	status = -1;
+	spdk_bdev_qos_add_bdev(qos, bdev, add_remove_bdev_done, &status);
+
+	poll_threads();
+	CU_ASSERT(status == 0);
+
+	bdev_io_ch = spdk_bdev_get_io_channel(g_desc);
+	SPDK_CU_ASSERT_FATAL(bdev_io_ch != NULL);
+	bdev_ch = spdk_io_channel_get_ctx(bdev_io_ch);
+	SPDK_CU_ASSERT_FATAL(bdev_ch->qos_ch != NULL);
+
+	ut_qos_ch = SPDK_CONTAINEROF(TAILQ_FIRST(&bdev_ch->qos_ch->impl_list),
+				     struct ut_qos_channel, base);
+
+	/* QoS checks the split read once, and both children are submitted. */
+	io_status = SPDK_BDEV_IO_STATUS_PENDING;
+
+	rc = spdk_bdev_read_blocks(g_desc, bdev_io_ch, (void *)0xF000, 14, 8, io_during_io_done,
+				   &io_status);
+	CU_ASSERT(rc == 0);
+	CU_ASSERT(ut_qos_ch->num_queue_io == 1);
+	CU_ASSERT(bdev_channel_count_submitted_io(bdev_ch) == 3);
+
+	CU_ASSERT(stub_complete_io(g_bdev.io_target, 0) == 2);
+	CU_ASSERT(io_status == SPDK_BDEV_IO_STATUS_SUCCESS);
+
+	/* A throttled split read is held whole and split only after QoS passes it. */
+	ut_qos_ch->throttled = true;
+	ut_qos_ch->num_queue_io = 0;
+	io_status = SPDK_BDEV_IO_STATUS_PENDING;
+
+	rc = spdk_bdev_read_blocks(g_desc, bdev_io_ch, (void *)0xF000, 14, 8, io_during_io_done,
+				   &io_status);
+	CU_ASSERT(rc == 0);
+	CU_ASSERT(ut_qos_ch->num_queue_io == 1);
+
+	bdev_io = TAILQ_FIRST(&ut_qos_ch->queued_io);
+	SPDK_CU_ASSERT_FATAL(bdev_io != NULL);
+	CU_ASSERT(bdev_io->internal.f.split);
+	CU_ASSERT(bdev_channel_count_submitted_io(bdev_ch) == 1);
+
+	ut_qos_channel_queue_io_done(ut_qos_ch, bdev_io);
+
+	CU_ASSERT(ut_qos_ch->num_queue_io == 1);
+	CU_ASSERT(bdev_channel_count_submitted_io(bdev_ch) == 3);
+	CU_ASSERT(io_status == SPDK_BDEV_IO_STATUS_PENDING);
+
+	CU_ASSERT(stub_complete_io(g_bdev.io_target, 0) == 2);
+	CU_ASSERT(io_status == SPDK_BDEV_IO_STATUS_SUCCESS);
+
+	/* A split read held by QoS is aborted there, because it has no children yet. */
+	io_status = SPDK_BDEV_IO_STATUS_PENDING;
+
+	rc = spdk_bdev_read_blocks(g_desc, bdev_io_ch, (void *)0xF000, 14, 8, io_during_io_done,
+				   &io_status);
+	CU_ASSERT(rc == 0);
+	CU_ASSERT(!TAILQ_EMPTY(&ut_qos_ch->queued_io));
+
+	io_status2 = SPDK_BDEV_IO_STATUS_PENDING;
+
+	rc = spdk_bdev_abort(g_desc, bdev_io_ch, &io_status, io_during_io_done, &io_status2);
+	CU_ASSERT(rc == 0);
+
+	poll_threads();
+
+	CU_ASSERT(io_status == SPDK_BDEV_IO_STATUS_ABORTED);
+	CU_ASSERT(io_status2 == SPDK_BDEV_IO_STATUS_SUCCESS);
+	CU_ASSERT(TAILQ_EMPTY(&ut_qos_ch->queued_io));
+	CU_ASSERT(stub_complete_io(g_bdev.io_target, 0) == 0);
+
+	/* A split read held by QoS is split when the bdev leaves the QoS device. */
+	io_status = SPDK_BDEV_IO_STATUS_PENDING;
+
+	rc = spdk_bdev_read_blocks(g_desc, bdev_io_ch, (void *)0xF000, 14, 8, io_during_io_done,
+				   &io_status);
+	CU_ASSERT(rc == 0);
+	CU_ASSERT(!TAILQ_EMPTY(&ut_qos_ch->queued_io));
+
+	status = -1;
+	spdk_bdev_qos_remove_bdev(qos, bdev, add_remove_bdev_done, &status);
+
+	poll_threads();
+	CU_ASSERT(status == 0);
+	CU_ASSERT(bdev_ch->qos_ch == NULL);
+	CU_ASSERT(bdev_channel_count_submitted_io(bdev_ch) == 3);
+
+	CU_ASSERT(stub_complete_io(g_bdev.io_target, 0) == 2);
+	CU_ASSERT(io_status == SPDK_BDEV_IO_STATUS_SUCCESS);
+
+	spdk_put_io_channel(bdev_io_ch);
+
+	spdk_bdev_qos_close(desc);
+
+	rc = spdk_bdev_qos_destroy(qos);
+	CU_ASSERT(rc == 0);
+
+	poll_threads();
+
+	teardown_test();
+}
+
 int
 main(int argc, char **argv)
 {
@@ -2811,6 +2944,7 @@ main(int argc, char **argv)
 	CU_ADD_TEST(suite, reset_start_complete_race);
 	CU_ADD_TEST(suite, basic_qos);
 	CU_ADD_TEST(suite, multi_qos_modules);
+	CU_ADD_TEST(suite, split_io_qos);
 
 	num_failures = spdk_ut_run_tests(argc, argv, NULL);
 	CU_cleanup_registry();

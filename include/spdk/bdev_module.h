@@ -1231,12 +1231,6 @@ struct spdk_bdev_io_internal_fields {
 		int           orig_iovcnt;
 	} bounce_buf;
 
-	/** Callback for when the aux buf is allocated */
-	spdk_bdev_io_get_aux_buf_cb get_aux_buf_cb;
-
-	/** Callback for when buf is allocated */
-	spdk_bdev_io_get_buf_cb get_buf_cb;
-
 	/**
 	 * Queue entry used in several cases:
 	 *  1. IOs awaiting retry due to NOMEM status,
@@ -1259,6 +1253,17 @@ struct spdk_bdev_io_internal_fields {
 
 	/* Sequence of accel operations passed by the user */
 	struct spdk_accel_sequence *accel_sequence;
+
+	/*
+	 * The fields from get_aux_buf_cb to blocked_qos_ch_impl are cleared together
+	 * by one memset when the I/O is initialized, so keep them contiguous.
+	 */
+
+	/** Callback for when the aux buf is allocated */
+	spdk_bdev_io_get_aux_buf_cb get_aux_buf_cb;
+
+	/** Callback for when buf is allocated */
+	spdk_bdev_io_get_buf_cb get_buf_cb;
 
 	/** Data transfer completion callback */
 	void (*data_transfer_cpl)(void *ctx, int rc);

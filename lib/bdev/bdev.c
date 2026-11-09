@@ -3127,12 +3127,26 @@ bdev_channel_resume_if_needed(struct spdk_bdev_channel *bdev_ch)
 	}
 }
 
+static void bdev_io_split(struct spdk_bdev_io *bdev_io);
+static void bdev_io_split_done(struct spdk_bdev_io *bdev_io, bool success, void *cb_arg);
+
+static inline void
+bdev_io_split_or_do_submit(struct spdk_bdev_channel *bdev_ch, struct spdk_bdev_io *bdev_io)
+{
+	if (bdev_io->internal.f.split) {
+		bdev_io_split(bdev_io);
+		return;
+	}
+
+	bdev_io_do_submit(bdev_ch, bdev_io);
+}
+
 static inline void
 bdev_qos_queue_io_done(struct spdk_bdev_io *bdev_io)
 {
 	bdev_channel_resume_if_needed(bdev_io->internal.ch);
 
-	bdev_io_do_submit(bdev_io->internal.ch, bdev_io);
+	bdev_io_split_or_do_submit(bdev_io->internal.ch, bdev_io);
 }
 
 static void
@@ -3140,7 +3154,11 @@ bdev_qos_queue_io(struct spdk_bdev_channel *bdev_ch, struct spdk_bdev_io *bdev_i
 {
 	struct spdk_bdev_qos_channel *qos_ch;
 
-	if (spdk_unlikely(!bdev_io_is_qos_controlled(bdev_io))) {
+	/* A split I/O is limited once as a whole before it is split, so its
+	 * children are not limited again.
+	 */
+	if (bdev_io->internal.cb == bdev_io_split_done ||
+	    spdk_unlikely(!bdev_io_is_qos_controlled(bdev_io))) {
 		bdev_qos_queue_io_done(bdev_io);
 		return;
 	}
@@ -3887,8 +3905,8 @@ _bdev_io_submit(struct spdk_bdev_io *bdev_io)
 {
 	struct spdk_bdev_channel *bdev_ch = bdev_io->internal.ch;
 
-	if (spdk_likely(bdev_ch->flags == 0)) {
-		bdev_io_do_submit(bdev_ch, bdev_io);
+	if (bdev_ch->flags == 0) {
+		bdev_io_split_or_do_submit(bdev_ch, bdev_io);
 		return;
 	}
 
@@ -3995,11 +4013,6 @@ bdev_io_submit(struct spdk_bdev_io *bdev_io)
 			      ch->trace_id, bdev_io->u.bdev.num_blocks,
 			      (uintptr_t)bdev_io, (uint64_t)bdev_io->type, bdev_io->internal.caller_ctx,
 			      bdev_io->u.bdev.offset_blocks, ch->queue_depth);
-
-	if (bdev_io->internal.f.split) {
-		bdev_io_split(bdev_io);
-		return;
-	}
 
 	_bdev_io_submit(bdev_io);
 }
@@ -4200,9 +4213,10 @@ bdev_io_init(struct spdk_bdev_io *bdev_io,
 	bdev_io->internal.f.in_submit_request = false;
 	bdev_io->internal.error.nvme.cdw0 = 0;
 	bdev_io->num_retries = 0;
-	bdev_io->internal.get_buf_cb = NULL;
-	bdev_io->internal.get_aux_buf_cb = NULL;
-	bdev_io->internal.data_transfer_cpl = NULL;
+	memset(&bdev_io->internal.get_aux_buf_cb, 0,
+	       offsetof(struct spdk_bdev_io, internal.blocked_qos_ch_impl) +
+	       sizeof(bdev_io->internal.blocked_qos_ch_impl) -
+	       offsetof(struct spdk_bdev_io, internal.get_aux_buf_cb));
 	bdev_io->internal.f.split = bdev_io_should_split(bdev_io);
 }
 
@@ -4400,6 +4414,8 @@ spdk_bdev_unblock_all_queued_io(bdev_io_tailq_t *queue, struct spdk_bdev_channel
 	TAILQ_FOREACH_SAFE(bdev_io, queue, internal.link, tmp) {
 		if (ch == NULL || bdev_io->internal.ch == ch) {
 			TAILQ_REMOVE(queue, bdev_io, internal.link);
+			bdev_io->internal.blocked_qos_ch = NULL;
+			bdev_io->internal.blocked_qos_ch_impl = NULL;
 			_bdev_io_submit(bdev_io);
 		}
 	}
@@ -8399,7 +8415,10 @@ bdev_abort_io(struct spdk_bdev_desc *desc, struct spdk_bdev_channel *channel,
 	bdev_io->type = SPDK_BDEV_IO_TYPE_ABORT;
 	bdev_io_init(bdev_io, bdev, cb_arg, cb);
 
-	if (bio_to_abort->internal.f.split) {
+	/* A split I/O still held by QoS has no children yet, so it is aborted in
+	 * QoS like an I/O that is not split.
+	 */
+	if (bio_to_abort->internal.f.split && bio_to_abort->internal.blocked_qos_ch == NULL) {
 		assert(bdev_io_should_split(bio_to_abort));
 		bdev_io->u.bdev.abort.bio_cb_arg = bio_to_abort;
 
