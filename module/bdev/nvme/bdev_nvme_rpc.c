@@ -1460,23 +1460,16 @@ nvme_health_info_cleanup(struct spdk_nvme_health_info_context *context, bool res
 }
 
 static void
-get_health_log_page_completion(void *cb_arg, const struct spdk_nvme_cpl *cpl)
+nvme_health_info_send_result(struct spdk_nvme_health_info_context *context)
 {
 	int i;
 	char buf[128];
-	struct spdk_nvme_health_info_context *context = cb_arg;
 	struct spdk_jsonrpc_request *request = context->request;
 	struct spdk_json_write_ctx *w;
 	struct spdk_nvme_ctrlr *ctrlr = context->ctrlr;
 	const struct spdk_nvme_transport_id *trid = NULL;
 	const struct spdk_nvme_ctrlr_data *cdata = NULL;
 	struct spdk_nvme_health_information_page *health_page = NULL;
-
-	if (spdk_nvme_cpl_is_error(cpl)) {
-		nvme_health_info_cleanup(context, true);
-		SPDK_ERRLOG("get log page failed\n");
-		return;
-	}
 
 	if (ctrlr == NULL) {
 		nvme_health_info_cleanup(context, true);
@@ -1539,6 +1532,20 @@ get_health_log_page_completion(void *cb_arg, const struct spdk_nvme_cpl *cpl)
 
 	spdk_jsonrpc_end_result(request, w);
 	nvme_health_info_cleanup(context, false);
+}
+
+static void
+get_health_log_page_completion(void *cb_arg, const struct spdk_nvme_cpl *cpl)
+{
+	struct spdk_nvme_health_info_context *context = cb_arg;
+
+	if (spdk_nvme_cpl_is_error(cpl)) {
+		nvme_health_info_cleanup(context, true);
+		SPDK_ERRLOG("get log page failed\n");
+		return;
+	}
+
+	nvme_health_info_send_result(context);
 }
 
 static void
