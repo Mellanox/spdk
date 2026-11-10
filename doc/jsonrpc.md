@@ -5934,7 +5934,9 @@ Display health log of the required NVMe bdev device.
 
 #### Response
 
-The response is the object containing information about health log of the NVMe controller.
+The response is the object containing information about health log of the NVMe controller.  If the
+controller reports the OCP UUID in its UUID List, the response also contains the fields of the OCP
+SMART / Health Information Extended log page.
 
 #### Example
 

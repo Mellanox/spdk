@@ -15,8 +15,10 @@
 #include "spdk/rpc.h"
 #include "spdk/util.h"
 #include "spdk/env.h"
+#include "spdk/endian.h"
 #include "spdk/nvme.h"
 #include "spdk/nvme_spec.h"
+#include "spdk/nvme_ocp.h"
 
 #include "spdk/log.h"
 #include "spdk/bdev_module.h"
@@ -1436,6 +1438,8 @@ struct spdk_nvme_health_info_context {
 	struct spdk_jsonrpc_request *request;
 	struct spdk_nvme_ctrlr *ctrlr;
 	struct spdk_nvme_health_information_page health_page;
+	struct spdk_nvme_ocp_smart_log_page ocp_smart_page;
+	bool ocp_smart_page_valid;
 };
 
 static void
@@ -1457,6 +1461,126 @@ nvme_health_info_cleanup(struct spdk_nvme_health_info_context *context, bool res
 	}
 
 	free(context);
+}
+
+static void
+write_ocp_ascii(struct spdk_json_write_ctx *w, const char *name, const uint8_t *str, size_t len)
+{
+	char buf[65];
+
+	snprintf(buf, sizeof(buf), "%.*s", (int)len, (const char *)str);
+	spdk_str_trim(buf);
+	spdk_json_write_named_string(w, name, buf);
+}
+
+static void
+nvme_health_info_write_ocp_smart(struct spdk_json_write_ctx *w,
+				 const struct spdk_nvme_ocp_smart_log_page *page)
+{
+	struct spdk_uuid build_uuid;
+	uint64_t lifetime_power_consumed = 0;
+
+	spdk_json_write_named_uint128(w, "physical_media_units_written",
+				      page->physical_media_units_written[0],
+				      page->physical_media_units_written[1]);
+	spdk_json_write_named_uint128(w, "physical_media_units_read",
+				      page->physical_media_units_read[0],
+				      page->physical_media_units_read[1]);
+	spdk_json_write_named_uint64(w, "bad_user_nand_blocks_raw", page->bad_user_nand_blocks.raw);
+	spdk_json_write_named_uint64(w, "bad_user_nand_blocks_normalized",
+				     page->bad_user_nand_blocks.normalized);
+	spdk_json_write_named_uint64(w, "bad_system_nand_blocks_raw", page->bad_system_nand_blocks.raw);
+	spdk_json_write_named_uint64(w, "bad_system_nand_blocks_normalized",
+				     page->bad_system_nand_blocks.normalized);
+	spdk_json_write_named_uint64(w, "xor_recovery_count", page->xor_recovery_count);
+	spdk_json_write_named_uint64(w, "uncorrectable_read_error_count",
+				     page->uncorrectable_read_error_count);
+	spdk_json_write_named_uint64(w, "soft_ecc_error_count", page->soft_ecc_error_count);
+	spdk_json_write_named_uint64(w, "end_to_end_detected_errors",
+				     page->end_to_end_correction_counts.detected_errors);
+	spdk_json_write_named_uint64(w, "end_to_end_corrected_errors",
+				     page->end_to_end_correction_counts.corrected_errors);
+	spdk_json_write_named_uint64(w, "system_data_percent_used", page->system_data_percent_used);
+	spdk_json_write_named_uint64(w, "refresh_counts", page->refresh_counts);
+	spdk_json_write_named_uint64(w, "max_user_data_erase_count",
+				     page->user_data_erase_counts.maximum);
+	spdk_json_write_named_uint64(w, "min_user_data_erase_count",
+				     page->user_data_erase_counts.minimum);
+	spdk_json_write_named_uint64(w, "thermal_throttling_events", page->thermal_throttling.events);
+	spdk_json_write_named_uint64(w, "current_throttling_status",
+				     page->thermal_throttling.current_status);
+	spdk_json_write_named_uint64(w, "pcie_correctable_error_count",
+				     page->pcie_correctable_error_count);
+	spdk_json_write_named_uint64(w, "incomplete_shutdowns", page->incomplete_shutdowns);
+	spdk_json_write_named_uint64(w, "percent_free_blocks", page->percent_free_blocks);
+	spdk_json_write_named_uint64(w, "capacitor_health", page->capacitor_health);
+	spdk_json_write_named_uint64(w, "unaligned_io", page->unaligned_io);
+	spdk_json_write_named_uint64(w, "security_version_number", page->security_version_number);
+	spdk_json_write_named_uint64(w, "total_nuse", page->total_nuse);
+	spdk_json_write_named_uint128(w, "plp_start_count",
+				      page->plp_start_count[0], page->plp_start_count[1]);
+	spdk_json_write_named_uint128(w, "endurance_estimate",
+				      page->endurance_estimate[0], page->endurance_estimate[1]);
+	spdk_json_write_named_uint64(w, "log_page_version", page->log_page_version);
+
+	if (page->log_page_version < SPDK_NVME_OCP_SMART_LOG_VERSION_2_0) {
+		return;
+	}
+
+	spdk_json_write_named_string_fmt(w, "dssd_specification_version", "%u.%u.%u.%u",
+					 page->dssd_specification_version.major,
+					 from_le16(page->dssd_specification_version.minor),
+					 from_le16(page->dssd_specification_version.point),
+					 page->dssd_specification_version.errata);
+	write_ocp_ascii(w, "nvme_base_errata_version", &page->nvme_base_errata_version, 1);
+	spdk_json_write_named_uint64(w, "pcie_link_retraining_count", page->pcie_link_retraining_count);
+	spdk_json_write_named_uint64(w, "power_state_change_count", page->power_state_change_count);
+
+	if (page->log_page_version < SPDK_NVME_OCP_SMART_LOG_VERSION_2_5) {
+		return;
+	}
+
+	write_ocp_ascii(w, "nvm_command_set_errata_version", &page->nvm_command_set_errata_version, 1);
+	write_ocp_ascii(w, "lowest_permitted_firmware_revision",
+			page->lowest_permitted_firmware_revision,
+			sizeof(page->lowest_permitted_firmware_revision));
+
+	if (page->log_page_version < SPDK_NVME_OCP_SMART_LOG_VERSION_2_6) {
+		return;
+	}
+
+	write_ocp_ascii(w, "nvme_over_pcie_errata_version", &page->nvme_over_pcie_errata_version, 1);
+	write_ocp_ascii(w, "nvme_mi_errata_version", &page->nvme_mi_errata_version, 1);
+	spdk_json_write_named_uint64(w, "total_media_dies", page->total_media_dies);
+	spdk_json_write_named_uint64(w, "media_die_failure_tolerance",
+				     page->media_die_failure_tolerance);
+	spdk_json_write_named_uint64(w, "media_dies_offline", page->media_dies_offline);
+	spdk_json_write_named_uint64(w, "max_temperature_recorded", page->max_temperature_recorded);
+	spdk_json_write_named_uint64(w, "nand_avg_erase_count", page->nand_avg_erase_count);
+	spdk_json_write_named_uint64(w, "command_timeouts", page->command_timeouts);
+	spdk_json_write_named_uint64(w, "system_area_program_fail_count_raw",
+				     page->system_area_program_fail_count.raw);
+	spdk_json_write_named_uint64(w, "system_area_program_fail_count_normalized",
+				     page->system_area_program_fail_count.normalized);
+	spdk_json_write_named_uint64(w, "system_area_uncorrectable_read_count_raw",
+				     page->system_area_uncorrectable_read_count.raw);
+	spdk_json_write_named_uint64(w, "system_area_uncorrectable_read_count_normalized",
+				     page->system_area_uncorrectable_read_count.normalized);
+	spdk_json_write_named_uint64(w, "system_area_erase_fail_count_raw",
+				     page->system_area_erase_fail_count.raw);
+	spdk_json_write_named_uint64(w, "system_area_erase_fail_count_normalized",
+				     page->system_area_erase_fail_count.normalized);
+	spdk_json_write_named_uint64(w, "max_peak_power_capability", page->max_peak_power_capability);
+	spdk_json_write_named_uint64(w, "current_max_average_power", page->current_max_average_power);
+	memcpy(&lifetime_power_consumed, page->lifetime_power_consumed,
+	       sizeof(page->lifetime_power_consumed));
+	spdk_json_write_named_uint64(w, "lifetime_power_consumed", lifetime_power_consumed);
+	write_ocp_ascii(w, "dssd_firmware_revision", page->dssd_firmware_revision,
+			sizeof(page->dssd_firmware_revision));
+	memcpy(&build_uuid, page->dssd_firmware_build_uuid, sizeof(build_uuid));
+	spdk_json_write_named_uuid(w, "dssd_firmware_build_uuid", &build_uuid);
+	write_ocp_ascii(w, "dssd_firmware_build_label", page->dssd_firmware_build_label,
+			sizeof(page->dssd_firmware_build_label));
 }
 
 static void
@@ -1528,10 +1652,46 @@ nvme_health_info_send_result(struct spdk_nvme_health_info_context *context)
 			spdk_json_write_named_uint64(w, "temperature_sensor_celsius", health_page->temp_sensor[i] - 273);
 		}
 	}
+	if (context->ocp_smart_page_valid) {
+		nvme_health_info_write_ocp_smart(w, &context->ocp_smart_page);
+	}
 	spdk_json_write_object_end(w);
 
 	spdk_jsonrpc_end_result(request, w);
 	nvme_health_info_cleanup(context, false);
+}
+
+static void
+get_ocp_smart_log_page_completion(void *cb_arg, const struct spdk_nvme_cpl *cpl)
+{
+	static const struct spdk_uuid guid = SPDK_UUID(SPDK_NVME_OCP_SMART_LOG_GUID);
+	struct spdk_nvme_health_info_context *context = cb_arg;
+	struct spdk_nvme_ocp_smart_log_page *page = &context->ocp_smart_page;
+
+	context->ocp_smart_page_valid = !spdk_nvme_cpl_is_error(cpl) &&
+					memcmp(page->log_page_guid, &guid, sizeof(guid)) == 0;
+	nvme_health_info_send_result(context);
+}
+
+static void
+get_ocp_smart_log_page(struct spdk_nvme_health_info_context *context)
+{
+	struct spdk_nvme_ctrlr *ctrlr = context->ctrlr;
+	uint32_t index;
+
+	index = spdk_nvme_ctrlr_get_uuid_index(ctrlr, &SPDK_UUID(SPDK_NVME_OCP_UUID));
+	if (index == 0) {
+		nvme_health_info_send_result(context);
+		return;
+	}
+
+	if (spdk_nvme_ctrlr_cmd_get_log_page_ext(ctrlr, SPDK_NVME_OCP_LOG_SMART,
+			SPDK_NVME_GLOBAL_NS_TAG, &context->ocp_smart_page,
+			sizeof(context->ocp_smart_page), 0, 0, 0, index,
+			get_ocp_smart_log_page_completion, context)) {
+		SPDK_ERRLOG("spdk_nvme_ctrlr_cmd_get_log_page_ext() failed\n");
+		nvme_health_info_send_result(context);
+	}
 }
 
 static void
@@ -1545,7 +1705,7 @@ get_health_log_page_completion(void *cb_arg, const struct spdk_nvme_cpl *cpl)
 		return;
 	}
 
-	nvme_health_info_send_result(context);
+	get_ocp_smart_log_page(context);
 }
 
 static void

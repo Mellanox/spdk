@@ -27,6 +27,9 @@ SPDK_STATIC_ASSERT(sizeof(struct spdk_uuid) == 16, "Incorrect size");
 
 #define SPDK_UUID_STRING_LEN 37 /* 36 characters + null terminator */
 
+/** Creates an spdk_uuid from raw bytes */
+#define SPDK_UUID(...) ((struct spdk_uuid){.u.raw = {__VA_ARGS__}})
+
 /**
  * Convert UUID in textual format into a spdk_uuid.
  *
