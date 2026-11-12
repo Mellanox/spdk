@@ -2920,6 +2920,26 @@ struct spdk_nvme_secondary_ctrl_list {
 SPDK_STATIC_ASSERT(sizeof(struct spdk_nvme_secondary_ctrl_list) == 4096, "Incorrect size");
 #pragma pack(pop)
 
+struct spdk_nvme_uuid_list_entry {
+	/** UUID list entry header */
+	struct {
+		/** identifier association */
+		uint8_t idassoc		: 2;
+		uint8_t reserved	: 6;
+	} uleh;
+	uint8_t			reserved[15];
+	/** UUID, cleared to 0h in the entries past the end of the list */
+	uint8_t			uuid[16];
+};
+SPDK_STATIC_ASSERT(sizeof(struct spdk_nvme_uuid_list_entry) == 32, "Incorrect size");
+
+struct spdk_nvme_uuid_list {
+	uint8_t					reserved[32];
+	/** UUID index N selects entries[N - 1] */
+	struct spdk_nvme_uuid_list_entry	entries[127];
+};
+SPDK_STATIC_ASSERT(sizeof(struct spdk_nvme_uuid_list) == 4096, "Incorrect size");
+
 struct spdk_nvme_rescap {
 	/** supports persist through power loss */
 	uint8_t		persist : 1;

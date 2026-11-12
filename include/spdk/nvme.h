@@ -3643,6 +3643,17 @@ uint32_t spdk_nvme_ctrlr_get_max_dataset_management_range_size(struct spdk_nvme_
 uint64_t spdk_nvme_ctrlr_get_max_dataset_management_size(struct spdk_nvme_ctrlr *ctrlr);
 
 /**
+ * Get the UUID Index that selects a UUID in commands such as Get Log Page.
+ *
+ * \param ctrlr Controller to query.
+ * \param uuid UUID to look for in the UUID List of the controller.
+ *
+ * \return the UUID Index, or 0 if the controller doesn't support the UUID.
+ */
+uint32_t spdk_nvme_ctrlr_get_uuid_index(struct spdk_nvme_ctrlr *ctrlr,
+					const struct spdk_uuid *uuid);
+
+/**
  * Get the optimal I/O boundary, in blocks, for the given namespace.
  *
  * Read and write commands should not cross the optimal I/O boundary for best

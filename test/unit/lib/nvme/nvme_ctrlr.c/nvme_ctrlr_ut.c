@@ -434,6 +434,7 @@ static uint32_t *g_active_ns_list = NULL;
 static uint32_t g_active_ns_list_length = 0;
 static struct spdk_nvme_ctrlr_data *g_cdata = NULL;
 static uint64_t g_iocs_combinations[2];
+static struct spdk_nvme_uuid_list g_uuid_list;
 static bool g_fail_next_identify = false;
 
 int
@@ -485,6 +486,8 @@ nvme_ctrlr_cmd_identify(struct spdk_nvme_ctrlr *ctrlr, uint8_t cns, uint16_t cnt
 	} else if (cns == SPDK_NVME_IDENTIFY_IOCS) {
 		CU_ASSERT(cntid == ctrlr->cntlid);
 		memcpy(payload, g_iocs_combinations, sizeof(g_iocs_combinations));
+	} else if (cns == SPDK_NVME_IDENTIFY_UUID_LIST) {
+		memcpy(payload, &g_uuid_list, sizeof(g_uuid_list));
 	}
 
 	fake_cpl_sc(cb_fn, cb_arg);
@@ -2439,6 +2442,8 @@ test_nvme_ctrlr_init_set_nvmf_ioccsz(void)
 
 	ctrlr.state = NVME_CTRLR_STATE_IDENTIFY;
 	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
+	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_IDENTIFY_UUID_LIST);
+	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
 	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_CONFIGURE_AER);
 	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
 	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_SET_KEEP_ALIVE_TIMEOUT);
@@ -2467,6 +2472,8 @@ test_nvme_ctrlr_init_set_nvmf_ioccsz(void)
 	ctrlr.trid.trtype = SPDK_NVME_TRANSPORT_RDMA;
 
 	ctrlr.state = NVME_CTRLR_STATE_IDENTIFY;
+	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
+	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_IDENTIFY_UUID_LIST);
 	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
 	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_CONFIGURE_AER);
 	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
@@ -2499,6 +2506,8 @@ test_nvme_ctrlr_init_set_nvmf_ioccsz(void)
 
 	ctrlr.state = NVME_CTRLR_STATE_IDENTIFY;
 	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
+	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_IDENTIFY_UUID_LIST);
+	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
 	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_CONFIGURE_AER);
 	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
 	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_SET_KEEP_ALIVE_TIMEOUT);
@@ -2529,6 +2538,8 @@ test_nvme_ctrlr_init_set_nvmf_ioccsz(void)
 	ctrlr.trid.trtype = SPDK_NVME_TRANSPORT_FC;
 
 	ctrlr.state = NVME_CTRLR_STATE_IDENTIFY;
+	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
+	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_IDENTIFY_UUID_LIST);
 	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
 	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_CONFIGURE_AER);
 	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
@@ -2561,6 +2572,8 @@ test_nvme_ctrlr_init_set_nvmf_ioccsz(void)
 
 	ctrlr.state = NVME_CTRLR_STATE_IDENTIFY;
 	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
+	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_IDENTIFY_UUID_LIST);
+	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
 	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_CONFIGURE_AER);
 	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
 	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_SET_KEEP_ALIVE_TIMEOUT);
@@ -2589,6 +2602,8 @@ test_nvme_ctrlr_init_set_nvmf_ioccsz(void)
 	ctrlr.trid.trtype = SPDK_NVME_TRANSPORT_CUSTOM_FABRICS;
 
 	ctrlr.state = NVME_CTRLR_STATE_IDENTIFY;
+	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
+	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_IDENTIFY_UUID_LIST);
 	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
 	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_CONFIGURE_AER);
 	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
@@ -2625,6 +2640,8 @@ test_nvme_ctrlr_init_set_num_queues(void)
 	SPDK_CU_ASSERT_FATAL(nvme_ctrlr_construct(&ctrlr) == 0);
 
 	ctrlr.state = NVME_CTRLR_STATE_IDENTIFY;
+	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
+	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_IDENTIFY_UUID_LIST);
 	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
 	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_CONFIGURE_AER);
 	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
@@ -2793,6 +2810,69 @@ test_nvme_ctrlr_init_identify_iocs(void)
 	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_SET_NUM_QUEUES);
 	CU_ASSERT(ctrlr.cdata_kv != NULL);
 	memset(g_iocs_combinations, 0, sizeof(g_iocs_combinations));
+
+	nvme_ctrlr_destruct(&ctrlr);
+}
+
+static void
+test_nvme_ctrlr_init_identify_uuid_list(void)
+{
+	struct spdk_uuid uuid;
+	uint32_t i;
+	DECLARE_AND_CONSTRUCT_CTRLR();
+
+	SPDK_CU_ASSERT_FATAL(nvme_ctrlr_construct(&ctrlr) == 0);
+
+	/* Controller without UUID List support: no Identify UUID List */
+	ctrlr.state = NVME_CTRLR_STATE_IDENTIFY_UUID_LIST;
+	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
+	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_CONFIGURE_AER);
+	CU_ASSERT(ctrlr.uuid_list == NULL);
+	memset(&uuid, 0x11, sizeof(uuid));
+	CU_ASSERT(spdk_nvme_ctrlr_get_uuid_index(&ctrlr, &uuid) == 0);
+
+	/* The list ends at the first entry with the UUID cleared to 0h */
+	ctrlr.cdata.ctratt.bits.uuid_list = 1;
+	memset(g_uuid_list.entries[0].uuid, 0x11, sizeof(g_uuid_list.entries[0].uuid));
+	memset(g_uuid_list.entries[1].uuid, 0x22, sizeof(g_uuid_list.entries[1].uuid));
+	memset(g_uuid_list.entries[3].uuid, 0x44, sizeof(g_uuid_list.entries[3].uuid));
+	ctrlr.state = NVME_CTRLR_STATE_IDENTIFY_UUID_LIST;
+	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
+	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_CONFIGURE_AER);
+	memset(&uuid, 0x11, sizeof(uuid));
+	CU_ASSERT(spdk_nvme_ctrlr_get_uuid_index(&ctrlr, &uuid) == 1);
+	memset(&uuid, 0x22, sizeof(uuid));
+	CU_ASSERT(spdk_nvme_ctrlr_get_uuid_index(&ctrlr, &uuid) == 2);
+	memset(&uuid, 0x44, sizeof(uuid));
+	CU_ASSERT(spdk_nvme_ctrlr_get_uuid_index(&ctrlr, &uuid) == 0);
+	nvme_ctrlr_free_uuid_list(&ctrlr);
+
+	/* A full list has no terminating entry */
+	for (i = 0; i < SPDK_COUNTOF(g_uuid_list.entries); i++) {
+		memset(g_uuid_list.entries[i].uuid, i + 1, sizeof(g_uuid_list.entries[i].uuid));
+	}
+	ctrlr.state = NVME_CTRLR_STATE_IDENTIFY_UUID_LIST;
+	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
+	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_CONFIGURE_AER);
+	memset(&uuid, SPDK_COUNTOF(g_uuid_list.entries), sizeof(uuid));
+	CU_ASSERT(spdk_nvme_ctrlr_get_uuid_index(&ctrlr, &uuid) == SPDK_COUNTOF(g_uuid_list.entries));
+	memset(&uuid, SPDK_COUNTOF(g_uuid_list.entries) + 1, sizeof(uuid));
+	CU_ASSERT(spdk_nvme_ctrlr_get_uuid_index(&ctrlr, &uuid) == 0);
+	nvme_ctrlr_free_uuid_list(&ctrlr);
+
+	/* Identify UUID List failure fails the controller */
+	set_status_code = SPDK_NVME_SC_INVALID_FIELD;
+	ctrlr.state = NVME_CTRLR_STATE_IDENTIFY_UUID_LIST;
+	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
+	CU_ASSERT(ctrlr.state == NVME_CTRLR_STATE_ERROR);
+	CU_ASSERT(ctrlr.uuid_list == NULL);
+	set_status_code = SPDK_NVME_SC_SUCCESS;
+
+	/* The list is freed when the controller is destructed */
+	ctrlr.state = NVME_CTRLR_STATE_IDENTIFY_UUID_LIST;
+	CU_ASSERT(nvme_ctrlr_process_init(&ctrlr) == 0);
+	CU_ASSERT(ctrlr.uuid_list != NULL);
+	memset(&g_uuid_list, 0, sizeof(g_uuid_list));
 
 	nvme_ctrlr_destruct(&ctrlr);
 }
@@ -3823,6 +3903,7 @@ main(int argc, char **argv)
 	CU_ADD_TEST(suite, test_nvme_ctrlr_reset_num_queues);
 	CU_ADD_TEST(suite, test_nvme_ctrlr_init_set_keep_alive_timeout);
 	CU_ADD_TEST(suite, test_nvme_ctrlr_init_identify_iocs);
+	CU_ADD_TEST(suite, test_nvme_ctrlr_init_identify_uuid_list);
 	CU_ADD_TEST(suite, test_alloc_io_qpair_fail);
 	CU_ADD_TEST(suite, test_nvme_ctrlr_add_remove_process);
 	CU_ADD_TEST(suite, test_nvme_ctrlr_set_arbitration_feature);

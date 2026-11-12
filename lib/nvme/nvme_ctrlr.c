@@ -1488,6 +1488,10 @@ nvme_ctrlr_state_string(enum nvme_ctrlr_state state)
 		return "identify controller";
 	case NVME_CTRLR_STATE_WAIT_FOR_IDENTIFY:
 		return "wait for identify controller";
+	case NVME_CTRLR_STATE_IDENTIFY_UUID_LIST:
+		return "identify uuid list";
+	case NVME_CTRLR_STATE_WAIT_FOR_IDENTIFY_UUID_LIST:
+		return "wait for identify uuid list";
 	case NVME_CTRLR_STATE_CONFIGURE_AER:
 		return "configure AER";
 	case NVME_CTRLR_STATE_WAIT_FOR_CONFIGURE_AER:
@@ -1660,6 +1664,13 @@ nvme_ctrlr_free_iocs_specific_data(struct spdk_nvme_ctrlr *ctrlr)
 }
 
 static void
+nvme_ctrlr_free_uuid_list(struct spdk_nvme_ctrlr *ctrlr)
+{
+	spdk_free(ctrlr->uuid_list);
+	ctrlr->uuid_list = NULL;
+}
+
+static void
 nvme_ctrlr_free_doorbell_buffer(struct spdk_nvme_ctrlr *ctrlr)
 {
 	if (ctrlr->shadow_doorbell) {
@@ -1814,6 +1825,8 @@ nvme_ctrlr_disconnect_done(struct spdk_nvme_ctrlr *ctrlr)
 
 	/* I/O Command Set Specific Identify Controller data is invalidated during reset */
 	nvme_ctrlr_free_iocs_specific_data(ctrlr);
+
+	nvme_ctrlr_free_uuid_list(ctrlr);
 
 	spdk_bit_array_free(&ctrlr->free_io_qids);
 
@@ -2192,7 +2205,7 @@ nvme_ctrlr_identify_done(void *arg, const struct spdk_nvme_cpl *cpl)
 		ctrlr->flags |= SPDK_NVME_CTRLR_COMPARE_AND_WRITE_SUPPORTED;
 	}
 
-	nvme_ctrlr_set_state(ctrlr, NVME_CTRLR_STATE_CONFIGURE_AER,
+	nvme_ctrlr_set_state(ctrlr, NVME_CTRLR_STATE_IDENTIFY_UUID_LIST,
 			     ctrlr->opts.admin_timeout_ms);
 }
 
@@ -2210,6 +2223,83 @@ nvme_ctrlr_identify(struct spdk_nvme_ctrlr *ctrlr)
 	if (rc != 0) {
 		nvme_ctrlr_set_state(ctrlr, NVME_CTRLR_STATE_ERROR, NVME_TIMEOUT_INFINITE);
 		return rc;
+	}
+
+	return 0;
+}
+
+static void
+nvme_ctrlr_identify_uuid_list_done(void *arg, const struct spdk_nvme_cpl *cpl)
+{
+	struct spdk_nvme_ctrlr *ctrlr = arg;
+
+	if (spdk_nvme_cpl_is_error(cpl)) {
+		NVME_CTRLR_ERRLOG(ctrlr, "Identify UUID List failed: SC %x SCT %x\n",
+				  cpl->status.sc, cpl->status.sct);
+		nvme_ctrlr_free_uuid_list(ctrlr);
+		nvme_ctrlr_set_state(ctrlr, NVME_CTRLR_STATE_ERROR, NVME_TIMEOUT_INFINITE);
+		return;
+	}
+
+	nvme_ctrlr_set_state(ctrlr, NVME_CTRLR_STATE_CONFIGURE_AER,
+			     ctrlr->opts.admin_timeout_ms);
+}
+
+static int
+nvme_ctrlr_identify_uuid_list(struct spdk_nvme_ctrlr *ctrlr)
+{
+	int rc;
+
+	if (!ctrlr->cdata.ctratt.bits.uuid_list) {
+		nvme_ctrlr_set_state(ctrlr, NVME_CTRLR_STATE_CONFIGURE_AER,
+				     ctrlr->opts.admin_timeout_ms);
+		return 0;
+	}
+
+	assert(!ctrlr->uuid_list);
+	ctrlr->uuid_list = spdk_zmalloc(sizeof(*ctrlr->uuid_list), 64, NULL, SPDK_ENV_NUMA_ID_ANY,
+					SPDK_MALLOC_SHARE | SPDK_MALLOC_DMA);
+	if (!ctrlr->uuid_list) {
+		rc = -ENOMEM;
+		goto error;
+	}
+
+	nvme_ctrlr_set_state(ctrlr, NVME_CTRLR_STATE_WAIT_FOR_IDENTIFY_UUID_LIST,
+			     ctrlr->opts.admin_timeout_ms);
+
+	rc = nvme_ctrlr_cmd_identify(ctrlr, SPDK_NVME_IDENTIFY_UUID_LIST, 0, 0, 0,
+				     ctrlr->uuid_list, sizeof(*ctrlr->uuid_list),
+				     nvme_ctrlr_identify_uuid_list_done, ctrlr);
+	if (rc != 0) {
+		goto error;
+	}
+
+	return 0;
+
+error:
+	nvme_ctrlr_set_state(ctrlr, NVME_CTRLR_STATE_ERROR, NVME_TIMEOUT_INFINITE);
+	nvme_ctrlr_free_uuid_list(ctrlr);
+	return rc;
+}
+
+uint32_t
+spdk_nvme_ctrlr_get_uuid_index(struct spdk_nvme_ctrlr *ctrlr, const struct spdk_uuid *uuid)
+{
+	struct spdk_uuid *current;
+	uint32_t i;
+
+	if (!ctrlr->uuid_list) {
+		return 0;
+	}
+
+	for (i = 0; i < SPDK_COUNTOF(ctrlr->uuid_list->entries); i++) {
+		current = (void *)ctrlr->uuid_list->entries[i].uuid;
+		if (spdk_uuid_is_null(current)) {
+			break;
+		}
+		if (spdk_uuid_compare(uuid, current) == 0) {
+			return i + 1;
+		}
 	}
 
 	return 0;
@@ -4528,6 +4618,10 @@ nvme_ctrlr_process_init(struct spdk_nvme_ctrlr *ctrlr)
 		rc = nvme_ctrlr_identify(ctrlr);
 		break;
 
+	case NVME_CTRLR_STATE_IDENTIFY_UUID_LIST:
+		rc = nvme_ctrlr_identify_uuid_list(ctrlr);
+		break;
+
 	case NVME_CTRLR_STATE_CONFIGURE_AER:
 		rc = nvme_ctrlr_configure_aer(ctrlr);
 		break;
@@ -4630,6 +4724,7 @@ nvme_ctrlr_process_init(struct spdk_nvme_ctrlr *ctrlr)
 	case NVME_CTRLR_STATE_ENABLE_WAIT_FOR_CC:
 	case NVME_CTRLR_STATE_ENABLE_WAIT_FOR_READY_1_WAIT_FOR_CSTS:
 	case NVME_CTRLR_STATE_WAIT_FOR_IDENTIFY:
+	case NVME_CTRLR_STATE_WAIT_FOR_IDENTIFY_UUID_LIST:
 	case NVME_CTRLR_STATE_WAIT_FOR_CONFIGURE_AER:
 	case NVME_CTRLR_STATE_WAIT_FOR_KEEP_ALIVE_TIMEOUT:
 	case NVME_CTRLR_STATE_WAIT_FOR_IDENTIFY_IOCS:
@@ -4832,6 +4927,7 @@ nvme_ctrlr_destruct_async(struct spdk_nvme_ctrlr *ctrlr,
 
 	nvme_ctrlr_free_doorbell_buffer(ctrlr);
 	nvme_ctrlr_free_iocs_specific_data(ctrlr);
+	nvme_ctrlr_free_uuid_list(ctrlr);
 
 	nvme_ctrlr_shutdown_async(ctrlr, ctx);
 }

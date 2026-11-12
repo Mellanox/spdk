@@ -132,6 +132,7 @@
 	spdk_nvme_ctrlr_get_max_dataset_management_ranges;
 	spdk_nvme_ctrlr_get_max_dataset_management_range_size;
 	spdk_nvme_ctrlr_get_max_dataset_management_size;
+	spdk_nvme_ctrlr_get_uuid_index;
 
 	spdk_nvme_poll_group_create;
 	spdk_nvme_poll_group_add;

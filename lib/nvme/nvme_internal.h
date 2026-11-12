@@ -812,6 +812,16 @@ enum nvme_ctrlr_state {
 	NVME_CTRLR_STATE_WAIT_FOR_IDENTIFY,
 
 	/**
+	 * Get Identify UUID List data structure.
+	 */
+	NVME_CTRLR_STATE_IDENTIFY_UUID_LIST,
+
+	/**
+	 * Waiting for Identify UUID List to be completed.
+	 */
+	NVME_CTRLR_STATE_WAIT_FOR_IDENTIFY_UUID_LIST,
+
+	/**
 	 * Configure AER of the controller.
 	 */
 	NVME_CTRLR_STATE_CONFIGURE_AER,
@@ -1170,6 +1180,11 @@ struct spdk_nvme_ctrlr {
 	 * Zoned Namespace Command Set Specific Identify Controller data.
 	 */
 	struct spdk_nvme_zns_ctrlr_data	*cdata_zns;
+
+	/**
+	 * UUID List, if the controller supports it.
+	 */
+	struct spdk_nvme_uuid_list	*uuid_list;
 
 	/**
 	 * Mask of I/O Command Sets supported by the controller (bit N set means CSI N is supported).
