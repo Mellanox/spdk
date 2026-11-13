@@ -645,6 +645,11 @@ struct spdk_nvme_tcp_stat {
 	uint64_t received_data_iovs;
 	uint64_t max_data_iovs_per_pdu;
 	uint64_t rx_iov_fallbacks;
+	/* IO qpairs: mallocs because this poll group's buffer array was empty. */
+	uint64_t rx_buf_fallbacks;
+	/* Admin qpairs are not members of an IO poll group. Poll-group stats report
+	 * the process-wide admin-pool malloc count in this field. */
+	uint64_t admin_rx_buf_fallbacks;
 	uint64_t recv_ddgsts;
 	uint64_t send_ddgsts;
 };

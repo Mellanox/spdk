@@ -260,6 +260,10 @@ SPDK_STATIC_ASSERT(NVME_TCP_MAX_R2T_DEFAULT <= UINT8_MAX,
 static pthread_mutex_t g_xlio_pool_mutex = PTHREAD_MUTEX_INITIALIZER;
 static STAILQ_HEAD(, xlio_packets_pool) g_xlio_packets_pools = STAILQ_HEAD_INITIALIZER(
 			g_xlio_packets_pools);
+/* Incremented on the admin receive path and read from poll-group stats on
+ * another thread. Both sides use relaxed atomics so the counter is race-free
+ * without taking g_xlio_admin_group_lock at the export site. */
+static uint64_t g_xlio_admin_rx_buf_fallbacks;
 static struct spdk_mempool *g_iovec_pool = NULL;
 static pthread_mutex_t g_xlio_admin_group_mutex = PTHREAD_MUTEX_INITIALIZER;
 static struct spdk_spinlock g_xlio_admin_group_lock;
@@ -1506,7 +1510,14 @@ xlio_sock_recv_zcopy(struct nvme_tcp_qpair *tqpair, size_t len, struct xlio_sock
 			bool admin = nvme_qpair_is_admin_queue(&tqpair->qpair);
 
 			buf = calloc(1, sizeof(*buf));
-			if (spdk_unlikely(!buf)) {
+			if (spdk_likely(buf != NULL)) {
+				if (admin) {
+					__atomic_fetch_add(&g_xlio_admin_rx_buf_fallbacks, 1,
+							   __ATOMIC_RELAXED);
+				} else if (tqpair->stats != NULL) {
+					tqpair->stats->rx_buf_fallbacks++;
+				}
+			} else {
 				SPDK_DEBUGLOG(nvme_xlio, "tqpair %p: no more buffers, total_len %d\n", tqpair, ret);
 				if (spdk_unlikely(group && !tqpair->flags.pending_events)) {
 					tqpair->flags.pending_events = true;
@@ -5514,6 +5525,10 @@ nvme_tcp_poll_group_get_stats(struct spdk_nvme_transport_poll_group *tgroup,
 	stats->trtype = SPDK_NVME_TRANSPORT_CUSTOM_FABRICS;
 	snprintf(stats->trname, SPDK_NVMF_TRSTRING_MAX_LEN, "%s", "NVDA_TCP");
 	memcpy(&stats->tcp, &group->stats, sizeof(group->stats));
+	/* Admin qpairs do not belong to this group. Publish the process-wide
+	 * admin pool fallback count beside the per-group IO count. */
+	stats->tcp.admin_rx_buf_fallbacks =
+		__atomic_load_n(&g_xlio_admin_rx_buf_fallbacks, __ATOMIC_RELAXED);
 
 	*_stats = stats;
 
