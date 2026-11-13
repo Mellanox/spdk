@@ -251,6 +251,7 @@ static struct spdk_spinlock g_xlio_admin_group_lock;
 static bool g_xlio_admin_group_lock_initialized = false;
 static struct xlio_shared_group g_xlio_admin_group;
 static uint32_t g_xlio_buffers_pool_refs;
+static uint32_t g_xlio_iovec_pool_refs;
 
 static int xlio_sock_close(struct nvme_tcp_qpair *qpair);
 static void _pdu_write_done(struct nvme_tcp_qpair *tqpair, struct nvme_tcp_pdu *pdu, int err);
@@ -260,6 +261,7 @@ static void nvme_tcp_qpair_process_pending_events(struct nvme_tcp_qpair *tqpair)
 static void nvme_tcp_qpair_connect_sock_done(struct nvme_tcp_qpair *qpair, int err);
 static int xlio_sock_group_create(xlio_poll_group_t *group, unsigned int flags);
 static void xlio_sock_put_buffers_pool_unsafe(void);
+static void xlio_sock_put_iovec_pool_unsafe(void);
 static void xlio_sock_put_packets_pool_unsafe(struct xlio_packets_pool *pool);
 
 static void
@@ -273,6 +275,7 @@ xlio_sock_put_xlio_pools(struct nvme_tcp_qpair *tqpair)
 	xlio_sock_put_packets_pool_unsafe(tqpair->xlio_packets_pool);
 	tqpair->xlio_packets_pool = NULL;
 	xlio_sock_put_buffers_pool_unsafe();
+	xlio_sock_put_iovec_pool_unsafe();
 	pthread_mutex_unlock(&g_xlio_pool_mutex);
 }
 
@@ -325,18 +328,6 @@ xlio_sock_get_buffers_pool_unsafe(uint32_t buffers_pool_size)
 		return -ENOMEM;
 	}
 
-	g_iovec_pool = spdk_mempool_create("nvda_iovec_pool",
-					   buffers_pool_size,
-					   sizeof(struct iovec) * MAX_RX_IOVS,
-					   SPDK_MEMPOOL_DEFAULT_CACHE_SIZE,
-					   SPDK_ENV_SOCKET_ID_ANY);
-	if (!g_iovec_pool) {
-		SPDK_ERRLOG("Failed to create iovec pool\n");
-		spdk_mempool_free(g_xlio_nvme_buffers_pool);
-		g_xlio_nvme_buffers_pool = NULL;
-		return -ENOMEM;
-	}
-
 	SPDK_NOTICELOG("Create xlio buffers pool, buffers_pool_size %u\n", buffers_pool_size);
 
 	g_xlio_buffers_pool_refs = 1;
@@ -355,10 +346,42 @@ xlio_sock_put_buffers_pool_unsafe(void)
 			spdk_mempool_free(g_xlio_nvme_buffers_pool);
 			g_xlio_nvme_buffers_pool = NULL;
 		}
-		if (g_iovec_pool != NULL) {
-			spdk_mempool_free(g_iovec_pool);
-			g_iovec_pool = NULL;
-		}
+	}
+}
+
+/* g_xlio_pool_mutex must be held. */
+static int
+xlio_sock_get_iovec_pool_unsafe(uint32_t count)
+{
+	if (g_iovec_pool) {
+		g_xlio_iovec_pool_refs++;
+		return 0;
+	}
+
+	g_iovec_pool = spdk_mempool_create("nvda_iovec_pool",
+					   count,
+					   sizeof(struct iovec) * MAX_RX_IOVS,
+					   SPDK_MEMPOOL_DEFAULT_CACHE_SIZE,
+					   SPDK_ENV_SOCKET_ID_ANY);
+	if (!g_iovec_pool) {
+		SPDK_ERRLOG("Failed to create iovec pool\n");
+		return -ENOMEM;
+	}
+
+	g_xlio_iovec_pool_refs = 1;
+	return 0;
+}
+
+/* g_xlio_pool_mutex must be held. */
+static void
+xlio_sock_put_iovec_pool_unsafe(void)
+{
+	assert(g_xlio_iovec_pool_refs > 0);
+
+	g_xlio_iovec_pool_refs--;
+	if (g_xlio_iovec_pool_refs == 0 && g_iovec_pool != NULL) {
+		spdk_mempool_free(g_iovec_pool);
+		g_iovec_pool = NULL;
 	}
 }
 
@@ -445,6 +468,13 @@ xlio_sock_alloc(struct nvme_tcp_qpair *tqpair, struct spdk_sock_impl_opts *xlio_
 	}
 
 	if (xlio_sock_get_buffers_pool_unsafe(xlio_opts->buffers_pool_size)) {
+		xlio_sock_put_packets_pool_unsafe(pool);
+		pthread_mutex_unlock(&g_xlio_pool_mutex);
+		return -ENOMEM;
+	}
+
+	if (xlio_sock_get_iovec_pool_unsafe(xlio_opts->buffers_pool_size)) {
+		xlio_sock_put_buffers_pool_unsafe();
 		xlio_sock_put_packets_pool_unsafe(pool);
 		pthread_mutex_unlock(&g_xlio_pool_mutex);
 		return -ENOMEM;
@@ -1292,6 +1322,12 @@ xlio_sock_poll_group_create(struct nvme_tcp_poll_group *group)
 	if (num_buffers != 0) {
 		pthread_mutex_lock(&g_xlio_pool_mutex);
 		rc = xlio_sock_get_buffers_pool_unsafe(num_buffers);
+		if (rc == 0) {
+			rc = xlio_sock_get_iovec_pool_unsafe(num_buffers);
+			if (rc != 0) {
+				xlio_sock_put_buffers_pool_unsafe();
+			}
+		}
 		pthread_mutex_unlock(&g_xlio_pool_mutex);
 		if (rc != 0) {
 			SPDK_ERRLOG("Failed to allocated buffers pool for group %p\n", group);
@@ -5322,6 +5358,7 @@ nvme_tcp_poll_group_destroy(struct spdk_nvme_transport_poll_group *tgroup)
 	if (group->impl_opts.buffers_pool_size != 0) {
 		pthread_mutex_lock(&g_xlio_pool_mutex);
 		xlio_sock_put_buffers_pool_unsafe();
+		xlio_sock_put_iovec_pool_unsafe();
 		pthread_mutex_unlock(&g_xlio_pool_mutex);
 	}
 
