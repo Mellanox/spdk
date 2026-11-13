@@ -366,6 +366,7 @@ hello_sock_connect(struct hello_context_t *ctx)
 	ctx->sock = spdk_sock_connect(ctx->host, ctx->port, &opts);
 	if (ctx->sock == NULL) {
 		SPDK_ERRLOG("connect error(%d): %s\n", errno, spdk_strerror(errno));
+		spdk_sock_group_close(&ctx->group);
 		return -1;
 	}
 
@@ -388,6 +389,7 @@ hello_sock_connect(struct hello_context_t *ctx)
 	return 0;
 err:
 	spdk_sock_close(&ctx->sock);
+	spdk_sock_group_close(&ctx->group);
 	return -1;
 }
 
