@@ -2970,11 +2970,7 @@ nvmf_rdma_request_chunk_cost(struct spdk_nvmf_rdma_transport *rtransport,
 	struct spdk_nvmf_ns *ns;
 	uint32_t chunks;
 
-	/* iobuf serves anything up to small_bufsize from the small pool, so a request
-	 * that fits there never takes a large buffer and is not charged.
-	 */
 	if (!rdma_req->req.use_memory_domain ||
-	    rdma_req->req.length <= rtransport->small_bufsize ||
 	    spdk_unlikely(rtransport->large_bufsize == 0)) {
 		return 0;
 	}
