@@ -125,18 +125,7 @@ spdk_rand_xorshift64(uint64_t *state)
  *
  * \return a random 64-bit seed value(non-zero).
  */
-static inline uint64_t
-spdk_rand_xorshift64_seed(void)
-{
-	uint64_t seed = ((uint64_t)rand() << 32) | rand();
-
-	/* Avoid zero seed */
-	if (seed == 0) {
-		seed = 1;
-	}
-
-	return seed;
-}
+uint64_t spdk_rand_xorshift64_seed(void);
 
 static inline uint32_t
 spdk_align32pow2(uint32_t x)
