@@ -1815,6 +1815,41 @@ nvme_tcp_qpair_print_reqs_info(struct nvme_tcp_qpair *tqpair)
 		       reqs, in_accel, max_age_tsc * 1000 / ticks_hz);
 }
 
+/* Close only after no outstanding_reqs is pending. Returns true once the
+ * socket is closed. */
+static bool
+nvme_tcp_qpair_disconnect_close(struct nvme_tcp_qpair *tqpair)
+{
+	struct spdk_nvme_qpair *qpair = &tqpair->qpair;
+
+	if (tqpair->flags.closed) {
+		return true;
+	}
+
+	if (tqpair->zcopy_tx_pdus != 0) {
+		SPDK_DEBUGLOG(nvme,
+			      "qpair %p %u: defer close, zcopy_tx_pdus %u\n",
+			      tqpair, qpair->id, tqpair->zcopy_tx_pdus);
+		return false;
+	}
+
+	nvme_tcp_qpair_abort_reqs(qpair, qpair->abort_dnr);
+
+	if (tqpair->consumed_packets != 0 || !TAILQ_EMPTY(&tqpair->outstanding_reqs)) {
+		SPDK_DEBUGLOG(nvme,
+			      "qpair %p %u: defer close, consumed_packets %u\n",
+			      tqpair, qpair->id, tqpair->consumed_packets);
+		return false;
+	}
+
+	nvme_qpair_disconnect_release_xlio_packets(tqpair);
+	if (xlio_sock_close(tqpair) != 0) {
+		return false;
+	}
+
+	return true;
+}
+
 static void
 nvme_tcp_ctrlr_disconnect_qpair(struct spdk_nvme_ctrlr *ctrlr, struct spdk_nvme_qpair *qpair)
 {
@@ -1838,19 +1873,7 @@ nvme_tcp_ctrlr_disconnect_qpair(struct spdk_nvme_ctrlr *ctrlr, struct spdk_nvme_
 
 	nvme_tcp_qpair_print_reqs_info(tqpair);
 	tqpair->flags.stop_receiving = 1;
-
-	if (tqpair->zcopy_tx_pdus == 0) {
-		nvme_tcp_qpair_abort_reqs(qpair, qpair->abort_dnr);
-		if (tqpair->consumed_packets == 0) {
-			nvme_qpair_disconnect_release_xlio_packets(tqpair);
-			xlio_sock_close(tqpair);
-		}
-	} else {
-		SPDK_DEBUGLOG(nvme,
-			      "qpair %p %u: defer close, consumed_packets %u, zcopy_tx_pdus %u\n",
-			      tqpair, qpair->id, tqpair->consumed_packets,
-			      tqpair->zcopy_tx_pdus);
-	}
+	nvme_tcp_qpair_disconnect_close(tqpair);
 
 	nvme_tcp_qpair_set_recv_quiescing(tqpair);
 
@@ -4579,6 +4602,10 @@ nvme_tcp_qpair_process_completions(struct spdk_nvme_qpair *qpair, uint32_t max_c
 	spdk_spin_lock(&g_xlio_admin_group_lock);
 
 	if (tqpair->state >= NVME_TCP_QPAIR_STATE_SOCK_CONNECTED) {
+		if (nvme_qpair_get_state(qpair) == NVME_QPAIR_DISCONNECTING &&
+		    !tqpair->flags.closed) {
+			nvme_tcp_qpair_disconnect_close(tqpair);
+		}
 		if (tqpair->flags.closed) {
 			if (nvme_qpair_get_state(qpair) != NVME_QPAIR_DISCONNECTING) {
 				SPDK_ERRLOG("tqpair=%p sock 0x%lx is closed: errno %d(%s)\n",
@@ -5289,33 +5316,21 @@ nvme_tcp_poll_group_process_completions(struct spdk_nvme_transport_poll_group *t
 	num_events = xlio_sock_group_impl_poll(group, MAX_EVENTS_PER_POLL);
 
 	STAILQ_FOREACH_SAFE(qpair, &tgroup->disconnected_qpairs, poll_group_stailq, tmp_qpair) {
+		bool admin = nvme_qpair_is_admin_queue(qpair);
+		bool closed;
+
 		tqpair = nvme_tcp_qpair(qpair);
-		if (tqpair->zcopy_tx_pdus > 0) {
-			SPDK_DEBUGLOG(nvme,
-				      "qpair %p %u, sock 0x%lx: defer close, zcopy_tx_pdus %u\n",
-				      tqpair, qpair->id, tqpair->xlio_sock, tqpair->zcopy_tx_pdus);
-			continue;
+		/* poll_group_add and poll_group_disconnect_qpair place admin qpairs
+		 * here without g_xlio_admin_group_lock. xlio_sock_close() asserts it. */
+		if (admin) {
+			spdk_spin_lock(&g_xlio_admin_group_lock);
 		}
-
-		nvme_tcp_qpair_abort_reqs(qpair, qpair->abort_dnr);
-
-		if (tqpair->consumed_packets > 0) {
-			SPDK_DEBUGLOG(nvme,
-				      "qpair %p %u, sock 0x%lx: defer close, consumed_packets %u\n",
-				      tqpair, qpair->id, tqpair->xlio_sock,
-				      tqpair->consumed_packets);
-			continue;
+		closed = nvme_tcp_qpair_disconnect_close(tqpair);
+		if (admin) {
+			spdk_spin_unlock(&g_xlio_admin_group_lock);
 		}
-
-		nvme_qpair_disconnect_release_xlio_packets(tqpair);
-
-		if (!tqpair->flags.closed) {
-			int rc = xlio_sock_close(tqpair);
-			if (rc) {
-				SPDK_DEBUGLOG(nvme, "qpair %p %u: fail to close sock 0x%lx\n",
-					      tqpair, qpair->id, tqpair->xlio_sock);
-				continue;
-			}
+		if (!closed) {
+			continue;
 		}
 
 		if (nvme_qpair_get_state(qpair) == NVME_QPAIR_DISCONNECTING) {
