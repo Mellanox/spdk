@@ -4473,6 +4473,15 @@ nvme_tcp_read_pdu(struct nvme_tcp_qpair *tqpair, uint32_t *reaped, uint32_t max_
 			break;
 		case NVME_TCP_PDU_RECV_STATE_QUIESCING:
 			if (TAILQ_EMPTY(&tqpair->outstanding_reqs)) {
+				/* Close can stay deferred while a zcopy send or a consumed
+				 * packet still holds the socket. Marking the qpair
+				 * disconnected before that lets it leave the poll group
+				 * and drop the buffer pool underneath the socket. */
+				if (nvme_qpair_get_state(&tqpair->qpair) == NVME_QPAIR_DISCONNECTING &&
+				    !tqpair->flags.closed &&
+				    !nvme_tcp_qpair_disconnect_close(tqpair)) {
+					break;
+				}
 				if (nvme_qpair_get_state(&tqpair->qpair) == NVME_QPAIR_DISCONNECTING) {
 					nvme_transport_ctrlr_disconnect_qpair_done(&tqpair->qpair);
 				}
