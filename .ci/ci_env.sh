@@ -19,10 +19,9 @@ export CI_ENV_DOCA_RUNTIME_TAG="full-rt-3.6.0-ubuntu24.04-dev"
 export CI_ENV_DOCA_BUILDER_TAG="devel-3.6.0-ubuntu24.04-dev"
 
 # Jenkins JNLP image
-# https://nvbugspro.nvidia.com/bug/5115436
-# https://gitlab-master.nvidia.com/nbu-sw-cd/docker-images/-/blob/master/c3po-jnlp/Dockerfile
-export CI_ENV_JNLP_X86="nbu-harbor.gtm.nvidia.com/toolbox/c3po-jnlp"
-export CI_ENV_JNLP_AARCH64="nbu-harbor.gtm.nvidia.com/toolbox/c3po-jnlp"
+# https://nvidia.atlassian.net/wiki/spaces/BLOS/pages/2147280243/Custom+JNLP+Images
+export CI_ENV_JNLP_X86="artifactory.nvidia.com/sw-ipp-blossom-sre-docker-local/blossom/custom-jnlp-agent:jdk21-java4shell-fix-r2"
+export CI_ENV_JNLP_AARCH64="artifactory.nvidia.com/sw-ipp-blossom-sre-docker-local/blossom/custom-jnlp-agent:jdk21-java4shell-fix-r2"
 
 # Jenkins Docker image
 export CI_ENV_DOCKER_X86="urm.nvidia.com/quay-remote/podman/stable:v5.3.2"
