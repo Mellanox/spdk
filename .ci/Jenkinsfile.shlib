@@ -17,7 +17,7 @@ podTemplate(
     containers: [
         containerTemplate(
             name: 'jnlp',
-            image: 'nbu-harbor.gtm.nvidia.com/swx-storage/arc/amd64/swx-storage-jnlp:20250519-1',
+            image: 'nbu-harbor.gtm.nvidia.com/swx-storage/arc/amd64/swx-storage-jnlp:20261127-3',
             args: '${computer.jnlpmac} ${computer.name}'
         )
     ]
